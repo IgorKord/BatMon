@@ -1,0 +1,23 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29215.179
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ATMEL", "ATMEL.vcxproj", "{9E8D8E94-9FC4-8261-C3F1-9AFACD7612F8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9E8D8E94-9FC4-8261-C3F1-9AFACD7612F8}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9E8D8E94-9FC4-8261-C3F1-9AFACD7612F8}.Debug|Win32.Build.0 = Debug|Win32
+		{9E8D8E94-9FC4-8261-C3F1-9AFACD7612F8}.Release|Win32.ActiveCfg = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6887F6B5-6C70-469D-9E93-C59A29BB084C}
+	EndGlobalSection
+EndGlobal

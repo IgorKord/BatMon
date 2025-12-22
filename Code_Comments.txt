@@ -1,0 +1,1260 @@
+20251219 IK
+working on switching protocols via menu.
+Added to the Front_menu protocol change functions.
+changed PC_SUPP.c so keyboard pressed char goes to simulated UART Rx register, and called for simulation UART Rx Interrupt
+Changed receiving, recognizing and parsing of SETUP commands.
+NEED testing on BM!
+>>>TO_DO>>> get rid of two-stage parsing: recognize command, set what response to send as a variable 'send_setup', then send response in a separate function
+
+20251120
+>>BUG>>> the simulation and atmel code causing HBAT alarm when voltage is 125V
+while in auto mode, the VS code flickers "HBAT" alarm temporary replacing auto messages like VBAT, TD, etc. Atmel does not do it
+
+Visual Studio 2022, C/C++ project. 
+I have macros to set or reset bits in a variable 
+#define setBit(var, bit_value) (var |= bit_value) //bit_value is Bit_XX, =2^Bit_XX 
+#define clearBit(var, bit_value) (var &= ~(bit_value)) 
+I try to find all references to a variable "Uint16 local_alarm_status " The "Read/Write" column in the references output lists this statement (and others) incorrectly as "read"
+setBit(local_alarm_status, AlarmBit); // set local alarm bit 
+If I replace macro with a real names, Visual Studio correctly identifies operation as "write":
+local_alarm_status |= AlarmBit; //setBit(local_alarm_status, AlarmBit); 
+Should I report a bug or it is how intellisense supposes to work?
+This is expected behavior, not a true compiler bug   but it is a known limitation of Visual Studio s IntelliSense,
+
+ATTEMPT to enable correct identification of read/write operations in IntelliSense:
+Option 1   Use an inline function instead of a macro
+This makes both IntelliSense and the compiler happy:
+
+static inline void setBit(uint16_t &var, uint16_t bit_value){
+    var |= bit_value;
+}
+
+static inline void clearBit(uint16_t &var, uint16_t bit_value){
+    var &= ~bit_value;
+}
+But it needs multiple overloaded templets for different variable types (uint8_t, uint16_t, uint32_t, float, etc.)
+This code compiles in VS but does not compile in IAR: (Print_F ans SPRINTF are not defined in a global score)
+
+
+20251119 
+>>Added finction SetCalibrationValue(). partly tested, its NEED a special case for I420 calibration
+
+20251117 testing firmware:
+>>ADDED "show raw ADC counts" and voltage command, "adch"
+>>CHANGED: encapsulated float results into union OutData to be able to access as array, for the "adch" command
+
+FIXED >>>BUG>>> instead of 125V, it shows 113.5V? too small ADC delay?
+>>>TEST>>> increasing delay after START_ADC from 120 to 150 ms somewhat helps, instead of 113V it shows 117V
+increasing delay after MUX from 13 to 25 ms helps, it shows 125 V
+decreasing conversion delay from 150 to 120 ms does not affect voltage or stability of measurement
+decreasing conversion delay from 120 to 100 ms: shown battery voltage does not follow supply voltage, !BAD!
+returned ADC delay to 120 ms, varied MUX delay: stable battery voltage starts at >=18 ms.
+Selected some margin: 25 ms for MUX and 125 ms for ADC
+
+>>FIXED>>> changed in Measure():
+
+line 4929	timer.ADC_ms = 25;  // IK20251118 was 13 ms, and reading was low. Varied MUX delay: stable battery voltage starts at >=18 ms. changed: give things 25 ms to settle.
+line 4946	timer.ADC_ms = 125; // IK20251118 changed from 120 to 125, some more time margin; tried settng conversion delay 100 ms and LED-shown battery voltage does not follow supply voltage
+
+WAS: MUX delay 13 ms, conversion delay 120 ms, sum = 133 ms
+Set: MUX delay to 25 ms, conversion delay to 100 ms, 125 ms
+
+the 'b' command:
+--------------------------------------------------------------------------
+ SIGNAL |BatVolt|+Bus V |-Bus V |VgndFlt|mV ripp|mA ripp|mA Iout|
+Measured| 113.5 |  50.6 | -62.9 | -12.2 |   1.0 |   1.0 | 0.261 |
+ ALARMS | BatHi | BatLo | + GF  | - GF  | mVrip | mArip |  AC   |  HiZ  | Ebat
+Enabled?|  YES  |  YES  |  YES  |  YES  |  NO   |  NO   |  NO   |  NO   |  YES
+ State  |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK
+ Channel  |NotConn|Battery| Fault |-GndBus|NC/+Bus|RipCurr|RipVolt|NotConn
+ADC counts|     0 | 18277 | 15915 | 20812 |     0 |     0 |     0 |     0
+ Value    |   0.0 | 113.5 |  -0.4 | -62.9 |  50.6 |   1.0 |   1.0 |   0.0 monn
+>~OK
+>~OKrecognized Cmd, Error Code = 1
+
+adch
+ Channel  |NotConn|Battery| Fault |-GndBus|NC/+Bus|RipCurr|RipVolt|NotConn
+ADC counts|     0 | 18277 | 15915 | 20812 |     0 |     0 |     0 |     0
+ Value    |   0.0 | 113.5 |  -0.4 | -62.9 |  50.6 |   1.0 |   1.0 |   0.0
+>~OK
+
+
+
+20251117 testing firmware:
+>>>Renamed calibration structure, invert names: now X axis and coordinate of calibration point is ADC counts, Y axis coordinate is measured value for calibration point or interpolated value from ADC count
+
+>>>Fixed bugs after some integers were converted to floats: BM address, Alarm_Delay_ms, and BaudRate
+
+>>> BUG: when holding up or down button for more than 3 sec, value is changing only by 1 each 3 sec,
+not accelerated change by 10 or handered each 0.2 sec
+
+>>> BUG:
+the commands like "delay" or "address" are bad for parsing:
+dela <<<<<<<<<<<<<<<<<<<<<<<<<< correct, but not complete, GET command
+dela=2.0000000 // Alarm Delay sec   <<<<<<<<<<< returns partial GET rsponse, and the '=' is on the wrong place - when play back command would not be recognized as SET
+>~OK
+dela=3.3   <<<<<<<<<<<<<<<<<<<<<<<<<< IN correct SET command
+dela=3.3=2.0000000 // Alarm Delay sec   <<<<<<<<<<< returns GET response
+>~OK
+delay=3.3   <<<<<<<<<<<<<<<<<<<<<<<<<< correct SET command
+
+>~OK
+delay   <<<<<<<<<<<<<<<<<<<<<<<<<< correct GET command
+delay=3.0000000 // Alarm Delay sec
+>~OK
+dela
+dela=3.0000000 // Alarm Delay sec
+>~OK
+FIXED>>>
+The dafault settings were from prev version, and all voltages were shown 100x of original
+
+>>>>>>>>> IF EE structure changed RE-READ it at startup when program at main(),       <<<<<<<<<<<
+>>>>>>>>> by setting first 4 structure bytes to 0xFFFFFFFF using memory EEPROM window <<<<<<<<<<<
+>>>>>>>>> or it could hang (devision by zero, etc.)                                   <<<<<<<<<<<
+>~OK
+-------> set default settings
+->dflt
+dflt
+
+>~OK
+-------> get default settings
+
+expo verb
+->expo verb
+
+//// version Battery Monitor SW 826-501-A Ver 3.0 @ 8-Oct-2025
+hadr=  3 // Host Address, dflt=3, range 1 to -536
+madr=  2 // Meter Address, dflt=2, range 1 to -536
+prot>Setup // StartUp protocol
+baud=19200
+ // StartUp baudrate
+unit>125v // Unit type
+hbat=  2 // High Bat Threshold, range 20 to 300 V
+lbat=  2 // Low Bat Threshold, range 20 to 300 V
+vrip=200 // Rip V Threshold, range 1 to 2000 mV
+irip= 10 // Rip I Threshold, range 1 to 2000 mA
+iloo>I420 // mA, Current loop output range
+phas>1-ph // StartUp status
+alarm rv>disabled // Current status not EEPROM-saved
+alarm ri>disabled // Current status not EEPROM-saved
+alarm ac>disabled // Current status not EEPROM-saved
+alarm hz>disabled // Current status not EEPROM-saved
+dela=0.2000000 // Alarm Delay sec
+buzz>disabled // StartUp status
+latc>disabled // StartUp status
+echo>Verbose
+//// CALIBRATION PARAMETERS
+//// FaultVolts
+cpar11=  0 // 	Point 1, X coordinate, 0..32767, FaultVolts
+cpar13=131 // 	Point 2, X coordinate, 0..32767, FaultVolts
+cpar10=15947.000 // 	Point 1, Y coordinate, 0..300000, FaultVolts
+cpar12=26989.000 // 	Point 2, Y coordinate, 0..300000, FaultVolts
+//// MinusGndVolts
+cpar21= 80 // 	Point 1, X coordinate, 0..32767, MinusGndVolts
+cpar23=131 // 	Point 2, X coordinate, 0..32767, MinusGndVolts
+cpar20=17965.000 // 	Point 1, Y coordinate, 0..300000, MinusGndVolts
+cpar22=9639.000 // 	Point 2, Y coordinate, 0..300000, MinusGndVolts
+//// RippleVolts1ph
+cpar31=  1 // 	Point 1, X coordinate, 0..32767, RippleVolts1ph
+cpar33=  1 // 	Point 2, X coordinate, 0..32767, RippleVolts1ph
+cpar30=0.0224000 // 	Point 1, Y coordinate, 0..300000, RippleVolts1ph
+cpar32=0.0376320 // 	Point 2, Y coordinate, 0..300000, RippleVolts1ph
+//// RippleVolts3ph
+cpar41=  1 // 	Point 1, X coordinate, 0..32767, RippleVolts3ph
+cpar43=  1 // 	Point 2, X coordinate, 0..32767, RippleVolts3ph
+cpar40=0.0033600 // 	Point 1, Y coordinate, 0..300000, RippleVolts3ph
+cpar42=0.0324800 // 	Point 2, Y coordinate, 0..300000, RippleVolts3ph
+//// RippleCurr1ph
+cpar51= 12 // 	Point 1, X coordinate, 0..32767, RippleCurr1ph
+cpar53= 72 // 	Point 2, X coordinate, 0..32767, RippleCurr1ph
+cpar50=1.8103680 // 	Point 1, Y coordinate, 0..300000, RippleCurr1ph
+cpar52=7.1323656 // 	Point 2, Y coordinate, 0..300000, RippleCurr1ph
+//// RippleCurr3ph
+cpar61= 10 // 	Point 1, X coordinate, 0..32767, RippleCurr3ph
+cpar63=100 // 	Point 2, X coordinate, 0..32767, RippleCurr3ph
+cpar60=0.1330400 // 	Point 1, Y coordinate, 0..300000, RippleCurr3ph
+cpar62=1.3003041 // 	Point 2, Y coordinate, 0..300000, RippleCurr3ph
+//// CurrentOut_I420
+cpar71=  0 // 	Point 1, X coordinate, 0..32767, CurrentOut_I420
+cpar73= -1 // 	Point 2, X coordinate, 0..32767, CurrentOut_I420
+cpar70=0.8672100 // 	Point 1, Y coordinate, 0..300000, CurrentOut_I420
+cpar72=0.3349700 // 	Point 2, Y coordinate, 0..300000, CurrentOut_I420
+
+>~OK
+
+
+20251111
+set minus grund fault showing with minus, as in version 2.5
+
+trying to simulate long press and HOLD.
+Problem:
+simulation currently processes button on release.
+But, for long hold, increment or decrement should happen is button still held. Does not happen because of processes button on release.
+Need: run detection of hits in main loop (or interrupt)
+On detection enable counter (already)
+if ((Display_Info.buttons_hits & (BUTTON_AUTO_INSTANT_PRESS_BIT << Btn_Index)) != 0) enable button counter so it stars counting up.
+set "still hold bit"
+reset "still hold bit" when button released
+Checks if "still hold bit is set" to increase / decrease value. Checking should happen in main loop.
+If bit is set,
+explicitly call ProcessUPbutton(), ProcessDOWNbutton(), because it is typically called on button release.
+
+20251110
+debugged current and voltage calibration
+
+20251103
+There are two inherited structures / status words: from Comm board SysData.NV_UI.SavedStatusWord and from Display board Display_Info.display_status.
+Need to merge them into one structure. Calibration process should be controlled by Display_Info.display_status, and final settings saved into EEPROM via SysData.NV_UI.SavedStatusWord.
+
+20251031
+Changed PC_SUPP.c so simulation GUI reacts the same way on short click and double click
+Debugged LIM menu and SYS menu. Needs more debugging
+
+20251030
+Debugging menu
+Limit mode: it shows SYS, and it SHOULD show CAL 1 but it shows HBAT;  long press brings to wrong point in the menu
+
+20251029
+removed centiVolts, deciVolts, etc., replaced with float calculations. compiles, not tested
+
+20251028
+problems with scaling beween what is written into rt structure and EEPROM:
+some values dived by 10, some by hunderd, saving in 10 mV increments
+This does not allow correct increment/decrement of limits as an example
+Started to clean up and adding centiVolts, deciVolts, etc. to variable names
+
+20251014
+created lookup tables for the front menu. compiles in VS and IAR, seems to work in VS
+
+20251009
+refactored code to compile with C++ compiler which can find references for a structure members.
+Code starts on PC and seem to work normally.
+Code compiles for IAR
+
+20251008
+attempt to convert C project into C++ to be able to find references to the members of structure
+does not compile, debugging
+
+20251007
+>>>> Combined manual_mode & auto_mode in one var Is_in_auto_mode
+
+In debugging>>> Limit menu does no go beyond TD.
+NEED>>>>> simplify button handling and display_mode - to complicated, display mode changes in multiple places. should be one function
+
+20251002
+replaced explicit assignment to p_InfoStr with assignment via array of strings
+Code works in ATMEL
+
+p_InfoStr = mode_strings[COMM_BAUD]; // ("BAUD");
+But, the code size increased:
+20251001
+53'637 bytes of CODE memory
+2'721 bytes of DATA memory (+ 300 absolute )
+
+20251002
+53'851 bytes of CODE memory
+ 2'797 bytes of DATA memory (+ 300 absolute )
+
+
+
+20251001
+Replaced Sleep() with delay_us(unsigned long long us)
+Added buttons menu diagnostic line to console (25th line)
+
+20250929
+with ChatGPT, debugged short and long button press:
+FIXED>>>BUG>>>> when pressed "Auto" button in firmware, values on display are quickly changed instead of waiting for button release to be changed
+
+Ignore presses shorter than DEBOUNCE_DELAY (100 ms).
+
+Short press bit set only after release, if total hold time belongs to interval [300 ms, 3000 ms).
+the long and short press logic : as soon as user holds button for 3 sec, the LONG_PRESS_FIT bit should be set, the "long menu" should run once;
+the long menu clears the BUTTON_LONG_PRESS _BIT after function is executed.. But, if user continue to hold button for a time less than another 3 sec and release button,
+nothing should happen because "long menu" was executed. However, if user continues to hold button after "long menu" is executed once for another 3 sec,
+this is a signal to the "long menu" to exit "long hold" brunch and return to regular short menu.
+To say differently: if user continues to hold button, set BUTTON_LONG_PRESS each 3000 ms.
+
+20250925
+>>>BUG>>>> when pressed "Auto" button in FIRMWARE, values on display are quickly changed instead of waiting for button release to be changed
+>>>BUG>>>> the battery voltage measurement became less stable, it is jumping +-0.25V, between 125.5 and 126.0.
+
+>>>>verified interrupts using code below:
+1. timer.RT_correction is not needed if OCR2A is set to 199 (not to 200). confirmed it gives exactly 100 us interrupt
+2. older code with 576 cycles set Display_Info.DisplayNeedsUpdateFlag = SET eack576 ms, NOT 57.6 ms;
+
+#if ((defined TIME_TESTING) || (defined INTERRUPT_TIME_TESTING))
+	if (timer.RT_correction >990)					// test
+		SetTestPin44;								// IK20250523 set test pin #44 (short pulse)
+#endif // #ifdef TIME_TESTING
+
+	if (timer.RT_correction >999)					// test
+	{
+#if ((defined TIME_TESTING) || (defined INTERRUPT_TIME_TESTING))
+		//			SetTestPin44;										// IK20250523 set test pin #44 (short pulse)
+#endif // #ifdef TIME_TESTING
+		timer.RT_correction = 0;
+		Display_Info.DisplayNeedsUpdateFlag = SET;
+#if ((defined TIME_TESTING) || (defined INTERRUPT_TIME_TESTING))
+		ClearTestPin44;										// IK20250523 reset test pin #44 (end of short pulse)
+#endif // #ifdef TIME_TESTING
+
+>>>>I have put update display and read buttons on 50 ms interrupt
+changed Get_Buttons() - now it justs shows:
+	printf("Resp byte[1]=0x%X, was pressed 0x%X",  Display_Info.buttons_hits, Display_Info.last_butt_pressed);
+
+>>>re-enabled simulation
+
+
+20250924 IK testing TWI timing.
+	measured TWI_Write() timing: transmits 4 bytes, it takes ~280 us
+	measured TWI_Read() timing:
+    for some reason, the TWI bus is still active after sending stop bit,for another 320 us
+    TWCR = (TWINT | TWSTO | TWEN); // = 0x94;   // initiate stop bit
+    is this Display board? >>> YES, the delay was set to 1024 cyles
+    Sometimes, TWI goes into lock state with emulator, and TWI_Reset does not help
+
+    NEXT - syncronize TWI write/read between polling display and other transmissions, like ADC_readings or IO transfer
+
+
+20250919 the cause of failure to read buttons is here:
+reading buttons in main loop without slowing it down is a bad adea
+it probably needs to use a timer to do button check once in 10 or 20 ms.
+
+void CheckExecuteFrontPanelCmd(void) //in firmware, is called from main loop. Only when waitihg char input in simulation, is called from int get_ch(void)
+{
+	//ReadButtons();	 // read momentary states via TWI
+}
+
+20250916
+investigaion, line 1041: timer.TWI_hangup appears to roll via zero?
+probably was called from different parts of the code
+uint8 Wait_for_TWI(void) //IK20250915 this is causing WDT interrupt / reset
+{
+	while (((TWCR & TWINT) != TWINT) && (timer.TWI_hangup != 0)) {
+		__no_operation();
+	}
+	return TWSR & TWSR_STATUS_MASK;
+}
+
+
+20250915
+changed WDT to interrupt instead of reset,
+this is causing WDT interrupt / reset
+uint8 Wait_for_TWI(void) //IK20250915 this is causing WDT interrupt / reset
+{
+	while (((TWCR & TWINT) != TWINT) && (timer.TWI_hangup != 0)) {
+		__no_operation();
+	}
+	return TWSR & TWSR_STATUS_MASK;
+}
+
+20250905
+Comm board restarts once in couple seconds
+
+20250904
+the latest 20250827_501B_tmp.zip code works with 20250613_501A_BM_works.zip
+problem is in 501A firmware
+
+bug "no buttons" because Buttons are sent in buttons_highByte, but the lowByte was read
+	buttons_highByte = twi.buffer[BYTE_2]; // buttons
+	buttons_lowByte = twi.buffer[BYTE_3];  // empty
+
+20250829
+Loaded code from 20250613_501A_BM_works.zip into comm board,
+loaded code from 20250613_501B_tmp.zip into display board.
+verified, the "getb" command returns correct button states.
+NEXT: load back the latest code to compare with working code and debug.
+
+20250827
+Button reading from Disp board is not working.
+ReadButtons(); was not called. Put it into CheckExecuteFrontPanelCmd().
+
+Discovered that in Display board, the timer_TWI_hangup was not included into interrupt and was not decrementing
+Enabled decrementing but now display firmware get into this check only once, and then Comm board restarts:
+Display firmware, main.c:line: 1479
+	else if (twi_buffer[BYTE_1] == TWI_GET_FRONT_BUTTONS) {
+		// IK20250814 send byte of instanteneus button hits in twi.buffer[BYTE_2]; and byte of button short press in twi.buffer[BYTE_3]; states
+		// Comm board needs only instanteneous byte.
+		TWI_Write(TWI_SEND_FRONT_BUTTONS, Display_Info.buttons_hits, Display_Info.butt_states & 0x00FF);
+		//TWI_Write(TWI_SEND_FRONT_BUTTONS, 0x11, 0x22); // IK20250114 test send 2-bytes of buttons states: [0]=0x0C=12D; [1]=0x11=17D; [2]=0x22=34D
+		//TWI_Write(12, 0x11, 0x22); // IK20250114 test send 2-bytes of buttons states: [0]=0x0C=12D; [1]=0x11=17D; [2]=0x22=34D
+	}
+
+
+20250826
+Added 115200 baudrate to enum BaudRate for speed (but it has marginal effect on RS-485 speed)
+Tried "rtmon>enab" command to enable monitoring, it does not work but rather unstable:
+after pausing on a break point, it might restart of ADCs are not read;
+sometimes HBAT LBAT alarm is blinking at correct voltage, but alarm bit is not set.
+
+debugged start up and loading parameters from EEPROM:
+EEPROM is read after default parameters are set in SysData.
+if EEPROM is empty (all 0xFF), it saves defaults from SysData in RAM to EEPROM
+
+20250825
+modified "w" command to work on ATMEL
+20250820
+    serial commands stopped to work
+
+    "w" command utput:
+    Battery Monitor SW 826-501-A Ver 3.0 @ 07-Jul-2025
+--------------------------------------------------------------------------------
+UnitType :  125V | Assuming 1 phase Battery Charger for ripple monitoring
+Curr Loop Output |4-20mA |  0 mA =>  90V |  1 mA => 180V | PulseTest: NO  |
+--------------------------------------------------------------------------------
+Protocol | SETUP |Adr   2| Baud =   9600 |Tx Delay= 30 ms| InterCharGap=1041 ms
+--------------------------------------------------------------------------------
+ SIGNAL  |BatVolt|+Bus V |-Bus V |VgndFlt|mV ripp|mA ripp|mA Iout|
+Measured | 127.4 |  63.9 | -63.5 | 127.4 | 454.9 |   1.2 | 0.416 |
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+High Lim | 142.0 |       |  13.0 |  13.0 | 200.0 |       |
+Low Lim  |       | 104.0 |       |       |       |  10.0 |
+--------------------------------------------------------------------------------
+ ALARMS  | grace period  2.0 sec |   Buzzer: Disabled    |  Latch: Disabled
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+Condition| BatHi | BatLo | + GF  | - GF  | mVrip | mArip |  AC   |  HiZ  | E-Bat
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+ State   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+Enabled? |  YES  |  YES  |  YES  |  YES  |  NO   |  NO   |  NO   |  NO   |  YES
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+
+>~OK
+
+'b' command output:
+ SIGNAL  |BatVolt|+Bus V |-Bus V |VgndFlt|mV ripp|mA ripp|mA Iout|
+Measured | 125.8 |  62.3 | -63.5 | 125.8 | 469.9 |   1.2 | 0.398 |
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+ ALARMS  | grace period  2.0 sec |   Buzzer: Disabled    |  Latch: Disabled
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+Condition| BatHi | BatLo | + GF  | - GF  | mVrip | mArip |  AC   |  HiZ  | E-Bat
+ State   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK
+Enabled? |  YES  |  YES  |  YES  |  YES  |  NO   |  NO   |  NO   |  NO   |  YES
+
+>~OK
+
+
+20250819
+FEATURE: make current loop output not awailable if used 4 wire RS-485.
+
+Battery Monitor SW 826-501-A Ver 3.0 @ 07-Jul-2025
+--------------------------------------------------------------------------------
+UnitType :  125V |    Charger:  1 phase  | PulseTest: NO |
+Curr Loop Output |4-20mA |  0 mA =>  90V |  1 mA => 180V |
+--------------------------------------------------------------------------------
+Protocol | SETUP |Adr   2| Baud =   9600 |Tx Delay= 30 ms| InterCharGap=1041 ms
+--------------------------------------------------------------------------------
+         |BatVolt|+Bus V |-Bus V |VgndFlt|mV ripp|mA ripp|mA Iout|
+Measured | 126.6 |  64.1 | -62.5 | 126.6 | 462.8 |   1.2 | 0.407 |
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+High Lim | 142.0 |       |  13.0 |  13.0 | 200.0 |       |
+Low Lim  |       | 104.0 |       |       |       |  10.0 |
+--------------------------------------------------------------------------------
+ ALARMS  | grace period  2.0 sec |   Buzzer: Disabled    |  Latch: Disabled
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+Condition| BatHi | BatLo | + GF  | - GF  | mVrip | mArip |  AC   |  HiZ  | E-Bat
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+ State   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+Enabled? |  YES  |  YES  |  YES  |  YES  |  NO   |  NO   |  NO   |  NO   |  YES
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+
+>~OK
+
+
+20250818
+    verified timing - still 100 us interrupt, 1 ms extension
+    created "snatshoot" function - still needs tweaking
+w<enter>
+--------------------------------------------------------------------------------
+FWver 3.0| BatHi | BatLo | + GF  | - GF  | mVrip | mArip |  AC   |  HiZ  | E-Bat
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+Alarm    |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK   |  OK
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+AlarmEnab|  YES  |  YES  |  YES  |  YES  |  NO   |  NO   |  NO   |  NO   |  YES
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+High Lim | 142.0 |       |  13.0 |  13.0 | 200.0 |       |
+Low Lim  |       | 104.0 |       |       |       |  10.0 |
+---------+-------+-------+-------+-------+-------+-------+-------+-------+------
+Unit V   = 125V
+CurOutput= 0-1 mA | Buzzer  = Disabled | Latch   = Disabled | Test Pulse = OFF |
+Protocol= SETUP   | Address =     2 | Baud    =   9600 | Charger  = 1 phase |
+AlrmDelay=  20 sec  |interCharGap= 1041 | DLL_timeout= 1000 ms| Xmt_delay =   30 ms|
+--------------------------------------------------------------------------------
+
+>~OK
+
+20250814
+
+    Is it supposed to be that during TWI_Write, TW messages IDs are used only by one board but  can be only read and checked by other boards?
+    currently, TWI_MSG_ALARMS is used when TWI_Write by both Display and Comm boards
+
+20250813
+    removed buzzer, latch, phase, current loop output 01 or 420 from structure NV_UI, replaced them with bits in SysData.NV_UI.SavedStatusWord
+    NEED: verify Buzzer and LED commands to Display board
+    DONE >>>> NEED: Reconsile and combine Display_info.display_status and Display_Info.LED_status
+
+20250812
+    Refactored code, removed unused variables, added comments
+    moved variables into structures
+    moved enabling pulse into rt structure, because it should not be saved into EEPROM
+    code does not have warnings in IAR
+    moved Check_alarms into timer interrupt, need to check how long it takes to execute this function. debouncing setting is 25 ms.
+    if function execution time is approaching 1 ms, need to set another counter to check less often, or check every other time.
+    check calibration delay - it was set to 15000 ms, 15 sec. this could cause failing calibration with BatMonTest.exe. see 'timer.Calibration = DEF_CALIBRATION_DELAY'
+
+20250811
+Replaced all saving ito EEPROM with one function - Save_to_EE();
+combined alarm_status and alarm_Status2 into one varible because all alarms are checked in Comm board code only.
+code size reduced:
+
+ 51'136 bytes of CODE memory
+  2'681 bytes of DATA memory (+ 296 absolute )
+
+20250808
+re-checked and cleaned global variables
+
+20250807
+refactored CalibrationSteps(uint16 RawADCcounts)
+
+20250806
+refactor Parse_setup()
+moved some variables int rt structure
+renamed some vars
+
+20250805
+Corrected DNP event Class 1 indexes - now they match with Class 0 poll indexes
+blocked the code related to Unipolar - Bipolar variables using #ifdef UNI_BI_POLAR_INPUTS because it was depricated since 24-May-2018
+
+20250730
+debugged initialization of calibration structures
+now simulation works
+
+20250729
+Added Check_Alarms() from Display board.
+Need to fix simulation results, rt.ripple_i_mA is always 1
+
+20250728
+replaced check for limits and increment/decrement of them with a function CheckVariableRangeAndChange
+//if ((SysData.NV_UI.unit_type == UNIT_24V) && (SysData.NV_UI.low_bat_threshold >= 200) && (SysData.NV_UI.low_bat_threshold < 250))
+//	SysData.NV_UI.low_bat_threshold++;
+//if ((SysData.NV_UI.unit_type == UNIT_48V) && (SysData.NV_UI.low_bat_threshold >= 400) && (SysData.NV_UI.low_bat_threshold < 500))
+//	SysData.NV_UI.low_bat_threshold++;
+//if ((SysData.NV_UI.unit_type == UNIT_125V) && (SysData.NV_UI.low_bat_threshold >= 1000) && (SysData.NV_UI.low_bat_threshold < 1250))
+//	SysData.NV_UI.low_bat_threshold++;
+//if ((SysData.NV_UI.unit_type == UNIT_250V) && (SysData.NV_UI.low_bat_threshold >= 2000) && (SysData.NV_UI.low_bat_threshold < 2500))
+//	SysData.NV_UI.low_bat_threshold++;
+CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_LOW_BAT, &SysData.NV_UI.low_bat_threshold, INCREMENT); // increment if in range
+
+saved 2kB of flash:
+was:
+ 60'389 bytes of CODE memory
+  2'790 bytes of DATA memory (+ 295 absolute )
+after:
+ 58'187 bytes of CODE memory
+  2'892 bytes of DATA memory (+ 296 absolute )
+
+//-!- check where alarm timer expires and alarm is set
+
+20250724
+  refatoring enums - put them in order to simplify menu and Operation()
+20250718
+checking and refactoring code.
+
+20250717
+tested Send_DNP () using new function helpers on Rev.J/K (events fix) and copied them to this project
+C:\In_Development\Product Software\826\826-501A\Version_J\826-501A_v_K_event_corrected.C
+Build_DNP_DLL_Header()
+Add_DNP_BinaryLongToWorkString()
+
+20250711
+
+Debugged windows simulation.
+Buttons are working for SHORT_PRESS and LONG_PRESS, in SHORT_PRESS button color changes to lilac, LONG_PRESS button becomes yellow
+Info display blink mode (LIMIT) is working
+LEDs are updated (Auto LED changes).
+BUGS:
+In SYS mode blinking stops
+in LIMIT mode, UP/DOWN buttons change 1ph - 3ph, but attempt to change TD from 3 to 4 brings 4 for a sec and then it returns back to 3. ?? Need to debug FLASH simulation
+alarms are not debugged yet
+
+
+20250708a
+Compiled in IAR, not tested
+NOTE>>> 1251 bytes of FLASH left!!
+ 64'284 bytes of CODE memory
+  2'786 bytes of DATA memory (+ 293 absolute )
+
+on PC, pressing Scan/Manual button rapidly changes readings. Need a "button pressed & processed event" to be set / reset?
+
+20250707c
+NEED:
+1. detect button press - set flag Display_Info.ButnPressedFlag = SET;
+2. detect button release - set flag Display_Info.ButnPressedFlag = CLR;
+3. if button pressed - detect which one (bit is set in global PC_SUPP::win_btn_lines) - it is copied into lower byte of Display_Info.butt_states
+4. start timer on button press, do not change button states / flags
+5. if button is released, stop timer and reset all flags in Display_Info.butt_states
+6. if times reaches SHORT_PRESS_DELAY, set bit in LOWER, 1st, Byte of Display_Info.butt_states *_SHORT_PRESS_BIT
+7. if times reaches LONG_PRESS_DELAY, set bit in Display_Info.butt_states *_LONG_PRESS_BIT, stop timer,
+   wait for button release - it might be used to accelerate delta change if UP/DOWN is pressed
+
+
+20250707b
+    speeded up simulation
+20250707a
+With ChatGPT, debugged simulator entry text boxes for Vbat, vGnd, Vrip, Irip
+
+20250703
+ debugged flickering of window,
+ added 4 input fields to enter simulated values (not debugged yet)
+
+20250702
+created output to simulated LED but whole window is flickering.
+probably because
+void  D_CleanLCD_line(int line) uses
+   RedrawWindow(g_hToolbar, 0, 0, RDW_INVALIDATE);
+       which has g_hToolbar set to ?? whole window, not to text box ??
+
+20250701
+debugged LEDs on simulation
+
+20250630
+added buttons which send events on press and on release calculate hold time, and change background color when pressed.
+added 4 LEDs with colors (currently as filled rectangles). Need to change Rectangle to Ellipse.
+Has not tested color change on command in main loop.
+
+20250623
+Code compiles in VS and in IAR, not debugged
+memory usage:
+ 53'238 bytes of CODE memory
+  2'722 bytes of DATA memory (+ 293 absolute )
+
+
+NEED: send to display LEDs "Alarm", "Auto", "Pulse ON" and state of buzzer
+
+
+20250618
+started to transfer display board menu into comm. this is not compiling yet
+
+20250617
+Moved all timer variables into structure 'timer'
+
+Spent 6 hours
+using chat GPT and modifying and debugging PC simulator to add font property to txt boxes
+
+It works, but
+void LCD_dialog(void* MyParam)
+
+thread should be modified (or eliminated?) and let ToolDlgProc() to do the job.
+
+I suspect the LCD_dialog thread is loading processor
+
+>>>now disi=ARGA and disn=12345 are reflected in textboxes of GUI simulator
+
+form ChatGPT:
+If you want to clean it up further
+To avoid similar bugs in the future, you can:
+    Use InterlockedExchange() as mentioned earlier for safe, atomic flags.
+    Or even better: use PostMessage() to notify the dialog thread directly from your worker thread.
+
+For example:
+// In worker thread
+PostMessage(hDlg, WM_USER + 1, 0, 0);
+
+And in your ToolDlgProc():
+
+case WM_USER + 1:
+    SetDlgItemText(hDlg, IDC_LCD_L1, LCD_buffer[0]);
+    SetDlgItemText(hDlg, IDC_LCD_L2, LCD_buffer[1]);
+    break;
+
+This approach is thread-safe, avoids shared state, and avoids timer polling.
+
+20250613
+button reading ('getb' comand) works:
+byte[2] = 0x10 << RESET
+byte[2] = 0x08 << DOWN
+byte[2] = 0x04 << UP
+byte[2] = 0x02 << LIMIT
+byte[2] = 0x01 << AUTO/MANUAL
+
+
+
+
+fixing TWI receiving in display FW, using test send Write_TWI(12, 0x11, 0x22); .
+sometimes the first received byte is 65 (0x41)??
+getb
+Resp byte[0] = 12, byte[1] = 11, byte[2] = 22, disp_buttons = 0
+>~OK
+->getb
+getb
+Resp byte[0] = 12, byte[1] = 11, byte[2] = 22, disp_buttons = 0
+>~OK
+->getb
+getb
+Rx'd byte[0] = 65
+>~OK
+
+20250612
+YES>>>Display FW
+BUG>>>??? Write_TWI seems to write only first byte correctly, and Comm board gets wrong values.
+The 501B Rev.J seems to send correct data, and Comm Board gets them correctly, example: BaudRate or TimeDelay or BM Address
+
+20250609
+extracted RCI commands into header file for quicker access
+Fixed commands lbat, hbat, iloop.
+added initalization to lbat, hbat, iloop, etc
+
+
+20250606
+debugged code, now measurements on display board are shown correctly
+Eliminated delays in UART response:
+the RS-485 receive and transmitting echo can happen when main loop waits ADC conversion (120 ms) or during settling time (13ms) after MUX analog channel changed.
+Testing with Parameters form: sending command is OK, but "read and restore" gives erorrs again.
+
+20250605
+refactored Measure() and main code after it.
+Comm seems to work but Display board resets each 10-13 sec. No "keep alive" signal?
+
+20250604
+Created structure and union for TWI instead of unaggregated variables. Example: instead of twi_buffer[] now twi.buffer[]
+Created #ifdef WAIT_FOR_ADC_in_Measure
+Code compiles and runs normally (still 120 ms wait in main loop)
+undef WAIT_FOR_ADC_in_Measure is not working yet.
+Cannot call Write_TWI, Read_TWI from ISR_measure() interrupt, because ATMEL does not have interrupt priority.
+TWI communication relies in Timer 2 interrupt for timeout which would not be called intil ISR_measure() interrupt is done.
+Recursive waiting, program will hang.
+need to set flag to send TWI command and leave ISR_measure() interrupt, check flag in main loop and do
+
+20250529
+Created Timer0 interrupt-based delay for Measure()
+Max delay duration is 16 ms due to 8 bit Timer and max prescale of clk/1024
+to get 10 ms delay, use OCR0A = 156
+need to use a variable to extend delay to 120 ms as it is set originally using while() loop
+
+20250528
+Measure() has 120 ms delay inside! (actually 133 ms)
+		timer.Generic = 120;
+		while (timer.Generic != 0);
+need to convert it into timer interrupt.
+
+CREATED Timer0 interrupt, test mode for now, 1004 us period
+
+
+20250527
+"read and restore" parameters work without errors.
+But, there is about 150 ms interval between ParseRCI is called?
+program does not go into PreseRCI for 125ms, and parces for 12.5 ms??
+something hold main loop for 125 ms
+
+
+20250522
+pause between receiving command and sending responce is about 100 ms??
+
+20250505_BM
+Added commands
+'delay' (maybe need to revert back to 4-char 'dela' due to 'expo' exports only 4 chars so re-import does not work? or )
+'baud'
+'prot'
+fixed other bugs in RCI
+
+
+20250409
+ moved global varibles into SysData.NV_UI. and rt. structures
+ fixed some commands
+
+20250408
+adopted to ATMEL and debugged "expo [verb]" and other commands.
+work done:
+vsprintf() finction is base for printf() and sprintf()
+IT CANNOT PRINT CONSTANT STRINGS which are placed in flash, like
+  sprintf(RCI_message, "%s Threshold, range 1 to 2000 %s", "Rip V", "mV")
+because "Rip V" and "mV" are ALSO placed into flash (CODE space) by compiler, but sprintf expects pointers to DATA space, in RAM.
+And, without knowing in advance what arg list is, we cannot always substitute flash string with string in RAM
+This must be done before calling sprintf, example:
+	char tmp1[6] = "Rip V";	// CopyConstString("Rip V", tmp1);
+	char tmp2[3] = "mV";	// CopyConstString("mV", tmp2);
+	sprintf(RCI_message, "%s Threshold, range 1 to 2000 %s", tmp1, tmp2); // works in ATMEL
+
+
+20250407 added "expo [verb]" command
+>>>NEED >>> transfer individual variables like delay, addresses, hBat, etc. into NV.SysData structure
+
+20250327 tested firmware on automated test system
+"Source Code" project works
+with C# application Transfer_test_CS
+Verified calibration - works (at least changes)
+
+20250326
+20250326_501A_J_refactored_DNP&setup-work.zip
+synchonized Rev_J_refactored.c and Source_Code/main.c
+both show correct value for +/-BUS
+both tested with similation and setup.
+
+20250325
+ transferred almost all code from "souceCode/main.c" into "826-501A_ver_J_refactored.c"
+Rev. J refactored : all values seem to show correctly.
+The "Souce code" - the +Bus shows 111.9V, -Bus = -12.0V. <<<< STILL SOMETHING WRONG
+
+20250321
+Replacing EEprom code with function calls.
+DNP3 protocol is OK
+BUG>>> Discovered that setup protocol does not show correct values
+CAUSE>>> Stack settings
+FIX>>> increased Data CSTACK) from 0x20 to 0x180, increased RSTACK depth from 16 to 32
+
+20250317
+Redefined calibration structures.
+Tested direct UART baud rate - it is incompatibe with Dispalay board firmware
+After restart, calibration parameters became corupted. but, after going via menu, the bat volts were recovered,
+but +BUS became +111.9, -BUS = -12.0
+Need to recalibrate and test.
+
+20250310
+tested and created 20250310_501A_J_refactored_works.zip
+
+created 20250304_501A_SourceCode_Compiles.zip:
+PutStr() is for strings in RAM, cputs() is for strings in flash
+
+created 20250310_501A_SourceCode_Compiles.zip with some commented out calls with strings in flash
+
+regression testing:
+ 20250130_501A_works.zip Source_Code folder compiles with strings in flash
+ 20250203_501A_works.zip Source_Code folder compiles with strings in flash
+
+ 20250204_501A_tmp.zip Source_Code folder DOES NOT compile
+ 20250206_501A_tmp.zip Source_Code folder DOES NOT compile
+ 20250220_501A_tmp.zip Source_Code folder DOES NOT compile
+ 20250304_501A_works.zip Source_Code folder DOES NOT compile
+
+
+20250310_501A_J_refactored_works.zip.
+DNP sends data to Bat_Mon_Setup.
+all settings and readings seem to be normal.
+
+20250228
+ Rev.J in this zip does not read ADC, and ARGA does not change to reading battery voltage
+20250225 IK found latent bug:
+ if calibration points for 1 ph and 3 ph are NOT the same,
+measurements would be also different, and cal factor for 3-ph would be wrong or corrupted.
+The SAVE into EEPROM code uses byte #2 for 1-phase in BOTH 1-ph and 3-ph calibration factors,
+float calri5.low_meas in the EEPROM uses the calri1.low_meas_byte[1]
+instead of calri5.low_meas_byte[1]
+
+                    if (ripple_calibration_phase == 127)      //Doing single phase?
+                    {
+                        EEAR = 124;                        //put in single phase address
+                        EEDR = calri1.low_meas_byte[0];
+                    }
+                    else if (ripple_calibration_phase == 255)
+                    {
+                        EEAR = 224;                        //put in 3 phase address
+                        EEDR = calri5.low_meas_byte[0];    //load data
+                    }
+                    EECR |= 0x04;                        //enable master write
+                    EECR |= 0x02;                        //write data
+                    while ((EECR & 0x02) != 0);          //wait till rdy
+                    if (ripple_calibration_phase == 127)
+                    {
+                        EEAR = 125;                        //load single phase address
+                        EEDR = calri1.low_meas_byte[1];
+                    }
+                    else if (ripple_calibration_phase == 255)
+                    {
+                        EEAR = 225;                        //load 3 phase address
+/*IK20250225 bug>>*/    EEDR = calri1.low_meas_byte[1];    //-!- should be calri5.low_meas_byte[1] ?? load single phase data
+                    }
+                    EECR |= 0x04;                        //enable master write
+                    EECR |= 0x02;                        //write data
+                    while ((EECR & 0x02) != 0);          //wait till rdy
+
+
+20250218
+order of calibration, 826-501A_ver_J_refactored.c:
+
+		cal_status = 0x0 getting first calibration with
+STEP 1 got from PC app lower setting of ripple voltage, in mV
+line 3990               if (calibrating == ADC_RIPPLE_VOLTAGE)
+                        {
+                            if (ripple_calibration_phase == 127)
+                                calrv3.calptlow = (float)tmp_cal * .001; <<<<<<<<<<< low calibration, tem_cal = 49 mV as example
+                            else
+                                calrv7.calptlow = (float)tmp_cal * .001;
+                        }
+
+                        timer.Calibration
+
+STEP 2: after ADC result is ready but no longer than in 1500 ms, 'tmp_battery_voltage' gets value from ADC channel
+line 5863           if (ripple_calibration_phase == 127)    // 1-ph
+                        calrv1.low_meas = tmp_battery_voltage * .000112;    //measured counts for low point, example:=13
+                    else                              // 3-ph
+                        calrv5.low_meas = tmp_battery_voltage * .000112;
+
+STEP  3
+	line 3962           if (calibrating == ADC_RIPPLE_VOLTAGE)     // can be here
+                        {
+                            if (ripple_calibration_phase == 127)
+                                calrv4.calpthigh = (float)tmp_cal * .001;   // 1-ph<<<<<<<<<<< high calibration, tem_cal = 501 as example
+                            else
+                                calrv8.calpthigh = (float)tmp_cal * .001;   // 3-ph
+                        }
+
+STEP 4: after ADC result is ready but no longer than in 1500 ms, 'tmp_battery_voltage' gets value from ADC channel
+line 5804           if (ripple_calibration_phase == 127)
+                        calrv2.high_meas = tmp_battery_voltage * .000112;//measured counts for high point <<<<<<,
+                    else
+                        calrv6.high_meas = tmp_battery_voltage * .000112;
+                    timer.Calibration = 15000;  // 15 seconds
+
+
+
+
+
+		// high point calibration bit #2??
+		cal_status |= 0x01; // high point calibration bit #2??
+		cal_status |= 0x02; // low point calibration bit #2??
+		timer.Calibration = 15000;           //give it 1.5s to get a reading  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< NEED 1.5 sec?
+if (((cal_status & 0x01) == 0x01) && (timer.Calibration != 0)) // Got Low value
+        if (((cal_status & 0x02) == 0x02) && (timer.Calibration != 0)) // Got high value
+cal_status |= 0x04;        //set low cal measurement rcvd
+cal_status |= 0x08;        //set low cal measurement rcvd
+
+20250206_501A_tmp.zip
+Changed baud_rate enum to real baudrate, not to settings of UBRR register
+added more RCI functions, not finished
+
+20250203_501A_tmp.zip
+Added commands to RCI and blank functions
+
+20250130_501A_works.zip
+debugged command "cpar" and associated function SetGetCalParam on PC, IAR compiles but still had problems
+The CAUSE Data stack was set to 0x100. Incresing stack to 0x180 fixed the problem
+Function SetGetCalParam debugged for floats.
+
+
+"cpar<index1><index2>=ggg.gg" - set/get will define "Calibration PARameter" or "factor" for a particular cal, command takes 2 arguments
+"cpar#$=GGG.GGG\r" SET calibration parameter.
+"cpar#$": returns ->"cpar#$=ggg.gg\r" - GET calibration parameter
+Command itself takes 4 chars in command string, [0] to [3]
+caliration allows to use linear interpolation of input value == ADC_counts into Engineerng Unit value, i.e. Voltage, Current, etc.
+calibration factors are stored as two sets of X,Y coordinates, {X1,Y1} low cal point, {X2,Y2} high cal point, which define linear interpolation
+NOTE: X1 must not be equial to X2, and X1 should be lower value than X2
+Argument "#" on 5th place [4] in command string: defines calibration for:
+0 =>	Calibr2points BatteryVolts;	// 0x040  16 // Y1 X1 Y2 X2 Battery Voltage calibration
+1 =>	Calibr2points FaultVolts;		// 0x050  16 // Y1 X1 Y2 X2 Fault Voltage calibration
+2 =>	Calibr2points MinusGndVolts;	// 0x060  16 // Y1 X1 Y2 X2 Minus Grnd voltage correction factor info
+3 =>	Calibr2points RippleVolts1ph;	// 0x070  16 // Y1 X1 Y2 X2 single phase ripple voltage calibration
+4 =>	Calibr2points RippleVolts3ph;	// 0x080  16 // Y1 X1 Y2 X2 three phase ripple voltage calibration
+5 =>	Calibr2points RippleCurr1ph;	// 0x090  16 // Y1 X1 Y2 X2 single phase ripple current calibration
+6 =>	Calibr2points RippleCurr3ph;	// 0x0A0  16 // Y1 X1 Y2 X2 three phase ripple current calibration
+7 =>	Calibr2points CurrentOut_I420;	// 0x0B0  16 // Y1 NU Y2 NU current loop calibration, value in PWM register to get 4 mA or 20 mA, X coordinates are Not Used
+
+Argiment "$" on 6th place [5] in command string, range {0...3}, defines coordinate: 0=Y1_low_point, 1=X1_low_point, 3=Y2_high_point, 3=X2_high_point.
+On the 7th place [6] of command string can be '=' the SET command. If it is NOT "=" then it is interpreted as GET command. On the 7th place [6] then can be '?' or nothing.
+Value "ggg.ggg" starts on 8th place [7], and calibration factor can be in regular or scientific notation "+/-m.mmE+/-pp"
+
+
+20250129_501A_tmp.zip
+Added function set/get calibration parameter and other needed functions to support it.
+compiles in MSVisual Studio;
+IAR gives errors about flash -allocated strings
+
+
+20250114_501A_tmp.zip
+this in conjunction with 20250114_501B_tmp.zip
+Still does not transfer buttons:
+responses on 'getb' command
+
+Resp byte[0] = 12, byte[1] = C, byte[2] = 41, disp_buttons = 0
+Resp byte[0] = 12, byte[1] = C, byte[2] = E, disp_buttons = 0
+
+added check of the returned signature, not simply read from TWI.
+in Display firmware, read first byte = command token; if it is TWI_DISPLAY_BD_STATUS,
+then answer is sent with response token TWI_MSG_ALARMS
+501B main, line 1584:
+if (twi_buffer[BYTE_1] == TWI_DISPLAY_BD_STATUS)
+	{
+		relay_board_status = twi_buffer[BYTE_2];
+		SysData.NV_UI.unit_type = (uint16)twi_buffer[BYTE_3];
+		Write_TWI(TWI_MSG_ALARMS, Display_Info.alarm_status, Display_Info.display_status);
+
+The response sometimes has wrong return tocken
+
+Rx'd byte[0] = 65
+
+
+20250103_501A_works.zip
+this works in conjunction with 20250103_501B_works.zip
+Added TWI ID messages to display strings on upper and on lower LEDs
+Added conversion to upper case for display messages
+debugged output to upper numeric display; command "'"disu=1.2.3.4.5." shows numbers and all dots
+Output to lower LED works, showing '.' dots, command "disl=q.w.e.r." or "disl=aRgA"
+Comm board sends correct string via TWI.
+
+
+20250102_works.zip
+Added TWI commands to transfer strings to Display board
+Added RCI commands
+disU = show strung on upper display
+disL = show string on lower display
+501B firmware needs to be modified to recognise these commands
+
+20241226_works.zip
+simplified #define and enums
+
+20241224_works.zip
+replaced UART_Que[] with rt.HosrRxBuff[]
+replaced head with rt.HosrRxBuffPtr
+ASCII commands work in PC and in BM. //#define ASCII_TESTING for direct overwrite and booting into ASCII mode
+DNP3 works
+SETUP works
+
+
+20241223_501A_works_2.zip
+Enabled strings in FLASH
+Do not use cputs() with strings in RAM, it works for flash strings.
+instead, use PutStr()
+Tuned command output to minimize \r\n
+
+20241223_501A_works.zip
+disabled strings in flash, enabled main test output. Set CharEchoFlag for RCI.
+receives and responses to RCI commands.
+
+20241217_works_2.zip - new refactored code with ParseRCI() included but untested.
+In the function Parse_Setup_Msg(),
+Protected UART_Que[] clear by interrupt disable-enable and used memset() instead of for() cycle
+
+
+20241217_works_1.zip - new refactored code but without RCI yet
+
+Tested timer 2 interrupt. Description was wrong - it is 1.0 ms interrupt, not 0.1 ms
+Timer_extender gives other timer vars increment / decrement each 10 ms.
+
+20241216
+Refactored rev.J comm works when use 100 us interrupt.
+Added #ifdef TICK_1MS
+to be able to switch between 1 ms and 0.1 ms
+but at 1 ms comm does not work.
+
+20241206
+Setup comm does not work. Reloading regular J version shows normal work
+
+20241009
+firmware works in BM, processors communicate via TWI, shows normal battery voltage.
+Serial interface works
+
+
+20240712 DNP calibration functions:
+DNP_App(void)
+Calibration value is sent by VB6 in Cal_Output_Buffer(19)...(22)
+tmp_cal = (float)(33554432 * (long)object_string[obj_ptr + 9]);	//	VB6 Cal_Output_Buffer(22)
+tmp_cal = tmp_cal + (65536 * (long)object_string[obj_ptr + 8]);	//	VB6 Cal_Output_Buffer(21)
+tmp_cal = tmp_cal + (256 * (long)object_string[obj_ptr + 7]);	//	VB6 Cal_Output_Buffer(20)
+tmp_cal = tmp_cal + (long)object_string[obj_ptr + 6];			//	VB6 Cal_Output_Buffer(19)
+
+if (object_string[obj_ptr + 4] == 0x27)    /* 0x27 = 39 */    calibr_step = ADC_BATT_VOLTS;      //=1
+if (object_string[obj_ptr + 4] == 0x28)    /* 0x28 = 40 */    calibr_step = ADC_FAULT_VOLTS;     //=2
+if (object_string[obj_ptr + 4] == 0x29)    /* 0x29 = 41 */    calibr_step = ADC_MINUS_GND_VOLTS; //=3
+if (object_string[obj_ptr + 4] == 0x2A)    /* 0x2A = 42 */    calibr_step = ADC_RIPPLE_CURRENT;  //=5
+if (object_string[obj_ptr + 4] == 0x2B)    /* 0x2B = 43 */    calibr_step = ADC_RIPPLE_VOLTAGE;  //=6
+if (object_string[obj_ptr + 4] == 0x2F)    /* 0x2F = 47 */ {  calibr_step = NOT_A_CALIBRATION; ripple_calibration_phase = (uint8)tmp_cal;}
+if (object_string[obj_ptr + 4] == 0x2C)    /* 0x2C = 44 */ {  calibr_step = NOT_A_CALIBRATION; unit_type = (uint8)tmp_cal; //value determines hi calibration pt .....
+if (object_string[obj_ptr + 4] == 0x2D)    /* 0x2D = 45       PWM Command Instruction*/ {calibr_step = NOT_A_CALIBRATION;    //added 8/14/19 if (tmp_cal == 0x01) //doing low current PWM
+if((object_string[obj_ptr + 4] == 0x2E)    /* 0x2E = 46*/ && (i_cal_active == true)) //If a PWM value //make it so
+
+
+202403 added PC console output for simulation
+
+20240403 debugged serial output in interrupt
+
+20240401 >>> NEW FEATURE >>> detect momentary drops in battery voltade even if voltage is low only during trip or close operations (NEED FASTER ADC!)
+Communication time study:
+uint16  xmt_delay; //IK20240401 this is min delay; def is 30; at zero and DNP protocol, interval between host request and response is ~1.5 ms; at 10 ms delay min interval ~11 ms
+Made interrupt Tx preliminary work.
+
+
+20240328 20240328_501A_BM_&_VSworking.zip
+Measured original interrupt timing - was very close to 100 us.
+Re-factor timer interrupt so it happens 10 times slower, in 1 ms intervals.
+Changed divide by 128 instead of by 8, changed OCR2A setting to 124 instead of 200, removed prescaler = 10
+original interrupt was set to 100 us, with tmr_extender++; each tenth time all timer vars increment was performed.
+
+The 100 us was just to show DNP interchar timing with more accuracy?
+Anyway, such an accuracy was not used because DNP/ModBus communication happen in main loop where timing is not guaranteed.
+removed:
+volatile long tmr_mult; // IK20240328 not used. was increasing 0 to 575 and reset but is not checked anywhere. It caused to skip all timers decrement once in 576 ms
+uint8  tmr_extender;
+uint16 time_low;                            //system time in ms low word
+uint16 time_mid;                            //system time in ms mid word
+uint16 time_high;                           //system time in ms high word
+
+
+20240327
+resolved flash strings vs strings in RAM errors.
+Copiled and tested new 501A with existing 501C rev 0 relay Brd and 501B rev J Display Brd.
+sprintf()-built strings are working.
+renamed calibrating to calibr_step
+changed type of buffers from uint8 to char, to avoid warnings in printf and sprintf
+extern char UART_Que[HOST_RX_BUFF_LEN];         // USART input buffer
+extern char wrk_str[HOST_XMT_BUFF_LEN];         // building & sending msg
+Added
+
+20240320 refactored 501A rev J firmware and transferred changes into new project in SourceCode folder
+put #ifdef LAST_GASP and included code for both STD and Last Gasp versions.
+The main.c codes in 501A and 505A are only differ in #define LAST_GUSP
+
+
+20240214
+I2C devices:
+On Analog board, there is analog switch MAX4659ESA+T controlled by I2C 4-bit expansion port PCA9536, Only Bit P0 is used to control input of MAX4659ESA+T
+The PCA9536's target address equates to 65 (decimal) and 41 (hexadecimal)
+LM75A digital output lenperature sensor has I2C address 1001110 = 0x4E (78D)
+
+20240122
+with option "--string_literals_in_flash" printf and cputs work but sprintf returns error
+		bytes = sprintf(&wrk_str[0], "\x1BRC%d\r", analog_points);// returns how many bytes to send
+	Error[Pe167]: argument of type "char __flash *" is incompatible with parameter of type "char const *restrict"	C:\In_Development\Product Software\826\826-501A\SourceCode\main.c	1535
+
+without this option custom 'cputs' and 'printf' give errors
+
+20240113
+>>>BUG>>> Modbus transmission of address is only one byte; but address can be above 255 (DX firmware has address of 401)
+//IK20240115 ModBus has only 255 addresses. NOT A BUG >>>BUG>>> alarm_status bytes: the last gasp is defined as 0x100 = 256, outside byte range. need to enlarge status to 16 bytes.
+20240110
+//-!- timer.comm_activity was decrementing TWICE in TIMER2_COMPA_interrupt, removed another decrement. Apparent time increased twice, check where is used
+//-!- timer.TxRxLED_blink = 2;  2 ms blink is not perceptable
+
+20240109
+//-!- IK20240108 last gasp event is not stored in event_array
+>>>Question: Why timer is set to 0.1ms = 100 us?
+Only timer.ModBus is incrementing with this period, but min timer count down is set to 20.
+>>> CHECK>>> Set timer to 1 ms, free CPU clocks, remove tmr_extender = 10.
+
+20240108
+//-!- IK20240108 last gasp event is not stored in event_array
+
+
+20240105
+Works: read voltage using function
+	battery_voltage_f = Read_TWI_ADC_and_interpolate(&BatteryVolts);
+
+
+20240104
+problem with "corrupt calculation" of Linear Interpretation:
+BUG>>> calculations are wrong
+CAUSE>> DATA_STACK was set to 0x20. NOTE Return Address Stack (RSTACK) was set to 16
+INVESTIGATION>> if DATA_STACK (CSTACK) is >= 0x30 calculations are correct
+SOLUTION>>> DATA_STACK is set to 0x100 and Return Address Stack (RSTACK) is set to 32, just in case.
+
+20240104
+JTAG settings:
+If JTAG is not working:
+while Reading Device signature  - the MicroChipStudio or IAR tell that "No JTAG devices are found"
+
+Use MicroChipStudio, Device Programming.
+Connect 2x3 (6 pin) plug from ICE to the header J2 on the board. The tab on the plug should face outside the board
+Set Tool=Atmel-ICE; Device=ATmega644, Interface=ISP
+Hit APPLY button.
+Read Target Voltage - should be about 5 V (+/- 0.5V)
+Read Device Signature - should be 0x1E9609 for ATmega664 (Comm Board) and 0x1E9602 for ATmega64 (LCD board)
+Select "Fuses" from the left side of window.
+Set fuses:
+HIGH.OCDEN - check
+HIGH.JTAGEN - check
+HIGH.SPIEN - check
+optional: HIGH.EESAVE - check (preserve EEPROM contents during erase)
+The Fuse Register below should be:
+EXTENDED 0xFF
+HIGH     0x19 without EESAVE or 0x11 with EESAVE
+LOW      0xFF.
+Hit Program. Ignore warnings
+Remove ISP 6-pin header
+Connect JTAG header. The exchanger board with right-angle JTAG socket: the JTAG PCB should face outside the Communication board
+>>> RECYCLE POWER <<<<
+In Device Programming, change Interface to JTAG, hit "Apply" button
+Read Device signature  - now it should show 0x1E9609 for ATmega664 (Comm Board) and 0x1E9602 for ATmega64 (LCD board)
+
+
+
+20231221_501A_works_in_BM_and_VS-2_DNW.zip
+>>>BUG IN IAR!
+dereferencing structure by pointers
+float t_float=0;
+//volatile Calibr2pnts* sPtr; // volatile global does not help >>>IAR bug> on first assignment,  CalStructPtr becomes zero instead of 0x140
+float LinInterpolation(float inp, Calibr2pnts* CalStructPtr)
+{
+//    Calibr2pnts* sPtr = CalStructPtr;
+//    float X1 = CalStructPtr->calptlow; //>>>IAR bug> on first assignment,  CalStructPtr becomes zero instead of 0x140
+//    float X1 = sPtr->calptlow; //>>>IAR bug> on first assignment,  CalStructPtr becomes zero instead of 0x140
+//	float X2 = sPtr->calpthigh;
+//	float Y1 = sPtr->low_meas;
+//	float Y2 = sPtr->high_meas;
+	float* fPtr = (float*) CalStructPtr;
+	// below, still resets fPtr in R30:30 to zero!
+	float Y1 = *fPtr; // low_meas;     // lower 'Y1' coordinate
+	fPtr++;
+	float X1 = *fPtr; // calptlow;     // current or voltage - lower 'X1' coordinate
+	fPtr++;
+	float Y2 = *fPtr; // high_meas;    // higher 'Y2' coordinate
+	fPtr++;
+	float X2 = *fPtr; // calpthigh;    // current or voltage - higher 'X2' coordinate
+
+	t_float= (X1 + ((X2 - X1) * (inp - Y1) / (Y2 - Y1)));
+	return t_float;
+}
+
+20231220_501A-1.zip
+refactored unions into regular floats and longs
+
+20231220_501A.zip
+Refactored all unions - removed byes. ext, refactor into regular floats and longs
+the "FF FF FF FF"" accessed as a float gives -NAN
+ 40'084 bytes of CODE memory
+  1'108 bytes of DATA memory (+ 42 absolute )
+
+20231219_501A_works_in_BM_and_VS.zip
+works
+Replaced all direct EEPROM addresses with #define
+ 40'682 bytes of CODE memory
+  1'108 bytes of DATA memory (+ 42 absolute )
+
+
+20231218_501A_works_in_BM_and_VS.zip
+replaced all individual EEPROM reads-writes with functions
+Code size reduced by ~6kB and dropped to
+ 40'826 bytes of CODE memory
+  1'112 bytes of DATA memory (+ 42 absolute )
+
+20231214_501A_works_in_BM_and_VS-3.zip
+remarked unused and unchecked variables, works in BatMon. VC has stack overflow error due to read EE -if wrong-reinit and read again.
+Code size dropped from
+ 46'722 bytes of CODE memory
+  1'132 bytes of DATA memory (+ 42 absolute )
+
+to
+ 45'668 bytes of CODE memory
+  1'108 bytes of DATA memory (+ 42 absolute )
+
+
+20231211 BUG>>> in setup mode, when selected RIV (blinking) the digital reading are not changing, showing ".010""
+
+20231206_501A_revJ IK creates the same Hex.zip
+created macro definition INTERRUPT
+named enums
+Replaced definitions BOUD_XXXX with Boud_XXXX because it interfears with Visual Studio
+
+
+To add C/C++ multiple files as a project into a C# Windows Form application, you can follow these steps:
+1.	Create a C/C++ Project: First, create a C/C++ project that includes multiple source files (e.g., .c, .cpp, .h) using your preferred C/C++ IDE or compiler.
+2.	Compile the C/C++ Project: Compile the C/C++ project to generate the necessary object files (e.g., .obj, .o) and a static or dynamic library (e.g., .lib, .dll) if applicable.
+3.	Create a C# Windows Form Application: Open Visual Studio and create a new C# Windows Form application project.
+4.	Add C/C++ Files: In your C# Windows Form project, go to "Solution Explorer" and right-click on the project's name. Select "Add" and then "Existing Item."
+5.	Select C/C++ Files: Browse and select the C/C++ source files and header files you want to include in the C# project. Click "Add" to add these files to your C# project.
+6.	Set Properties for C/C++ Files: For each C/C++ file added to the C# project, right-click on the file in "Solution Explorer" and select "Properties."
+7.	Set Build Action: In the "Properties" window, set the "Build Action" to "None" for C/C++ source files and "Content" for C/C++ header files.
+8.	Set Copy to Output Directory: Set the "Copy to Output Directory" property to "Copy if newer" for both C/C++ source and header files. This will ensure that the files are copied to the output directory when the project is built.
+9.	Link C/C++ Libraries: If your C/C++ project generated a static or dynamic library, you'll need to link it to your C# Windows Form project. Go to "Project Properties" > "Linker" > "Input" > "Additional Dependencies" and add the path to the C/C++ library.
+10.	Interop Services: For calling C/C++ functions from C# code, you'll need to use Platform Invoke (P/Invoke) to create interop services between the two languages. Define the C/C++ function signatures in a C# class with the [DllImport] attribute to link to the C/C++ functions.
+11.	Call C/C++ Functions: In your C# code, you can now call the C/C++ functions you defined using P/Invoke.
+
+
