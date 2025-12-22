@@ -1,0 +1,128 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "WinResrc.h"
+#define IDC_STATIC -1
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""WinResrc.h""\r\n"
+    "#define IDC_STATIC -1""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_DIALOGBAR DIALOGEX 0, 0, 148, 143
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 12, "MS Shell Dlg", 0, 0, 0x0
+BEGIN
+    CTEXT           "ARGA BATTERY MONITOR",IDC_STATIC,26,9,95,8
+    EDITTEXT        IDC_LCD_L1,44,22,50,15,ES_READONLY
+    EDITTEXT        IDC_LCD_L2,44,45,50,15,ES_CENTER | ES_READONLY
+    PUSHBUTTON      "Scan/Manual",IDC_BUT_RETURN,45,67,49,12
+    PUSHBUTTON      "Limit",IDC_BUT_ENTER,105,52,26,12
+    PUSHBUTTON      "Up (+)",IDC_BUT_PLS,10,39,26,12
+    PUSHBUTTON      "Dwn(-)",IDC_BUT_MNS,10,53,26,12
+    PUSHBUTTON      "Reset",IDC_BUT_RESET,105,38,26,12
+    LTEXT           "ms cntr: 0",IDC_TIME_TEST,8,128,90,8
+    LTEXT           "Tx / Rx",IDC_STATIC,110,70,25,8
+    LTEXT           "Auto",IDC_STATIC,12,24,16,8
+    LTEXT           "Alarm",IDC_STATIC,110,24,21,8
+    LTEXT           "Pulse On",IDC_STATIC,5,70,28,8
+    LTEXT           "Button held XXXX ms",IDC_BUT_HELD_TIME,8,119,87,8
+    LTEXT           "Vbatt, V",IDC_STATIC,7,94,34,8
+    EDITTEXT        IDC_V_BATT,38,92,26,12,ES_NOHIDESEL
+    LTEXT           "Vgnd, V",IDC_STATIC,83,94,34,8
+    EDITTEXT        IDC_V_GND,113,92,26,12,ES_NOHIDESEL
+    LTEXT           "Vrip, mA",IDC_STATIC,7,108,34,8
+    EDITTEXT        IDC_V_RIP,38,106,26,12,ES_NOHIDESEL
+    LTEXT           "Irip, mA",IDC_STATIC,83,108,34,8
+    EDITTEXT        IDC_I_RIP,113,106,26,12,ES_NOHIDESEL
+    LTEXT           "Set simulated values",IDC_STATIC,31,84,77,8
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_DIALOGBAR, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 140
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 136
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_DIALOGBAR AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

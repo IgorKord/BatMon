@@ -1,0 +1,73 @@
+﻿  Front_menu.c
+  Main.c
+  PC_SUPP.C
+C:\In_Development\Product Software\826\826-501A\SourceCode\Front_menu.c(320,52): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Front_menu.c(504,53): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(481,17): warning C4244: 'return': conversion from 'Uint32' to 'uint16', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(604,20): warning C4267: '=': conversion from 'size_t' to 'uint16', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(861,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(864,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(867,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(870,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(873,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(876,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(879,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(896,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(899,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(902,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(905,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(908,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(911,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(914,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(917,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(920,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(923,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(926,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(929,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(933,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(936,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(939,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(942,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(945,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(952,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(986,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(1197,9): warning C4068: unknown pragma 'vector'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(1275,42): warning C5055: operator '/': deprecated between enumerations and floating-point types
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(1644,67): warning C4244: '=': conversion from 'double' to 'uint16', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(1932,22): warning C4244: '=': conversion from 'uint16' to 'uint8', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(2361,39): warning C4477: 'sprintf' : format string '%.0f' requires an argument of type 'double', but variadic argument 1 has type 'int'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(2456,50): warning C4333: '>>': right shift by too large amount, data loss
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(2886,29): warning C4244: '=': conversion from 'uint16' to 'uint8', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(3233,29): warning C4244: '=': conversion from 'uint16' to 'uint8', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(4087,25): warning C5055: operator '<=': deprecated between enumerations and floating-point types
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(4181,30): warning C5055: operator '<=': deprecated between enumerations and floating-point types
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(4295,30): warning C5055: operator '<=': deprecated between enumerations and floating-point types
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(4082,30): warning C4101: 'i': unreferenced local variable
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(4413,25): warning C5055: operator '>=': deprecated between enumerations and floating-point types
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(4415,25): warning C5055: operator '<=': deprecated between enumerations and floating-point types
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(4799,33): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(4800,28): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(5033,21): warning C4302: 'type cast': truncation from 'Calibr2points *' to 'int16'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(5033,46): warning C4302: 'type cast': truncation from 'SYS_SPECIFIC_DATA *' to 'int16'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(5716,21): warning C4302: 'type cast': truncation from 'void *' to 'int16'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(5716,39): warning C4302: 'type cast': truncation from 'SYS_SPECIFIC_DATA *' to 'int16'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(5740,21): warning C4302: 'type cast': truncation from 'void *' to 'int16'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(5740,39): warning C4302: 'type cast': truncation from 'SYS_SPECIFIC_DATA *' to 'int16'
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(6361,22): warning C4309: '=': truncation of constant value
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(6574,13): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(6577,13): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(6990,24): warning C4244: '=': conversion from 'long' to 'float', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(7454,15): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(7459,58): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(7466,15): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(7471,57): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(7478,15): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(7482,57): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(7557,15): warning C4553: '==': result of expression not used; did you intend '='?
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(7567,15): warning C4553: '==': result of expression not used; did you intend '='?
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(8090,39): warning C4244: '=': conversion from 'uint16' to 'uint8', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(8101,83): warning C4244: 'argument': conversion from 'uint16' to 'uint8', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\Main.c(8101,56): warning C4244: 'argument': conversion from 'uint16' to 'uint8', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\PC_SUPP.C(408,31): warning C4244: '=': conversion from 'ULONGLONG' to 'long', possible loss of data
+C:\In_Development\Product Software\826\826-501A\SourceCode\PC_SUPP.C(1420,39): warning C4390: ';': empty controlled statement found; is this the intent?
+  ATMEL.vcxproj -> C:\In_Development\Product Software\826\826-501A\Debug\ATMEL.exe
