@@ -27,6 +27,7 @@ uint8  display_mode;						// indicates what is being displayed and the actions a
 
 //---- Display Board variables
 extern SettingsStruct Existing;				// keep current setting to detect change vs SysData.NV_UI
+extern const char FL* ProtocolNames;
 uint8  comm_value_change;					// indicates if a value is being changed
 uint8  baud_value_change;
 uint16 latched_alarm_status;				// remebers alarms if latch is enabled. persistent latched alarm can be cleaned by a reset or by disabling latch bit
@@ -312,12 +313,14 @@ void ProcessUPbutton() {
 			}
 			else if (display_mode == COMM_BAUD)
 			{
+				long t_long; // ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
 				if (BaudRateIndex < (Last_Baud_Index - 1))
 					BaudRateIndex++;													// Increment baud rate index
 				else
 					BaudRateIndex = (Last_Baud_Index - 1);								// Ensure BaudRateIndex does not exceed the maximum index
-
-				Existing.baud_rate = Baud_Rates[BaudRateIndex] << 2;					// IK20250826  Baud_Rates are saved divided by 4 to keep values inside uint16 range
+				t_long = Baud_Rates[BaudRateIndex]; // IK20251224 ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
+				Existing.baud_rate = t_long << 2;										// IK20250826  Baud_Rates are saved divided by 4 to keep values inside uint16 range
+				//Existing.baud_rate = Baud_Rates[BaudRateIndex] * 4.0f;				// IK20251224  using float math, it takes extra 8 bytes of flash
 				SysData.NV_UI.baud_rate = Existing.baud_rate;							// Store the new baud rate in NV_UI
 				SaveToEE(SysData.NV_UI.baud_rate);										// Store the new baud rate in EEPROM
 				rt.UBRR0_setting = Calculate_USART_UBRRregister((Uint32)SysData.NV_UI.baud_rate); // IK20251217 in main(), the difference will be detected and applied
@@ -953,6 +956,32 @@ float* NumLED_Display_Var[] =
 
 };
 
+char* ReplaceDoubleII(char* str)
+// Replace possible double 'I','I' or '1','1' with a char '`' 0x60, 96D. Display board will show II on one 7-seg numeric or 14-seg ASCII LED
+{
+	char* charPtr = str;
+	uint8 indx = 0;
+	while (charPtr[indx] != 0)
+	{
+		char ch1 = charPtr[indx];
+		char ch2 = charPtr[indx + 1];
+		if ((ch1 == 'I' || ch1 == '1') && (ch2 == 'I' || ch2 == '1'))
+		{
+			charPtr[indx] = 0x60; // '`' char to indicate double I
+			//shift rest of string to the left by one
+			while (charPtr[indx + 1] != 0)
+			{
+				charPtr[indx + 1] = charPtr[indx + 2];
+				indx++;
+			}
+			//charPtr[indx] = 0; // terminate string
+			indx = 0; // restart scanning from beginning
+		}
+		indx++;
+	}
+	return str;
+}
+
 // works in main loop
 void DisplayPrepare(void)
 {
@@ -995,7 +1024,7 @@ void DisplayPrepare(void)
 		else
 			Display_Info.DigitalStr[0] = 0; // empty string
 	}
-	else if (display_mode == SELECT_PROTOCOL){
+	else if (display_mode == SELECT_PROTOCOL) {
 		CopyConstString("PrtCL", Display_Info.DigitalStr);
 		//if (SysData.NV_UI.StartUpProtocol == SETUP)
 		//	CopyConstString("SEtuP", Display_Info.DigitalStr);
@@ -1010,11 +1039,62 @@ void DisplayPrepare(void)
 	}
 	else if (display_value > NoShow) // "do not show" value is -999.9f, if greater - show value on numeral display
 	{
-		if ((display_mode == COMM_ADDR) || (display_mode == COMM_BAUD) ) // takes less FLASH: 53467, 56 bytes less vs comparing pointers.
-		//if((NumLED_Display_Var[display_mode] == &Existing.meter_address) ||(NumLED_Display_Var[display_mode] == &Existing.baud_rate))  // takes more FLASH: 53523
+		if ((display_mode == COMM_ADDR) || (display_mode == COMM_BAUD)) // takes less FLASH: 53467, 56 bytes less vs comparing pointers.
+			//if((NumLED_Display_Var[display_mode] == &Existing.meter_address) ||(NumLED_Display_Var[display_mode] == &Existing.baud_rate))  // takes more FLASH: 53523
 			sprintf(Display_Info.DigitalStr, "%5.0f", display_value); // show float as integer, 5 digit size
-		else
-			sprintf(Display_Info.DigitalStr, "%6.1f", display_value); // show float with one number after dot which will be packed into the second to right 7-seg LED with dot.
+		else{
+			if ((Display_Info.InfoStr[0] == 'A') && (Display_Info.InfoStr[1] == 'R')) // ARGA initial message
+			{
+				uint8 ProtocolIndex = SysData.NV_UI.StartUpProtocol;
+#ifdef PROT_NAMES_3CHARS
+				char BriefProtocolNames[4][3] = {
+					'I','n','i',
+					'D','n','P',
+					'M','O','d',
+					'A','S','C',
+				char ch1 = BriefProtocolNames[ProtocolIndex][0];
+				char ch2 = BriefProtocolNames[ProtocolIndex][1];
+				char ch3 = BriefProtocolNames[ProtocolIndex][2];
+				sprintf(Display_Info.DigitalStr,"%2.1f%c%c%c",display_value,ch1,ch2, ch3);
+#else
+				char BriefProtocolNames[4][2] = {
+					'I','n',
+					'D','n',
+					'M','b',
+					'A','S',
+				};
+				char ch1 = BriefProtocolNames[ProtocolIndex][0];
+				char ch2 = BriefProtocolNames[ProtocolIndex][1];
+				sprintf(Display_Info.DigitalStr,"%2.1f %c%c",display_value,ch1,ch2);
+#endif
+			}
+			else {
+				sprintf(Display_Info.DigitalStr, "%6.1f", display_value); // show float with one number after dot which will be packed into the second to right 7-seg LED with dot.
+			}
+		}
+		if (display_mode == COMM_BAUD)
+			ReplaceDoubleII(Display_Info.DigitalStr);// Replace possible double '1','1' with a char '`' 0x60, 96D. Display board will show 11 on the leftmost 7-seg numeric LED
+		//{
+		//	uint8 indx = 0;
+		//	while (Display_Info.DigitalStr[indx] != 0)
+		//	{
+		//		char ch1 = Display_Info.DigitalStr[indx];
+		//		char ch2 = Display_Info.DigitalStr[indx + 1];
+		//		if ((ch1 == 'I' || ch1 == '1') && (ch2 == 'I' || ch2 == '1'))
+		//		{
+		//			Display_Info.DigitalStr[indx] = 0x60; // '`' char to indicate double I
+		//			//shift rest of string to the left by one
+		//			while (Display_Info.DigitalStr[indx+1] != 0)
+		//			{
+		//				Display_Info.DigitalStr[indx + 1] = Display_Info.DigitalStr[indx + 2];
+		//				indx++;
+		//			}
+		//			//Display_Info.DigitalStr[indx] = 0; // terminate string
+		//			indx = 0; // restart scanning from beginning
+		//		}
+		//		indx++;
+		//	}
+		//}
 	}
 	else
 		Display_Info.DigitalStr[0] = 0; // empty string
@@ -1154,12 +1234,12 @@ void DisplayPrepare(void)
 				BaudRateIndex = Baud_19200_i;
 			}
 			else if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS) {
-				p_InfoStr = ("ASCI");
+				p_InfoStr = ("ASC`");
 				Existing.baud_rate = Baud_115200;
 				BaudRateIndex = Baud_115200_i;			// IK20250826 set to 115200 baud, for quicker screen update
 			}
 			else // default to SETUP
-			// if (SysData.NV_UI.StartUpProtocol == SETUP) 
+			// if (SysData.NV_UI.StartUpProtocol == SETUP)
 			{
 				SysData.NV_UI.StartUpProtocol = SETUP;
 				p_InfoStr = ("INIT");
@@ -1172,12 +1252,12 @@ void DisplayPrepare(void)
 		if (rt.operating_protocol != SysData.NV_UI.StartUpProtocol) {
 #ifdef PC
 			PutStr(p_InfoStr); SendCrLf();		// output to serial port
-#endif			
+#endif
 			rt.operating_protocol = SysData.NV_UI.StartUpProtocol;// IK20251217 in main(), the difference will be detected and applied
 			// IK20251210 check if baud rate need to be changed - then do it; this happens in main loop.
 			// otherwise writing to UBBR0 disrupts UART work
 			rt.UBRR0_setting = Calculate_USART_UBRRregister((Uint32)Existing.baud_rate); // IK20251217 in main(), the difference will be detected and applied
-			rt.HostRxBuffPtr = 0;	//IK20251219 reset buffer pointer
+			rt.HostRxBuffPtr = rt.EchoRxBuffPtr = 0;	//IK20251219 reset buffer pointer
 			msg_status = MSG_DONE;	// and status of message -> anew
 		}
 	}

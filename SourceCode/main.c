@@ -239,7 +239,7 @@ char FW_PartNumber[] = "826-509-A";   // IK20230706 must be in RAM and not the c
 char FW_PartNumber[] = "826-501-A";   // IK20230706 must be in RAM and not the char* for printf
 #endif //#ifdef LAST_GASP
 
-char FW_Date[] = "18-Nov-2025";     // IK20230706 must be in RAM for printf
+char FW_Date[] = "28-Dec-2025";     // IK20230706 must be in RAM for printf
 #define FW_VERSION   (uint8)30 // increment with new release
 #define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
 #ifdef INCLUDE_DAY_TIME_INTO_FW // this includes "comp @ __DATE__ __TIME__" but in Vsual Studio just-in-time compile will not work
@@ -467,7 +467,7 @@ int putch(int c)
 /// <returns>InVal + Noise</returns>
 double AddNoise(double InVal, double NSR)
 {
-	// NSR should be 0.10 for ±5% noise (i.e., 10% peak-to-peak)
+	// NSR should be 0.10 for +/-5% noise (i.e., 10% peak-to-peak)
 	double noise = ((double)rand() / RAND_MAX - 0.5) * NSR;
 	return InVal * (1.0 + noise);
 }
@@ -518,7 +518,6 @@ void Send_Char(uint8 Tx_char) {
 	for (c=0; c<16; c++) {
 		_NOP();
 	}
-// IK20230707 sometimes echo or response get corrupted:z&&ÈDT=100 // ms delay before measurement
 // cannot use  Delay_ms(2); because it is called from interrupt //add delay before start transmitting?
 	__disable_interrupt();
 	setBit(UCSR0A, TXC);                         // write to UCSRA the TXC<=>0x40 bit to clear transmitter
@@ -582,7 +581,6 @@ can be cleared by writing a one to its bit location. The TXC Flag is useful in h
 communication interfaces (like the RS485 standard), where a transmitting application must enter
 receive mode and free the communication bus immediately after completing the transmission.
 */
-// IK20230707 sometimes echo or response get corrupted:z&&ÈDT=100 // ms delay before measurement
 	Delay_ms(2); //add delay before start transmitting?
 // The USART transmitter has two flags that indicate its state: USART Data Register Empty
 // (UDRE) and Transmit Complete (TXC). Both flags can be used for generating interrupts.
@@ -2389,7 +2387,7 @@ int Add_ModBus_BinaryLongToWorkString(int start_pos,long value)
 {	// handles both positive and negative values (e.g., -268523 mV):
 	// Split into integer and fractional parts
 	int integerValue = (int)(value / 1000);          // e.g., -268
-	// In C, (abs(value) % 1000)) and abs(value % 1000) are fine, but abs(value % 1000) is slightly more direct and efficient — we don’t compute the full abs(value).
+	// In C, (abs(value) % 1000)) and abs(value % 1000) are fine, but abs(value % 1000) is slightly more direct and efficient - we don't compute the full abs(value).
 	int fractionValue = (int)(abs(value % 1000));    // e.g., 523, always positive
 
 	// Transmit integer part (MSB first)
@@ -2417,7 +2415,7 @@ int Add_ModBus_BinaryLongToWorkString(int start_pos,long value)
 	Revision:    05/29/15      REC     Created.
 	IK20250714
 	Modbus itself only defines 16-bit register access (Read Holding Registers, etc.).
-	For 32-bit values, how those rt.registers are packed is not standardized in the Modbus spec — it’s vendor- or implementation-specific.
+	For 32-bit values, how those rt.registers are packed is not standardized in the Modbus spec - it's vendor- or implementation-specific.
 
 	It appears that ElectroSwitch transfers:
 	in upper 2-bytes --- (word millivolts / 1000), i.e., round volts, MSB first
@@ -4046,7 +4044,7 @@ DNP_App(void)
 void ClearRxBuffer(uint8 pattern) {
 	__disable_interrupt();
 	memset((void*)rt.HostRxBuff, pattern, sizeof(rt.HostRxBuff));	// clear out last msg
-	rt.HostRxBuffPtr = 0;							// ready for next msg
+	rt.HostRxBuffPtr = rt.EchoRxBuffPtr = 0;						// ready for next msg
 	num_of_inbytes = 0;	// IK20251219 'num_of_inbytes' is not used in SETUP protocol
 	__enable_interrupt();
 }
@@ -6198,7 +6196,7 @@ void init(void)
 
 // IK20250530 - to disable interrupts, set all flags in TIMSK0 to zero
 	TIMSK0 = 0x00;			// enable timer 0 interrupt: bit0=Overflow, Bit1==Compare Match A, Bit2==Compare Match B
-							// The OCF0B. OCF0A, TOV0 bits are set when a Compare Match occurs between the Timer/Counter and the data in OCR0x or overflow – Output Compare Register 0 'x'.
+							// The OCF0B. OCF0A, TOV0 bits are set when a Compare Match occurs between the Timer/Counter and the data in OCR0x or overflow - Output Compare Register 0 'x'.
 							// OCF0B is cleared by hardware when executing the corresponding interrupt handling vector. Alternatively, OCF0B is cleared by writing a logic one to the flag.
 	TIFR0 = 0x07;									// clear timer 0 Flag register: : bit0=Overflow, Bit1==Compare Match A, Bit2==Compare Match B
 
@@ -6383,13 +6381,6 @@ void Delay_ms(uint16 Delay)
 	}
 }
 
-/******************************** /
-void ClearRxBuffer(void) {
-	rt.HostRxBuffPtr = rt.EchoRxBuffPtr = 0;
-	memset((char*)rt.HostRxBuff, 0, sizeof(rt.HostRxBuff));	// clear buffer BEFORE sending >~OK or it could miss new command if it sent immediately after receiving >~OK\r\n
-	clearBit(rt.Host, CmdAvailFlag + CharAvailableFlag);
-}
-*/
 //********************************
 // the word 'TwoChars' accepted as two bytes:
 // upper and lower byte, each send out
@@ -6450,41 +6441,21 @@ void ClearConsole() {
 /******************************************************************************/
 void SendMsgToPC(char FL * Msg)
 {
-	CopyConstString(Msg, printf_buff);
-	PutStr(printf_buff);
+	//CopyConstString(Msg, printf_buff);
+	//PutStr(printf_buff);
+	cputs(Msg);
 	SendCrLf();
 }
 /******************************************************************************/
 void Print_Help(void)
 {
 	SendMsgToPC("vers	Get FW Version");
-	SendMsgToPC("menu	Call Menu");
 	SendMsgToPC("init	Re-initialize");
 	SendMsgToPC("dflt	Set Default Params");
-	SendMsgToPC("save	Save Params");
-#ifdef FULL_HELP
-	SendMsgToPC("Help	This info");
-	SendMsgToPC("gngs	Get Go-no-Go Status");
-	SendMsgToPC("brif	Get Real Time Diagnostic, 4 lines");
-	// "stat" -> "stat\r\nSTATUS_STRINGs_WHATEVER_THEY_ARE"
-	SendMsgToPC("info	Get System Snapshot");
-	SendMsgToPC("posi	Get Abs position, cnts: PRXH1,PRXH2,PRXH3,PRXV1,PRXV2,PRXV3,*");
-	SendMsgToPC("relc/relm	Get relative position, cnts/ um: H1,H2,H3,V1,V2,V3,*");
-	//	SendMsgToPC("relm:	Get relative position, microns: : H1,H2,H3,V1,V2,V3,*");
-	SendMsgToPC("Gain0# Gain0#=flt.gn (0..327.6); #: Z=0,tX=1,tY=2,dZ=3,dtX=4,dtY=5,PresBal=6");
-	//	SendMsgToPC("GainF#: Get/set Feed Forward gain, # is XAcc=0; YAcc=2; XPos=2; YPos=3");
-	SendMsgToPC("gngw	Get/set GoNoGo Window: 0..1000 um");		//"gngw=XXXX" - will set Go-NoGo window, query "gngw?\r" will respond with "gngw=XXX\r\n"; XXXX - integer microns
-	SendMsgToPC("gngd	Get/set GoNoGo Delay, 0...10.0 sec");	//"gngd=TT.TT" - will set Go-NoGo delay, query "gngd?\r" or "gngd\r" will respond with "gngd=TT.TT\r\n"; TT.TT - time as a float value
-	//"gngs" - will printf("\r\nPAYLOAD IS: %s ",VertStatusNames[VertLoopStatus]);	cputs((rt.Go_NoGo == Go_eq0_NoGo_eq1_Bit)?"noGO  ": " OK   ");	//status gonogo = 0;INSIDE WINDOW
-	//"vert>dock" - will initiate dock sequence, query "vert?\r" or "vert\r" will respond with current vertical status, like: "vert>!.descending.!\r\n"; "vert>>>> docked <<<\r\n";
-	SendMsgToPC("vert	Vertical Status Get: vert? Set: vert>dock, vert>float");
-	SendMsgToPC("ofs#	Vert. Offset: #=ISO1-2-3 Get: ofs3? Set: ofs2=75");
-	//	SendMsgToPC("ffon:	Enable Feed Forward");
-	//	SendMsgToPC("ffof:	Disable Feed Forward");
-	SendMsgToPC("hrzz, z 	Remove offset from horiz. RELATIVE readings");
-	SendMsgToPC("uaop	Updates axis operational pressure points");
-	SendMsgToPC("vpsc/hpsc	Get/set Prox Scale Vert/Hor: vpsc=CC, CC=cnts per um (1..99)");
 	SendMsgToPC("echo	Get/set echo>enable echo>disable");
+	SendMsgToPC("save	Save Params");
+#ifdef FULL_HELP //IK20251223 expand if FW has enough free FLASH space
+	SendMsgToPC("Help	This info");
 #endif // FULL_HELP
 }
 void DoNothing() {
@@ -6785,14 +6756,14 @@ void SetRealTimeMonitoring(void) {
 
 }
 
-/***************************************************************** /
-void SetDefaultsInRAM(void)
-{											// adr offset, bytes  size
-	int ctr;
-	SysData.FWversion = FW_VERSION;			// 4  2 bytes FW version, like 0012
+/*****************************************************************/
+void InitATMEL(void)
+{
+	SendMsgToPC("Restarting\r\n>~OK");
+	restart_op = true;
 }
 
-/ *************************************************************/
+/*************************************************************/
 void SetDefaultsInRAM_by_command(void)
 {
 	SetDefaultsInRAM();//	SET DEFAULTS IN RAM
@@ -7074,7 +7045,7 @@ Argument "#" on 5th place [4] in command string: defines calibration for:
 
 Argument "$" on 6th place [5] in command string, range {0...3}, defines coordinate: 0=X1_low_point, 1=Y1_low_point, 2=X2_high_point, 3=Y2_high_point.
 On the 7th place [6] of command string can be '=' the SET command. If it is NOT "=" then it is interpreted as GET command. On the 7th place [6] then can be '?' or nothing.
-Value "ggg.ggg" starts on 8th place [7], and calibration factor can be in regular or scientific notation "±m.mmE±pp"
+Value "ggg.ggg" starts on 8th place [7], and calibration factor can be in regular or scientific notation "+/-m.mmE+/-pp"
 
 **************************************************************/
 void SetGetCalParam(void)
@@ -7164,7 +7135,7 @@ Argument "#" on 5th place [4] in command string: defines calibration for:
 
 Argument "$" on 6th place [5] in command string, range {0...3}, defines coordinate: 0=X1_low_point, 1=Y1_low_point, 2=X2_high_point, 3=Y2_high_point.
 On the 7th place [6] of command string can be '=' the SET command. If it is NOT "=" then it is interpreted as GET command. On the 7th place [6] then can be '?' or nothing.
-Value "ggg.ggg" starts on 8th place [7], and calibration factor can be in regular or scientific notation "±m.mmE±pp"
+Value "ggg.ggg" starts on 8th place [7], and calibration factor can be in regular or scientific notation "+/-m.mmE+/-pp"
 **************************************************************/
 void SetCalibrationValue(void) //-!- K20251119 need special treatment for current loop calibration
 {
@@ -8222,8 +8193,14 @@ void main(void)
 		UCSR0A = 0x20;										// redundant because it is set a reset anyway
 		UCSR0B = 0x98;										// enable rcv & xmt,
 		if (UBRR0 != rt.UBRR0_setting)		// Baud register or baud rate changed
+		{
 			Set_USART_UBBRregister((Uint32)Existing.baud_rate);					// set UART to new baud rate
-
+			if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS) // if ASCII protocol send sign-on message
+			{
+				Print_FW_Version();
+				SendMsgToPC("\r\n>~OK");
+			}
+		}
 		//-------- Set Up I/O -------
 		//This code leaves all outputs inactive
 		DDRA = PORTA_DDR;									// I I I I I I I I
@@ -8241,7 +8218,7 @@ void main(void)
 		if (TCCR2B != 0x02)									// if divide by 8 changed
 			TCCR2B = 0x02;									// fix it to divide by 8
 		*/
-		if (TIMSK2 != 0x02)			// IK20250925 if interrupt got shut off - turn it back on. Bit 1 – OCIE2A: Timer/Counter2 Output Compare Match A Interrupt Enable
+		if (TIMSK2 != 0x02)			// IK20250925 if interrupt got shut off - turn it back on. Bit 1 - OCIE2A: Timer/Counter2 Output Compare Match A Interrupt Enable
 			TIMSK2 = 0x02;			// When the OCIE2A bit is written to one and the I-bit in the Status Register is set (one), the Timer / Counter2 Compare Match A interrupt is enabled.
 		ASSR = 0x00;
 		if (ACSR != TWINT)			// IK20250925 if Analog Comparator Control and Status ACD bit is cleared comparator is enabled. shut off analog comparator.
@@ -8457,11 +8434,11 @@ Uchar ParseRCI(void)
 		}
 		//			if (rci[i].cmd_code ==0) goto ParseEnd; //end of RCI command table
 	} //end of command search: 'for' cycle
-
 //ParseEnd:
 	SendCrLf(); // here instead of many other places
 
 	ClearRxBuffer(0);
+	clearBit(rt.Host, CmdAvailFlag | CharAvailableFlag);
 
 	if (ErrorStatus == NO_ERROR)
 	{

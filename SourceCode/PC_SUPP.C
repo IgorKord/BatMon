@@ -125,8 +125,8 @@ one more line and row, not using index 0 */
 
 // IK20251001
 #define MCU_CYCLE_NS (1000000000ULL / MASTER_CLOCK)  // ~62.5 ns per cycle
-// In simulation, we can’t realistically wait 62.5 ns,
-// so we scale: 1 NOP = 100 µs delay
+// In simulation, we cannot realistically wait 62.5 ns,
+// so we scale: 1 NOP = 100 us delay
 #define SIM_NOP_DELAY_US    100ULL
 
 static  uint64_t now_us(void) {
@@ -147,7 +147,11 @@ void delay_us(unsigned long long us)
 
 void RealTimeCode(void)
 {
-	TIMER2_COMPA_interrupt(); // decrements counters
+	// Simulate 5 × 1ms ticks to match embedded timing
+	//for (int i = 0; i < 5; i++)
+	{
+		TIMER2_COMPA_interrupt(); // decrements counters
+	}
 }
 
 //empty functions for PC simulation
@@ -554,7 +558,7 @@ LRESULT CALLBACK ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 
 		// Prevent next WM_LBUTTONUP from processing
 		ignoreNextButtonUp[btnIndex] = true;
-		
+
 		return 0;// IMPORTANT: return 0 to prevent Windows from sending another WM_LBUTTONUP
 	  }
 	}
@@ -1692,7 +1696,7 @@ char check_ch(int* ptrKEY)
 					}
 				}
 			}
-			else if (msg_status != MSG_DONE) 
+			else if (msg_status != MSG_DONE)
 			{
 				rt.HostRxBuff[rt.HostRxBuffPtr] = received_char;             //store the new char in Q
 				rt.HostRxBuffPtr++;

@@ -205,32 +205,28 @@ typedef struct 	//size of SysData should be less, than 2048 - size of EEPROM blo
 	uint16 dll_timeout;				// 0x004  2  //-!- IK20250203 only set/get not used in code !!  dll timeout
 	uint16 inter_char_gap;			// 0x006  2  //-!- IK20250203 only set/get not used in code !!  inter-char gap, default = 1041 microseconds
 	uint16 xmt_delay;				// 0x008  2  // xmt delay
-	uint8 input_type[6];			// 0x020  6  // type of analog input - uni-polar or bi-polar  index [0] is former variable 'analog_points'
+	uint8 input_type[6];			// 0x00A  6  // type of analog input - uni-polar or bi-polar  index [0] is former variable 'analog_points'
 
-	//--- Modbus Settings start at 0x010
-	//uint8 protocol;					// 0x010  1  // protocol byte, enum DNP or MODBUS
-	//uint8 UART_parity;			// 0x011  1  // == 1 UART_parity even; == 2 UART_parity odd
-	uint8 dll_confirm;				// 0x012  1  //-!- IK20250203 only set/get not used in code !!  dll confirm status
-	uint8 app_confirm;				// 0x013  1  // Modbus UART_parity
-	uint8 dll_retries;				// 0x014  1  //-!- IK20250203 only set/get not used in code !!  dll retries
-	//see also uint8  dnp_dll_retries; //-!- IK20231214 saved into EEPROM but incorrect logic: not checked in protocol //number of dll retries
-	uint8 extra1_bytes[11];			// 0x015  11 // future use
+	uint8 dll_confirm;				// 0x010  1  //-!- IK20250203 only set/get not used in code !!  dll confirm status
+	uint8 app_confirm;				// 0x011  1  // Modbus UART_parity
+	uint8 dll_retries;				// 0x012  1  //-!- IK20250203 only set/get not used in code !!  dll retries
+	uint8 extra1_bytes[13];			// 0x015  11 // future use
 
 	// LCD board settings start at 0x020
 	uint8 FrontBoardBytes[16];		// 0x020  16  // future use
 
 	// Calibration floats start at 0x030
-	Calibr2points BatteryVolts;		// 0x040  16 // Y1 X1 Y2 X2 Battery Voltage calibration
-	Calibr2points FaultVolts;		// 0x050  16 // Y1 X1 Y2 X2 Fault Voltage calibration
-	Calibr2points MinusGndVolts;	// 0x060  16 // Y1 X1 Y2 X2 Minus Grnd voltage correction factor info
-	Calibr2points RippleVolts1ph;	// 0x070  16 // Y1 X1 Y2 X2 single phase ripple voltage calibration
-	Calibr2points RippleVolts3ph;	// 0x080  16 // Y1 X1 Y2 X2 three phase ripple voltage calibration
-	Calibr2points RippleCurr1ph;	// 0x090  16 // Y1 X1 Y2 X2 single phase ripple current calibration
-	Calibr2points RippleCurr3ph;	// 0x0A0  16 // Y1 X1 Y2 X2 three phase ripple current calibration
-	Calibr2points CurrentOut_I420;	// 0x0B0  16 // NU X1 NU X2 current loop calibration, value in PWM register to get 4 mA or 20 mA
-	SettingsStruct   NV_UI;			// 0x0C0 // Non Volatile User Interface settings controlled by user
+	Calibr2points BatteryVolts;		// 0x030  16 // Y1 X1 Y2 X2 Battery Voltage calibration
+	Calibr2points FaultVolts;		// 0x040  16 // Y1 X1 Y2 X2 Fault Voltage calibration
+	Calibr2points MinusGndVolts;	// 0x050  16 // Y1 X1 Y2 X2 Minus Grnd voltage correction factor info
+	Calibr2points RippleVolts1ph;	// 0x060  16 // Y1 X1 Y2 X2 single phase ripple voltage calibration
+	Calibr2points RippleVolts3ph;	// 0x070  16 // Y1 X1 Y2 X2 three phase ripple voltage calibration
+	Calibr2points RippleCurr1ph;	// 0x080  16 // Y1 X1 Y2 X2 single phase ripple current calibration
+	Calibr2points RippleCurr3ph;	// 0x090  16 // Y1 X1 Y2 X2 three phase ripple current calibration
+	Calibr2points CurrentOut_I420;	// 0x0A0  16 // NU X1 NU X2 current loop calibration, value in PWM register to get 4 mA or 20 mA
+	SettingsStruct   NV_UI;			// 0x0B0 // Non Volatile User Interface settings controlled by user
 	float Bat_Cal_Offset_Volts_f;	// 0x0C0  4 IK20251029 offset rarely changes, only by user from front panel CALibration menu. Typically, operator with sertified calibrated meter measures battery voltage and adjusts offset to match displayed voltage to his meter.
-#define EXTRA_FLOATS_NUM 7
+#define EXTRA_FLOATS_NUM			4
 	float extra_floats[EXTRA_FLOATS_NUM];	// 0x0C4  4*EXTRA_FLOATS_NUM  // future use
 	//--- if EXTRA_FLOATS_NUM = 7 next address is  0x0E0
 }SYS_SPECIFIC_DATA;
@@ -455,8 +451,8 @@ extern TIMERS timer;
 #define SHORT_PRESS_DELAY    150 // ms, 0.15 sec
 
 // this is minimum holding button interval to get into different menu for the "long hold". pressing for that longer interval would create "button hold" event and clear "button pressed" event
-#define LONG_PRESS_DELAY    3000 // ms, 3.0 sec. 
-// More than that: SHORT_PRESS_BIT is cleared, LONG_PRESS_BIT is set. Button timer should not stop and continue counting press and hold duration. 
+#define LONG_PRESS_DELAY    3000 // ms, 3.0 sec.
+// More than that: SHORT_PRESS_BIT is cleared, LONG_PRESS_BIT is set. Button timer should not stop and continue counting press and hold duration.
 // This is useful for UD or DOWN buttons to accelerate increment / decrement of the value.
 
 // bits are used in Display_Info.butt_states

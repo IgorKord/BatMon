@@ -189,23 +189,23 @@
 /* -------------TWI - Two Wire Interface ------*/
 
 /**********************************************************
-TWI Status Register – TWSR
-TWSR – TWI Status Register
+TWI Status Register - TWSR
+TWSR - TWI Status Register
 Name : TWSR
 Offset : 0x71
 Reset : 0xF8
-Property: –
+Property:
 The TWSR only contains relevant status information when the TWI Interrupt Flag is asserted.
 At all other times, the TWSR contains a special status code indicating that no relevant status information is available.
 
-Bits[7:3] – TWS : TWI Status
+Bits[7:3] - TWS : TWI Status
 These five bits reflect the status of the TWI logic and the Two - Wire Serial Bus.
 The different status codes are described later in this section.
 Note that the value read from TWSR contains both the 5 - bit status value and the 2 - bit prescaler value.
 The application designer should mask the prescaler bits to zero when checking the Status bits.
 This makes status checking independent of prescaler setting.
-Bit 2 – Reserved Bit. This bit is reserved and will always read as zero.
-Bits [1:0] – TWPS: TWI Prescaler Bits. These bits can be read and written, and control the bit rate prescaler.
+Bit 2 - Reserved Bit. This bit is reserved and will always read as zero.
+Bits [1:0] - TWPS: TWI Prescaler Bits. These bits can be read and written, and control the bit rate prescaler.
 **********************************************************/
 
 #define TWS7             Bit_7 // TWI Status Bit 7
@@ -213,7 +213,7 @@ Bits [1:0] – TWPS: TWI Prescaler Bits. These bits can be read and written, and c
 #define TWS5             Bit_5 // TWI Status Bit 5
 #define TWS4             Bit_4 // TWI Status Bit 4
 #define TWS3             Bit_3 // TWI Status Bit 3
-#define TWSRna           Bit_2 // Bit 2 – Reserved Bit (always read as zero)
+#define TWSRna           Bit_2 // Bit 2 - Reserved Bit (always read as zero)
 //TWPS1 TWPS0 Prescaler Value           |  =1 | =4  | =16 | =64 |
 #define TWPS1            Bit_1 // Bit 1 |  0  |  0  |  1  |  1  |
 #define TWPS0            Bit_0 // Bit 0 |  0  |  1  |  0  |  1  |
@@ -225,11 +225,11 @@ SCL frequency = (CPU Clock frequency) / (16 + 2*(TWBR) * PrescalerValue) */
 #define TWSR_STATUS_NOT_AVAIL TWSR_STATUS_MASK
 
 /**********************************************************
-TWI Control Register – TWCR
+TWI Control Register - TWCR
 Name: TWCR
 Offset: 0x74
 Reset: 0x00
-Property: –
+Property:
 The TWCR is used to control the operation of the TWI.It is used to enable the TWI, to initiate a
 master access by applying a START condition to the bus, to generate a receiver acknowledge,
 to generate a stop condition, and to control halting of the bus while the data to be written to the
@@ -255,7 +255,7 @@ note that clearing this flag starts the operation of the TWI, so all accesses to
 #define TWEA             Bit_6 // 0x40 TWI Enable Acknowledge Bit
 /*The TWEA bit controls the generation of the acknowledge pulse. If the TWEA bit is written to one, the
 ACK pulse is generated on the TWI bus if the following conditions are met:
-1. The device’s own slave address has been received.
+1. The device's own slave address has been received.
 2. A general call has been received, while the TWGCE bit in the TWAR is set.
 3. A data byte has been received in Master Receiver or Slave Receiver mode.
 By writing the TWEA bit to zero, the device can be virtually disconnected from the 2-wire Serial Bus
@@ -276,7 +276,7 @@ STOP condition, but the TWI returns to a well-defined unaddressed Slave mode and
 and SDA lines to a high impedance state.*/
 
 #define TWCC             Bit_3 // 0x08 TWI Write Collision Flag
-/*The TWWC bit is set when attempting to write to the TWI Data Register – TWDR when TWINT is low.
+/*The TWWC bit is set when attempting to write to the TWI Data Register - TWDR when TWINT is low.
 This flag is cleared by writing the TWDR Register when TWINT is high.*/
 
 #define TWEN             Bit_2 // 0x04 TWI Enable Bit
@@ -285,18 +285,18 @@ TWI takes control over the I/O pins connected to the SCL and SDA pins, enabling 
 and spike filters. If this bit is written to zero, the TWI is switched off and all TWI transmissions are
 terminated, regardless of any ongoing operation.*/
 
-#define TWIna            Bit_1 // 0x02 Bit 1 – Reserved Bit
+#define TWIna            Bit_1 // 0x02 Bit 1 - Reserved Bit
 
 #define TWIE             Bit_0 // 0x01 TWI Interrupt Enable.
 /*When this bit is written to one, and the I - bit in SREG is set, the TWI interrupt request will be
 activated for as long as the TWINT Flag is high.*/
 
 
-/* ------------- MCUSR – MCU Status Register -------------------------------------------
+/* ------------- MCUSR - MCU Status Register -------------------------------------------
 The MCU Status Register provides information on which reset source caused an MCU reset.
 
 Bit          7    6    5    4    3    2    1    0
-0x34 (0x54)  –    –    –  JTRF WDRF BORF EXTRF PORF
+0x34 (0x54)  -    -    -  JTRF WDRF BORF EXTRF PORF
 Read/Write   R    R    R   R/W  R/W  R/W  R/W  R/W
 Init Value   0    0    0   See Bit Description */
 

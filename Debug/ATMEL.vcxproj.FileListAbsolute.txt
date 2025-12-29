@@ -1,2 +1,0 @@
-G:\In_Out\ElectroSwitch\Product Software\826\826-501A\Debug\ATMEL.exe
-C:\In_Development\Product Software\826\826-501A\Debug\ATMEL.exe
