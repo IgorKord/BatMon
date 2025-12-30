@@ -194,6 +194,7 @@ void Do_Front_menu(void)
 			}
 		}
 	}
+	/**/
 	Display_Info.DisplayNeedsUpdateFlag = SET;
 }
 
@@ -252,7 +253,7 @@ void ProcessUPbutton() {
 					else {//if (timer.up_button > INC_DEC_BY_10_HOLD_TIME_ms) {  // >6000ms total
 						Delta_Voltages = Delta_long_press_Voltages;  // -1.0f
 					}
-				} 
+				}
 				if (timer.UpDownChange_rate_ms == 0) {
 					timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms
 					// the CheckVariableRangeAndChange(...Delta_Voltages...);  is called below

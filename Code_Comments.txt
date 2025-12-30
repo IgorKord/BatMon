@@ -1,5 +1,5 @@
 20251229
-This code SHOULD fix auto increment/decrement acceleration but, pressing LIMT button for 3+ sec causes rapid change on Info display.
+This code SHOULD fix auto increment/decrement acceleration but, pressing LIMT button for 3+ sec causes rapid change on Info display.   Commenting out code in Do_Front_menu() after Operation() does not help
 
 20251224
 ADDED>>> code to show 6-digit baudrate 115200 on 5-symbol numeric display. Trick: show "11" on one LED indicator as left and right vertical bars.
