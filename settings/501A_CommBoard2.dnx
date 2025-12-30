@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <settings>
     <DebugChecksum>
-        <Checksum>1232947473</Checksum>
+        <Checksum>967427812</Checksum>
     </DebugChecksum>
     <Disassembly>
         <MixedMode>1</MixedMode>
@@ -20,11 +20,6 @@
     <CallStack>
         <ShowArgs>0</ShowArgs>
     </CallStack>
-    <LogFile>
-        <LoggingEnabled>_ 0</LoggingEnabled>
-        <LogFile>_ "$PROJ_DIR$\LogFile1.log"</LogFile>
-        <Category2>_ 2</Category2>
-    </LogFile>
     <Breakpoints2>
         <Bp0>_ 1 "STD_CODE2" "{$PROJ_DIR$\SourceCode\Front_menu.c}.242.5" 0 0 1 "" 0 ""</Bp0>
         <Bp1>_ 1 "STD_CODE2" "{$PROJ_DIR$\SourceCode\Front_menu.c}.242.5" 0 0 1 "" 0 ""</Bp1>
@@ -38,4 +33,9 @@
         <Count>0</Count>
         <SuppressDialog>0</SuppressDialog>
     </Aliases>
+    <LogFile>
+        <LoggingEnabled>_ 0</LoggingEnabled>
+        <LogFile>_ "$PROJ_DIR$\LogFile1.log"</LogFile>
+        <Category2>_ 2</Category2>
+    </LogFile>
 </settings>

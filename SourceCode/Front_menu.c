@@ -10,18 +10,16 @@
 * Author:  Igor Kordunsky
 * Date: 06/17/2025
 *
-* File Description:	user interface code ported from Display board
+* File Description: user interface code ported from Display board
 *****************************************************************************/
 #include "GLOBALS.H"
 #include <string.h> // for memset, memcpy
 
-#define BTN_IGNORE_MS        DEBOUNCE_DELAY
-//#define BTN_RESET_MS         500
-#define BTN_AUTOINC_MS       LONG_PRESS_DELAY //1000
-#define BTN_DELTA_10_MS      INC_DEC_BY_10_HOLD_TIME_ms //2000
-#define BTN_DELTA_100_MS     DEC_INC_BY_100_HOLD_TIME_ms//4000
-
-#define BTN_AUTOINC_PERIOD   UpDownChange_rate_ms_START // 200
+#define BTN_IGNORE_MS         100 // DEBOUNCE_DELAY					
+#define BTN_AUTOINC_MS       1000 // LONG_PRESS_DELAY				
+#define BTN_DELTA_10_MS      2000 // INC_DEC_BY_10_HOLD_TIME_ms		
+#define BTN_DELTA_100_MS     4000 // DEC_INC_BY_100_HOLD_TIME_ms	
+#define BTN_AUTOINC_PERIOD    200 // UpDownChange_rate_ms_START		
 
 //-!- IK20250808  modes should be unified into one structure?
 uint8  last_display_mode;
@@ -40,8 +38,9 @@ uint8  comm_value_change;					// indicates if a value is being changed
 uint8  baud_value_change;
 uint16 latched_alarm_status;				// remebers alarms if latch is enabled. persistent latched alarm can be cleaned by a reset or by disabling latch bit
 
-#define Delta_short_press_Voltages		0.1f  // IK20251111 used in manual mode to increment/decrement voltages
-#define Delta_long_press_Voltages		1.0f  // IK20251111 used in manual mode to increment/decrement voltages
+#define Delta_short_press_Voltages		0.1f	// IK20251111 used in manual mode to increment/decrement voltages
+#define Delta_long_press_Voltages		1.0f	// IK20251111 used in manual mode to increment/decrement voltages
+#define Delta_very_long_press_Voltages	10.0f	// IK20251230 used in manual mode to increment/decrement voltages
 float Delta_Voltages = Delta_short_press_Voltages; // IK20251111 used in manual mode to increment/decrement voltages
 
 #define MAX_Vrip_LIMIT		2000
@@ -116,41 +115,50 @@ char FL * mode_strings[] = {				// used in Front_menu.c, strings for display mod
 void RecognizeButtonState(uint8 Btn_Index, volatile uint16* p_timer)
 {
 	static uint16 lastRepeatTime[BTN_MAX_INDEX + 1] = { 0 };
-	uint16 holdingTime;
-	uint8 btnMask = (BUTTON_AUTO_INSTANT_PRESS_BIT << Btn_Index);
 
-	// Button currently pressed?
-	if (Display_Info.buttons_hits & btnMask)
+	uint16 holdingTime;
+
+	uint16 instantMask = (BUTTON_AUTO_INSTANT_PRESS_BIT << Btn_Index);
+	uint16 shortMask = (BUTTON_AUTO_SHORT_PRESS_BIT << Btn_Index);
+	uint16 longMask = (BUTTON_AUTO_LONG_PRESS_BIT << Btn_Index);
+	uint16 heldMask = (BUTTON_AUTO_STILL_HELD_BIT << Btn_Index);
+
+	if (Display_Info.buttons_hits & instantMask)
 	{
-		// Start timing on first detection
 		if (*p_timer == 0)
 		{
 			*p_timer = 1;
 			lastRepeatTime[Btn_Index] = 0;
 			clearBit(Display_Info.butt_states,
-				(BUTTON_AUTO_SHORT_PRESS_BIT | BUTTON_AUTO_LONG_PRESS_BIT | BUTTON_AUTO_STILL_HELD_BIT ) << Btn_Index);
+				shortMask | longMask | heldMask);
 		}
 
 		holdingTime = *p_timer;
 
-		// Transition to auto-increment mode
-		if (holdingTime >= BTN_AUTOINC_MS)
+		if ((Btn_Index == BTN_INDEX_UP || Btn_Index == BTN_INDEX_DOWN) &&
+			holdingTime >= BTN_AUTOINC_MS)
 		{
-			setBit(Display_Info.butt_states, (BUTTON_AUTO_STILL_HELD_BIT << Btn_Index));
+			setBit(Display_Info.butt_states, heldMask);
 
-			// Auto-repeat every 200 ms
+			/* Delta selection */
+			if (holdingTime < BTN_DELTA_10_MS)
+				Delta_Voltages = Delta_short_press_Voltages;
+			else if (holdingTime < BTN_DELTA_100_MS)
+				Delta_Voltages = Delta_long_press_Voltages;
+			else
+				Delta_Voltages = Delta_very_long_press_Voltages;
+
 			if ((holdingTime - lastRepeatTime[Btn_Index]) >= BTN_AUTOINC_PERIOD)
 			{
 				lastRepeatTime[Btn_Index] = holdingTime;
 
 				if (Btn_Index == BTN_INDEX_UP)
 					ProcessUPbutton();
-				else if (Btn_Index == BTN_INDEX_DOWN)
+				else
 					ProcessDOWNbutton();
 			}
 		}
 	}
-	// Button released
 	else if (*p_timer > 0)
 	{
 		holdingTime = *p_timer;
@@ -158,22 +166,18 @@ void RecognizeButtonState(uint8 Btn_Index, volatile uint16* p_timer)
 
 		if (holdingTime < BTN_IGNORE_MS)
 		{
-			// Ignore
-		}
-		else if (holdingTime < LONG_PRESS_DELAY)
-		{
-			setBit(Display_Info.butt_states,
-				(BUTTON_AUTO_SHORT_PRESS_BIT << Btn_Index));
+			/* ignore */
 		}
 		else if (holdingTime < BTN_AUTOINC_MS)
 		{
-			setBit(Display_Info.butt_states,
-				(BUTTON_AUTO_LONG_PRESS_BIT << Btn_Index));
+			setBit(Display_Info.butt_states, shortMask);
 		}
-		// >= 1000 ms -> auto mode already handled, release does nothing
-
-		clearBit(Display_Info.butt_states,
-			(BUTTON_AUTO_STILL_HELD_BIT << Btn_Index));
+		else if (holdingTime < BTN_DELTA_10_MS)
+		{
+			if (Btn_Index != BTN_INDEX_UP && Btn_Index != BTN_INDEX_DOWN)
+				setBit(Display_Info.butt_states, longMask);
+		}
+		clearBit(Display_Info.butt_states, heldMask);
 	}
 }
 

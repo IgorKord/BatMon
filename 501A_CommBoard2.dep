@@ -5,70 +5,70 @@
     <configuration>
         <name>Debug</name>
         <outputs>
-            <file>$TOOLKIT_DIR$\inc\dlib\c\pgmspace.h</file>
-            <file>$TOOLKIT_DIR$\inc\dlib\c\DLib_float_setup.h</file>
-            <file>$TOOLKIT_DIR$\inc\dlib\c\DLib_Config_Normal.h</file>
-            <file>$PROJ_DIR$\Code_Comments.txt</file>
-            <file>$TOOLKIT_DIR$\inc\dlib\c\math.h</file>
-            <file>$TOOLKIT_DIR$\inc\dlib\c\string.h</file>
-            <file>$PROJ_DIR$\SourceCode\main.c</file>
-            <file>$TOOLKIT_DIR$\inc\iom644.h</file>
-            <file>$PROJ_DIR$\SourceCode\GLOBALS.H</file>
-            <file>$TOOLKIT_DIR$\inc\ina90.h</file>
-            <file>$TOOLKIT_DIR$\inc\dlib\c\stdarg.h</file>
-            <file>$PROJ_DIR$\SourceCode\Hardware.h</file>
-            <file>$PROJ_DIR$\Debug\Obj\Front_menu.r90</file>
             <file>$PROJ_DIR$\SourceCode\Front_menu.c</file>
-            <file>$PROJ_DIR$\Debug\List\501A_CommBoard2.map</file>
-            <file>$TOOLKIT_DIR$\inc\inavr.h</file>
-            <file>$PROJ_DIR$\SourceCode\Structure_defs.h</file>
-            <file>$PROJ_DIR$\Debug\Exe\501A_CommBoard2.d90</file>
-            <file>$TOOLKIT_DIR$\src\template\cfg3soim.xcl</file>
-            <file>$TOOLKIT_DIR$\inc\dlib\c\DLib_Defaults.h</file>
-            <file>$TOOLKIT_DIR$\inc\dlib\c\DLib_Product.h</file>
-            <file>$TOOLKIT_DIR$\inc\comp_a90.h</file>
-            <file>$TOOLKIT_DIR$\inc\dlib\c\stdlib.h</file>
-            <file>$TOOLKIT_DIR$\inc\intrinsics.h</file>
-            <file>$TOOLKIT_DIR$\inc\dlib\c\ysizet.h</file>
-            <file>$TOOLKIT_DIR$\inc\bitdefinitions\iom644.inc</file>
-            <file>$TOOLKIT_DIR$\src\template\cfgm644.xcl</file>
-            <file>$PROJ_DIR$\Debug\Obj\main.r90</file>
             <file>$TOOLKIT_DIR$\lib\dlib\dlAVR-3s-ec_mul-sf-n.r90</file>
-            <file>$TOOLKIT_DIR$\inc\iomacro.h</file>
-            <file>$PROJ_DIR$\Debug\Exe\501A_CommBoard2_rev3.Hex</file>
             <file>$TOOLKIT_DIR$\inc\dlib\c\stdio.h</file>
-            <file>$TOOLKIT_DIR$\inc\dlib\c\ctype.h</file>
-            <file>$PROJ_DIR$\SourceCode\ASCII_commands.h</file>
+            <file>$PROJ_DIR$\Debug\Obj\Front_menu.r90</file>
+            <file>$TOOLKIT_DIR$\inc\dlib\c\DLib_float_setup.h</file>
             <file>$TOOLKIT_DIR$\inc\dlib\c\yvals.h</file>
             <file>$TOOLKIT_DIR$\inc\dlib\c\ycheck.h</file>
+            <file>$PROJ_DIR$\SourceCode\main.c</file>
+            <file>$TOOLKIT_DIR$\inc\dlib\c\math.h</file>
+            <file>$TOOLKIT_DIR$\inc\iom644.h</file>
+            <file>$TOOLKIT_DIR$\inc\inavr.h</file>
+            <file>$TOOLKIT_DIR$\src\template\cfg3soim.xcl</file>
+            <file>$TOOLKIT_DIR$\inc\dlib\c\DLib_Defaults.h</file>
+            <file>$PROJ_DIR$\Debug\Exe\501A_CommBoard2.d90</file>
+            <file>$TOOLKIT_DIR$\inc\iomacro.h</file>
+            <file>$TOOLKIT_DIR$\inc\dlib\c\string.h</file>
+            <file>$TOOLKIT_DIR$\inc\dlib\c\pgmspace.h</file>
+            <file>$TOOLKIT_DIR$\inc\bitdefinitions\iom644.inc</file>
+            <file>$TOOLKIT_DIR$\inc\dlib\c\ysizet.h</file>
+            <file>$TOOLKIT_DIR$\inc\dlib\c\DLib_Product.h</file>
+            <file>$PROJ_DIR$\SourceCode\ASCII_commands.h</file>
+            <file>$TOOLKIT_DIR$\inc\intrinsics.h</file>
+            <file>$TOOLKIT_DIR$\inc\dlib\c\DLib_Config_Normal.h</file>
+            <file>$PROJ_DIR$\Debug\Obj\main.r90</file>
+            <file>$TOOLKIT_DIR$\inc\dlib\c\stdarg.h</file>
+            <file>$TOOLKIT_DIR$\inc\dlib\c\stdlib.h</file>
+            <file>$PROJ_DIR$\Debug\Exe\501A_CommBoard2_rev3.Hex</file>
+            <file>$PROJ_DIR$\SourceCode\GLOBALS.H</file>
+            <file>$PROJ_DIR$\SourceCode\Structure_defs.h</file>
+            <file>$TOOLKIT_DIR$\inc\ina90.h</file>
+            <file>$TOOLKIT_DIR$\inc\dlib\c\ctype.h</file>
+            <file>$PROJ_DIR$\SourceCode\Hardware.h</file>
+            <file>$PROJ_DIR$\Debug\List\501A_CommBoard2.map</file>
+            <file>$TOOLKIT_DIR$\inc\comp_a90.h</file>
+            <file>$TOOLKIT_DIR$\src\template\cfgm644.xcl</file>
+            <file>$PROJ_DIR$\Code_Comments.txt</file>
         </outputs>
-        <file>
-            <name>$PROJ_DIR$\SourceCode\main.c</name>
-            <outputs>
-                <tool>
-                    <name>ICCAVR</name>
-                    <file> 27</file>
-                </tool>
-            </outputs>
-            <inputs>
-                <tool>
-                    <name>ICCAVR</name>
-                    <file> 7 29 25 9 15 23 21 32 35 34 19 2 20 0 5 24 31 10 4 1 22 8 16 11 33</file>
-                </tool>
-            </inputs>
-        </file>
         <file>
             <name>$PROJ_DIR$\SourceCode\Front_menu.c</name>
             <outputs>
                 <tool>
                     <name>ICCAVR</name>
-                    <file> 12</file>
+                    <file> 3</file>
                 </tool>
             </outputs>
             <inputs>
                 <tool>
                     <name>ICCAVR</name>
-                    <file> 8 16 22 35 34 19 2 20 24 5</file>
+                    <file> 27 28 25 6 5 12 22 19 18 15</file>
+                </tool>
+            </inputs>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\SourceCode\main.c</name>
+            <outputs>
+                <tool>
+                    <name>ICCAVR</name>
+                    <file> 23</file>
+                </tool>
+            </outputs>
+            <inputs>
+                <tool>
+                    <name>ICCAVR</name>
+                    <file> 9 14 17 29 10 21 33 30 6 5 12 22 19 16 15 18 2 24 8 4 25 27 28 31 20</file>
                 </tool>
             </inputs>
         </file>
@@ -77,13 +77,13 @@
             <outputs>
                 <tool>
                     <name>XLINK</name>
-                    <file> 30 14</file>
+                    <file> 26 32</file>
                 </tool>
             </outputs>
             <inputs>
                 <tool>
                     <name>XLINK</name>
-                    <file> 26 18 12 27 28</file>
+                    <file> 34 11 3 23 1</file>
                 </tool>
             </inputs>
         </file>
@@ -92,7 +92,7 @@
             <outputs>
                 <tool>
                     <name>XLINK</name>
-                    <file> 17 30 14</file>
+                    <file> 13 26 32</file>
                 </tool>
             </outputs>
         </file>
