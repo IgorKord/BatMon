@@ -433,42 +433,40 @@ typedef int                  int16;
 #define ODD                 2
 #define ON                  1
 #define OFF                 0
-#define INACTIVE            0
-#define ACTIVE              1
-#define ENABLED             1
-#define DISABLED            0
-#define UNLOCKED            0
-#define LOCKED              1
-#define GOOD                1
-#define BAD                 0
+//#define INACTIVE            0
+//#define ACTIVE              1
+//#define ENABLED             1
+//#define DISABLED            0
+#define I420calibUNLOCKED   0	// this state is checked: if (I420_calibr_lock == I420calibUNLOCKED)
+#define I420calibLOCKED     1	// this state is set during calibration
+#define ModBusGOOD          1
+#define ModBusBAD           0
 //#define FAILED              0 // not used in ATMEL, but defined in VS and causes compilation error
-#define PASSED              1
-#define NOT_READ            5
-#define READ_DONE           6
-#define READY               6
-#define NOT_READY           5
-#define CLEAR               0
-#define BTN_PRESSED			1
-#define BTN_RELEASED		2
+//#define PASSED              1
+//#define NOT_READ            5
+//#define READ_DONE           6
+//#define READY               6
+//#define NOT_READY           5
+//#define CLEAR               0
+#define BTN_PRESSED			1	//IK20251230 need for PC simulation: case WM_LBUTTONDOWN: >>>> Display_Info.ButtonStateChanged = BTN_PRESSED;
+#define BTN_RELEASED		2	//IK20251230 need for PC simulation: case WM_LBUTTONDBLCLK: >>>> Display_Info.ButtonStateChanged = BTN_RELEASED;
 #define SET		1
 #define CLR		0
 #define CaRet               0x0D // === '\r' IK20230601 replaced CR with CaRet because Visual Studio C has this defined and redefinition causes errors
 #define LF                  0x0A // === '\n'
-#define RESTART_MONITOR     0x99
-#define DONE                10
-#define NOT_DONE            0
+//#define RESTART_MONITOR     0x99
 
-#define OCTET_DATA          0x17
-#define TWO_OCTET_DATA      0x28
-#define DLL_NUM_OF_RETRIES  2
-#define RECEIVED            0x33
-#define NOT_RECEIVED        0x66
-#define APP_ERROR           1
-#define ADDR_CLR            0
-#define ALL_CALL            1
-#define MY_ADDR             2
-#define NO_POINT            255
-#define CENTER              0
+//#define OCTET_DATA          0x17
+//#define TWO_OCTET_DATA      0x28
+//#define DLL_NUM_OF_RETRIES  2
+//#define RECEIVED            0x33
+//#define NOT_RECEIVED        0x66
+//#define APP_ERROR           1
+//#define ADDR_CLR            0
+//#define ALL_CALL            1
+//#define MY_ADDR             2
+//#define NO_POINT            255
+//#define CENTER              0
 
 #define FULL_SNAPSHOT       TRUE
 #define BRIF_SNAPSHOT       FALSE

@@ -1650,6 +1650,8 @@ void TWI_Read (uint8 dest_ADR)
 	twi.buffer[BYTE_2] = Simulated_ADC_counts & 0xFF;
 
 #else  // ATMEL
+#define DONE                10	// used in void TWI_Read (uint8 dest_ADR): while (twi_data != DONE)
+#define NOT_DONE            0	// used in void TWI_Read (uint8 dest_ADR) initially twi_data = NOT_DONE;
 
 	uint8 twi_status_reg;
 	uint8 twi_ptr, twi_data;
@@ -4416,7 +4418,7 @@ void Parse_Modbus_Msg(void)
 		_NOP();
 	};
 
-	msg = GOOD;
+	msg = ModBusGOOD;
 	broadcast = false;
 	send_modbus = SEND_NOTHING;
 	// ---------------- Check address first -------------
@@ -4442,9 +4444,9 @@ void Parse_Modbus_Msg(void)
 			received_crc = 0;
 		Calc_ModbusCRC(num_of_inbytes - 2);				// take 2 off for CRC bytes
 		if ((received_crc != crc) || (parity_error == true))
-			msg = BAD;
+			msg = ModBusBAD;
 		else
-			msg = GOOD;
+			msg = ModBusGOOD;
 		rt.device_register = wrk_str[2] * 256 + wrk_str[3];
 		rt.registers = wrk_str[4] * 256 + wrk_str[5];
 
@@ -4455,7 +4457,7 @@ void Parse_Modbus_Msg(void)
 
 		case READ_HOLDING_REGISTERS:					// Function 3 Read holding regs IK20250718 for BatMon, holding rt.registers contain votage and current analog values
 		case READ_INPUT_REGISTERS:						// Function 4 Read Input Registers
-			if (msg == GOOD)							// CRC check passed
+			if (msg == ModBusGOOD)							// CRC check passed
 			{
 				send_modbus = ILLEGAL_ADDRESS;			// asked for addr not implemented
 				if (rt.device_register == rt.first_register)	// reg addr is equal to 1st reg
@@ -4474,7 +4476,7 @@ void Parse_Modbus_Msg(void)
 				send_modbus = SEND_NOTHING;				// send no reply cause msg was bad
 			break;
 		case DIAGNOSTICS:								// Function 8 Diagnostics
-			if (msg == GOOD)							// if msg is good
+			if (msg == ModBusGOOD)							// if msg is good
 			{
 				if (rt.device_register == 0)
 				{										// if subfunction is return
@@ -4501,7 +4503,7 @@ void Parse_Modbus_Msg(void)
 		//case POLL_CONTROLLER:							// Function 14 Poll Controller
 		//case FORCE_MULTIPLE_COILS:					// Function 15 Force Multiple Coils
 		//case PRESET_MULTIPLE_REGISTERS:				// Function 16 Preset Multiple Regs
-			if (msg == GOOD)							// good msg but this function
+			if (msg == ModBusGOOD)							// good msg but this function
 				send_modbus = NOT_SUPPORTED_MODBUS;		// is not a supported in this product
 			else
 				send_modbus = SEND_NOTHING;				// bad msg so don't reply
@@ -5639,7 +5641,7 @@ void Parse_Display_Data(void){
 	{
 		rt.cal_4mA = true;
 		rt.cal_20mA = false;
-		if (I420_calibr_lock == UNLOCKED)							// if calibration not attempted
+		if (I420_calibr_lock == I420calibUNLOCKED)							// if calibration not attempted
 		{
 			if (Display_Info.Status & DISP_STATE_0_1mA_BIT)
 				setBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);	// doing 0 mA; I01 == 1, I420 == 0
@@ -5651,7 +5653,7 @@ void Parse_Display_Data(void){
 	{
 		rt.cal_4mA = false;
 		rt.cal_20mA = true;
-		if (I420_calibr_lock == UNLOCKED)						// if calibration not attempted
+		if (I420_calibr_lock == I420calibUNLOCKED)						// if calibration not attempted
 		{
 			if (Display_Info.Status & DISP_STATE_0_1mA_BIT)
 				setBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);	// doing 1 mA; I01 == 1, I420 == 0
@@ -5671,7 +5673,7 @@ void Parse_Display_Data(void){
 			SysData.CurrentOut_I420.Y1_lowCalibrVal -= 0.0001f;
 		if (Display_Info.Status & DISP_STATE_VoltCal_BIT)		// volt offset calibration setting
 			SysData.Bat_Cal_Offset_Volts_f += 0.1f;			// IK20251029 was +=1
-		I420_calibr_lock = LOCKED;
+		I420_calibr_lock = I420calibLOCKED;
 		clearBit(Display_Info.Status, DISP_STATE_ButtonUP_BIT);	// clear up bit 0x08
 	}
 	if (Display_Info.Status & DISP_STATE_ButtonDOWN_BIT)		// pressed the down arrow
@@ -5682,7 +5684,7 @@ void Parse_Display_Data(void){
 			SysData.CurrentOut_I420.Y1_lowCalibrVal += 0.0001f;
 		if (Display_Info.Status & DISP_STATE_VoltCal_BIT)		// volt cal setting
 			SysData.Bat_Cal_Offset_Volts_f -= 0.1f;			// IK20251029 was -=1
-		I420_calibr_lock = LOCKED;
+		I420_calibr_lock = I420calibLOCKED;
 		clearBit(Display_Info.Status, DISP_STATE_ButtonDOWN_BIT);	// clear down bit
 	}
 	*/
@@ -5698,7 +5700,7 @@ void Parse_Display_Data(void){
 		SaveToEE(SysData.NV_UI.SavedStatusWord);
 
 		rt.i_cal_active = false;
-		I420_calibr_lock = UNLOCKED;
+		I420_calibr_lock = I420calibUNLOCKED;
 	}//end store cal values
 } // endof void Parse_Display_Data(void)
 
@@ -8177,7 +8179,7 @@ void main(void)
 #endif // #ifndef INTERRUPT_TIME_TESTING
 		}
 		if (timer.PWM_calibration == 0)								// if not calibrating
-			I420_calibr_lock = UNLOCKED;							// keep cal type ready
+			I420_calibr_lock = I420calibUNLOCKED;							// keep cal type ready
 
 		// IK20251219 comment: this is for testing only
 		if ((rt.OperStatusWord & (RealTimeDataReady_eq1_Bit | SendRealTimeData_eq1_Bit)) == (RealTimeDataReady_eq1_Bit | SendRealTimeData_eq1_Bit)) // IK20250820 it will clear in main loop when sending brief info
@@ -8466,7 +8468,7 @@ Uchar ParseRCI(void)
 
 extern void Do_Front_menu(void);
 
-void CheckExecuteFrontPanelCmd(void) //in firmware, is called from main loop. Only when waiting char input in simulation, is called from int get_ch(void)
+void CheckExecuteFrontPanelCmd(void) //in firmware, it is called from main loop. Only when waiting char input in simulation, is called from int get_ch(void)
 {
 	ReadButtons();	 // read momentary states via TWI
 #ifndef PC // ATMEL

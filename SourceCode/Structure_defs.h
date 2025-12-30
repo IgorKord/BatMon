@@ -443,17 +443,30 @@ extern TIMERS timer;
 #define BUTTON_DOWN_INSTANT_PRESS_BIT   Bit_3  // if (buttons & 0x08)      // instantaneous status of DOWN button, 0==pressed, without delay, updates each main loop cycle
 #define BUTTON_RESET_INSTANT_PRESS_BIT  Bit_4  // if (buttons & 0x10)      // instantaneous status of RESET button, 0==pressed, without delay, updates each main loop cycle
 
+#ifndef PC //IK20251230
 // bits of Display_Info.button_states, changed by CommBoard
 // this is minimum debounce interval, pressing for shorter interval would not create "button pressed" event. SHORT_PRESS_BIT and LONG_PRESS_BIT are stay cleared
 #define DEBOUNCE_DELAY        50 // ms, 0.05 sec
 
-// this is holding, then releasing after at least 150 ms button interval, SHORT_PRESS_BIT is set on the RELEASE of the button unless it is pressed for more than 3000 ms
+// this is holding, then releasing after at least 150 ms button interval, SHORT_PRESS_BIT is set on the RELEASE of the button unless it is pressed for more than LONG_PRESS_DELAY ms
 #define SHORT_PRESS_DELAY    150 // ms, 0.15 sec
 
 // this is minimum holding button interval to get into different menu for the "long hold". pressing for that longer interval would create "button hold" event and clear "button pressed" event
 #define LONG_PRESS_DELAY    3000 // ms, 3.0 sec.
 // More than that: SHORT_PRESS_BIT is cleared, LONG_PRESS_BIT is set. Button timer should not stop and continue counting press and hold duration.
 // This is useful for UD or DOWN buttons to accelerate increment / decrement of the value.
+
+#define INC_DEC_BY_10_HOLD_TIME_ms		6000	// 10 sec
+#define DEC_INC_BY_100_HOLD_TIME_ms		9000	// 20 sec
+#define UpDownChange_rate_ms_START		 200	// Repeat interval, used by timer.UpDownChange_rate_ms
+#else // For PC, reduced timing for quicker debug
+#define DEBOUNCE_DELAY					  50	// ms, 0.05 sec
+#define SHORT_PRESS_DELAY				 100	// ms, 0.15 sec
+#define LONG_PRESS_DELAY				1000	// ms, 3.0 sec.
+#define INC_DEC_BY_10_HOLD_TIME_ms		2000	// 10 sec
+#define DEC_INC_BY_100_HOLD_TIME_ms		4000	// 20 sec
+#define UpDownChange_rate_ms_START		 100	// Repeat interval, used by timer.UpDownChange_rate_ms
+#endif
 
 // bits are used in Display_Info.butt_states
 // *_PRESS_BITs auto-clear in Operation() after processing menu

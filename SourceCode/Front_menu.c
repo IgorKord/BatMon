@@ -33,13 +33,9 @@ uint8  comm_value_change;					// indicates if a value is being changed
 uint8  baud_value_change;
 uint16 latched_alarm_status;				// remebers alarms if latch is enabled. persistent latched alarm can be cleaned by a reset or by disabling latch bit
 
-#define Delta_short_press_Voltages   0.1f  // IK202511111 used in manual mode to increment/decrement voltages
-#define Delta_long_press_Voltages    1.0f  // IK202511111 used in manual mode to increment/decrement voltages
-float Delta_Voltages = Delta_short_press_Voltages; // IK202511111 used in manual mode to increment/decrement voltages
-
-#define INC_DEC_BY_10_HOLD_TIME_ms		6000	// 10 sec
-#define DEC_INC_BY_100_HOLD_TIME_ms		9000	// 20 sec
-#define UpDownChange_rate_ms_START   200    // Initial repeat interval 200ms
+#define Delta_short_press_Voltages		0.1f  // IK20251111 used in manual mode to increment/decrement voltages
+#define Delta_long_press_Voltages		1.0f  // IK20251111 used in manual mode to increment/decrement voltages
+float Delta_Voltages = Delta_short_press_Voltages; // IK20251111 used in manual mode to increment/decrement voltages
 
 #define MAX_Vrip_LIMIT		2000
 #define MAX_DNP3_ADDRESS	((uint16)65519)
@@ -124,7 +120,7 @@ void RecognizeButtonState(uint8 Btn_Index, volatile uint16 *p_timer)
 	clearBit(Display_Info.butt_states, ((BUTTON_AUTO_SHORT_PRESS_BIT | BUTTON_AUTO_LONG_PRESS_BIT) << Btn_Index));
 
 	//check state of a button, it arrives via TWI from Front board as a bit in byte
-	// button currently pressed? (buttons_hits is sampled via TWI once in 20 ms)
+	// button currently pressed? (buttons_hits are sampled via TWI once in 20 ms)
 	if ((Display_Info.buttons_hits & (BUTTON_AUTO_INSTANT_PRESS_BIT << Btn_Index)) != 0)
 	{
 		if (timer_ms == 0) {
@@ -141,7 +137,7 @@ void RecognizeButtonState(uint8 Btn_Index, volatile uint16 *p_timer)
 				setBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);
 			// restart counting for the next LONG_PRESS_DELAY cycle (use 1, not 0)
 			//Grok20251229 said no; *p_timer -= (LONG_PRESS_DELAY - 1); // Grok20251229: instead of = 1; changed to subtract LONG_PRESS_DELAY on long press to accumulate total hold time for accel.
-			timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Set to 200ms for repeat interval
+			//timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Set to 200ms for repeat interval
 		}
 		// otherwise keep counting; do not set short-press while held
 	}
@@ -151,8 +147,7 @@ void RecognizeButtonState(uint8 Btn_Index, volatile uint16 *p_timer)
 		if (timer_ms >= SHORT_PRESS_DELAY && timer_ms < LONG_PRESS_DELAY) {
 			setBit(Display_Info.butt_states, (BUTTON_AUTO_SHORT_PRESS_BIT << Btn_Index));
 		}
-		// stop timer on release
-		*p_timer = 0;
+		*p_timer = 0;		// stop timer on release
 	}
 #endif // #ifdef DISPLAY_MENU
 }
@@ -300,12 +295,12 @@ void ProcessUPbutton() {
 			else if ((display_mode == CAL2_4mA) || (display_mode == CAL6_0mA))// (Display_Info.Status & DISP_STATE_LOmA_BIT)			// 4 mA setting
 			{
 				SysData.CurrentOut_I420.Y1_lowCalibrVal += 0.0001f;
-				I420_calibr_lock = LOCKED;
+				I420_calibr_lock = I420calibLOCKED;
 			}
 			else if ((display_mode == CAL3_20mA) || (display_mode == CAL7_1mA)) // if (Display_Info.Status & DISP_STATE_HImA_BIT)		// 20 mA setting
 			{
 				SysData.CurrentOut_I420.Y2_highCalibrVal += 0.0001f;
-				I420_calibr_lock = LOCKED;
+				I420_calibr_lock = I420calibLOCKED;
 			}
 
 			else if (display_mode == CAL_V_BAT)
@@ -502,12 +497,12 @@ void ProcessDOWNbutton() {
 			else if ((display_mode == CAL2_4mA) || (display_mode == CAL6_0mA))// (Display_Info.Status & DISP_STATE_LOmA_BIT)			// 4 mA setting
 			{
 				SysData.CurrentOut_I420.Y1_lowCalibrVal -= 0.0001f;
-				I420_calibr_lock = LOCKED;
+				I420_calibr_lock = I420calibLOCKED;
 			}
 			else if ((display_mode == CAL3_20mA) || (display_mode == CAL7_1mA)) // if (Display_Info.Status & DISP_STATE_HImA_BIT)			// 20 mA setting
 			{
 				SysData.CurrentOut_I420.Y2_highCalibrVal -= 0.0001f;
-				I420_calibr_lock = LOCKED;
+				I420_calibr_lock = I420calibLOCKED;
 			}
 
 			else if (display_mode == CAL_V_BAT)
@@ -710,7 +705,7 @@ void Operation(void)
 		{
 			if (display_mode < VOLTS) display_mode = VOLTS;				// <28? =28. in manual mode limit range between VOLTS and PHASE_SHOW
 			else  display_mode++; //increment display mode
-			if (display_mode > PHASE_SHOW) display_mode = VOLTS; //>35
+			if (display_mode > PHASE_SHOW) display_mode = VOLTS;		// >35
 
 			rt.InfoLED_blink_eq1 = FALSE;
 			last_display_mode = display_mode;
@@ -797,7 +792,7 @@ void Operation(void)
 		{
 			limit_mode = FALSE;							// go back to last mode
 			timer.limit_mode_timeout_ms = 0;
-			In_calibr_menu_mode = last_mode;				//-!- IK20251014 was Is_in_auto_mode = last_mode, but last_mode was set to In_calibr_menu_mode above ??
+			In_calibr_menu_mode = last_mode;			//-!- IK20251014 was Is_in_auto_mode = last_mode, but last_mode was set to In_calibr_menu_mode above ??
 			rt.InfoLED_blink_eq1 = FALSE;				// info display NOT blinking indicating normal mode
 
 			display_mode = VOLTS;
