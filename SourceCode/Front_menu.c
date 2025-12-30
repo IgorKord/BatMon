@@ -15,7 +15,14 @@
 #include "GLOBALS.H"
 #include <string.h> // for memset, memcpy
 
-#define INC_DEC_VOLTS_BY_10
+#define BTN_IGNORE_MS        DEBOUNCE_DELAY
+//#define BTN_RESET_MS         500
+#define BTN_AUTOINC_MS       LONG_PRESS_DELAY //1000
+#define BTN_DELTA_10_MS      INC_DEC_BY_10_HOLD_TIME_ms //2000
+#define BTN_DELTA_100_MS     DEC_INC_BY_100_HOLD_TIME_ms//4000
+
+#define BTN_AUTOINC_PERIOD   UpDownChange_rate_ms_START // 200
+
 //-!- IK20250808  modes should be unified into one structure?
 uint8  last_display_mode;
 uint8  In_setup_alarm_limits_mode;				// indicates if in the setup alarm limits mode (after LIMIT button was pressed for 3+ sec). allows to setup HBAT, LBAT, etc., limits. to disable alarms
@@ -106,50 +113,68 @@ char FL * mode_strings[] = {				// used in Front_menu.c, strings for display mod
 // this is minimum holding button interval, pressing for longer interval would create "button hold" event and clear "button pressed" event
 //IK20250708 in "Structure_defs.h" #define LONG_PRESS_DELAY    3000 // ms, 3.0 sec
 //uint16 timer_ms; //IK202050929 global variable for test
-void RecognizeButtonState(uint8 Btn_Index, volatile uint16 *p_timer)
+void RecognizeButtonState(uint8 Btn_Index, volatile uint16* p_timer)
 {
-	// if a timer was already running (>0) it means the button was pressed;
-	// if running interval = timer.auto_button = (button released - button pressed) is between 0.1 & 3.0 sec
-	// set "Short Press" event
-#ifdef DISPLAY_MENU
-	uint16 timer_ms;
-	if (Btn_Index > BTN_MAX_INDEX) return; // safety exit if index is wrong
-	timer_ms = (uint16)(*p_timer); // read a timer once; this is a quick function for button capture, timer would not change more than a ms, not important for menu operation
+	static uint16 lastRepeatTime[BTN_MAX_INDEX + 1] = { 0 };
+	uint16 holdingTime;
+	uint8 btnMask = (BUTTON_AUTO_INSTANT_PRESS_BIT << Btn_Index);
 
-	// start from debouncing, clear both bits
-	clearBit(Display_Info.butt_states, ((BUTTON_AUTO_SHORT_PRESS_BIT | BUTTON_AUTO_LONG_PRESS_BIT) << Btn_Index));
-
-	//check state of a button, it arrives via TWI from Front board as a bit in byte
-	// button currently pressed? (buttons_hits are sampled via TWI once in 20 ms)
-	if ((Display_Info.buttons_hits & (BUTTON_AUTO_INSTANT_PRESS_BIT << Btn_Index)) != 0)
+	// Button currently pressed?
+	if (Display_Info.buttons_hits & btnMask)
 	{
-		if (timer_ms == 0) {
-			// start counting (1 means enabled and ~1 ms elapsed after next ISR tick)
+		// Start timing on first detection
+		if (*p_timer == 0)
+		{
 			*p_timer = 1;
+			lastRepeatTime[Btn_Index] = 0;
+			clearBit(Display_Info.butt_states,
+				(BUTTON_AUTO_SHORT_PRESS_BIT | BUTTON_AUTO_LONG_PRESS_BIT | BUTTON_AUTO_STILL_HELD_BIT ) << Btn_Index);
 		}
-		else if (timer_ms >= LONG_PRESS_DELAY) {
-			// reached a long-hold block: issue one long event and restart timer for next block
-			setBit(Display_Info.butt_states, (BUTTON_AUTO_LONG_PRESS_BIT << Btn_Index));
 
-			if (Btn_Index == BTN_INDEX_UP)
-				setBit(Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT);
-			if (Btn_Index == BTN_INDEX_DOWN)
-				setBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);
-			// restart counting for the next LONG_PRESS_DELAY cycle (use 1, not 0)
-			//Grok20251229 said no; *p_timer -= (LONG_PRESS_DELAY - 1); // Grok20251229: instead of = 1; changed to subtract LONG_PRESS_DELAY on long press to accumulate total hold time for accel.
-			//timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Set to 200ms for repeat interval
+		holdingTime = *p_timer;
+
+		// Transition to auto-increment mode
+		if (holdingTime >= BTN_AUTOINC_MS)
+		{
+			setBit(Display_Info.butt_states, (BUTTON_AUTO_STILL_HELD_BIT << Btn_Index));
+
+			// Auto-repeat every 200 ms
+			if ((holdingTime - lastRepeatTime[Btn_Index]) >= BTN_AUTOINC_PERIOD)
+			{
+				lastRepeatTime[Btn_Index] = holdingTime;
+
+				if (Btn_Index == BTN_INDEX_UP)
+					ProcessUPbutton();
+				else if (Btn_Index == BTN_INDEX_DOWN)
+					ProcessDOWNbutton();
+			}
 		}
-		// otherwise keep counting; do not set short-press while held
 	}
-	else // button released
+	// Button released
+	else if (*p_timer > 0)
 	{
-		// if released between short and long thresholds -> short press event
-		if (timer_ms >= SHORT_PRESS_DELAY && timer_ms < LONG_PRESS_DELAY) {
-			setBit(Display_Info.butt_states, (BUTTON_AUTO_SHORT_PRESS_BIT << Btn_Index));
+		holdingTime = *p_timer;
+		*p_timer = 0;
+
+		if (holdingTime < BTN_IGNORE_MS)
+		{
+			// Ignore
 		}
-		*p_timer = 0;		// stop timer on release
+		else if (holdingTime < LONG_PRESS_DELAY)
+		{
+			setBit(Display_Info.butt_states,
+				(BUTTON_AUTO_SHORT_PRESS_BIT << Btn_Index));
+		}
+		else if (holdingTime < BTN_AUTOINC_MS)
+		{
+			setBit(Display_Info.butt_states,
+				(BUTTON_AUTO_LONG_PRESS_BIT << Btn_Index));
+		}
+		// >= 1000 ms -> auto mode already handled, release does nothing
+
+		clearBit(Display_Info.butt_states,
+			(BUTTON_AUTO_STILL_HELD_BIT << Btn_Index));
 	}
-#endif // #ifdef DISPLAY_MENU
 }
 
 void Get_Button_Press(void)	// IK2025111 not called from Visual Studio

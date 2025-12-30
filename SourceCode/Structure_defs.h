@@ -470,23 +470,26 @@ extern TIMERS timer;
 
 // bits are used in Display_Info.butt_states
 // *_PRESS_BITs auto-clear in Operation() after processing menu
-// short press -lower byte
+// in order to fit state bits for 5 buttons into uint16: short press -lower byte 5 bits
 #define BUTTON_AUTO_SHORT_PRESS_BIT     Bit_0	// if (buttons & 0x0001)	// short press of Manual/auto, bit auto-clears in Operation() after processing menu
 #define BUTTON_LIMIT_SHORT_PRESS_BIT    Bit_1	// if (buttons & 0x0002)	// Short press of Limit button, bit auto-clears in Operation() after processing menu
 #define BUTTON_UP_SHORT_PRESS_BIT       Bit_2	// if (buttons & 0x0004)	// Short press of up button, bit auto-clears in Operation()
 #define BUTTON_DOWN_SHORT_PRESS_BIT     Bit_3	// if (buttons & 0x0008)	// Short press of down button, bit auto-clears in Operation()
 #define BUTTON_RESET_SHORT_PRESS_BIT    Bit_4	// if (buttons & 0x2000)	// Short press of reset button
-// long press - in upper byte, to access button states and set bits as in array
-#define BUTTON_AUTO_LONG_PRESS_BIT      (BUTTON_AUTO_SHORT_PRESS_BIT  << 8)	// Bit_8	// if (buttons & 0x0100)	// Long press of Manual/auto, bit auto-clears in Operation() after processing menu
-#define BUTTON_LIMIT_LONG_PRESS_BIT     (BUTTON_LIMIT_SHORT_PRESS_BIT << 8)	// Bit_9	// if (buttons & 0x0200)	// Long press of Limit button
-#define BUTTON_UP_LONG_PRESS_BIT        (BUTTON_UP_SHORT_PRESS_BIT    << 8)	// Bit_10	// if (buttons & 0x0400)	// Long press of up button
-#define BUTTON_DOWN_LONG_PRESS_BIT      (BUTTON_DOWN_SHORT_PRESS_BIT  << 8)	// Bit_11	// if (buttons & 0x0800)	// Long press of down button
-#define BUTTON_RESET_LONG_PRESS_BIT     (BUTTON_RESET_SHORT_PRESS_BIT << 8)	// Bit_12	// if (buttons & 0x1000)	// Long press of reset button
+// long press - next 5 bits, to access button states and set bits as in array
+#define BUTTON_AUTO_LONG_PRESS_BIT      (BUTTON_AUTO_SHORT_PRESS_BIT  << 5)	// Bit_5	// if (buttons & 0x0100)	// Long press of Manual/auto, bit auto-clears in Operation() after processing menu
+#define BUTTON_LIMIT_LONG_PRESS_BIT     (BUTTON_LIMIT_SHORT_PRESS_BIT << 5)	// Bit_6	// if (buttons & 0x0200)	// Long press of Limit button
+#define BUTTON_UP_LONG_PRESS_BIT        (BUTTON_UP_SHORT_PRESS_BIT    << 5)	// Bit_7	// if (buttons & 0x0400)	// Long press of up button
+#define BUTTON_DOWN_LONG_PRESS_BIT      (BUTTON_DOWN_SHORT_PRESS_BIT  << 5)	// Bit_8	// if (buttons & 0x0800)	// Long press of down button
+#define BUTTON_RESET_LONG_PRESS_BIT     (BUTTON_RESET_SHORT_PRESS_BIT << 5)	// Bit_9	// if (buttons & 0x1000)	// Long press of reset button
 
-// these bits are set when button timer reaches LONG_PRESS_DELAY
+// still hold - next 5 bits; these bits are set when button timer reaches LONG_PRESS_DELAY
 // and reset when user releases button
-#define BUTTON_UP_STILL_HELD_BIT        (Bit_5 << 8)  // status of UP button, 1 == still holding after LONG_PRESS_DELAY, updates when BUTTON_UP_LONG_PRESS_BIT is set
-#define BUTTON_DOWN_STILL_HELD_BIT      (Bit_6 << 8)  // status of DOWN button, 1==still holding after LONG_PRESS_DELAY, updates when BUTTON_UP_LONG_PRESS_BIT is set
+#define BUTTON_AUTO_STILL_HELD_BIT      (BUTTON_AUTO_SHORT_PRESS_BIT  << 10)	// Bit_10 set after holding AUTO for more than LONG_PRESS_DELAY
+#define BUTTON_LIMIT_STILL_HELD_BIT     (BUTTON_LIMIT_SHORT_PRESS_BIT << 10)	// Bit_11 set after holding AUTO for more than LONG_PRESS_DELAY
+#define BUTTON_UP_STILL_HELD_BIT        (BUTTON_UP_SHORT_PRESS_BIT    << 10)	// Bit_12 status of UP button, 1 == still holding after LONG_PRESS_DELAY, updates when BUTTON_UP_LONG_PRESS_BIT is set
+#define BUTTON_DOWN_STILL_HELD_BIT      (BUTTON_DOWN_SHORT_PRESS_BIT  << 10)	// Bit_13 status of DOWN button, 1==still holding after LONG_PRESS_DELAY, updates when BUTTON_UP_LONG_PRESS_BIT is set
+#define BUTTON_RESET_STILL_HELD_BIT     (BUTTON_RESET_SHORT_PRESS_BIT << 10)	// Bit_14 status of DOWN button, 1==still holding after LONG_PRESS_DELAY, updates when BUTTON_UP_LONG_PRESS_BIT is set
 
 // for keyboard simulation of buttons using arrow keys, used in simulation - see "PC_SUPP.c"
 #define BUTTON_BIT_LEFT      BUTTON_AUTO_INSTANT_PRESS_BIT		// Bit_0
