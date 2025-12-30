@@ -1,4 +1,7 @@
-20251224  
+20251229
+This code SHOULD fix auto increment/decrement acceleration but, pressing LIMT button for 3+ sec causes rapid change on Info display.
+
+20251224
 ADDED>>> code to show 6-digit baudrate 115200 on 5-symbol numeric display. Trick: show "11" on one LED indicator as left and right vertical bars.
 for this: created an LED segment image for '||' with both left and right vertical bars ON. The assigned ASCII char for this image is '`' (0x60).
 comm board substitutes '1','1' when baudrate is 115200 as "`5200", so display shows "115200"
@@ -6,7 +9,7 @@ The same for the "info" display: to show "ASCII" on info display with 4 symbols 
 
 >>> Fixed bug: when baud rate is incremented from 19200, it gets wrong value (49664)
 CAUSE>>> ATMEL could not correctly shift left uint16 if it gets into uint32 range, it stays in uint16 range and later converted to float.
-The value must be converted to 32-bit long, shifted by 2 bits to the left, then converted to float or 
+The value must be converted to 32-bit long, shifted by 2 bits to the left, then converted to float or
 converted to float first, then multiplied by 4.0.
 
 this code with float multiplication takes extra 8 bits vs using long, below
@@ -30,7 +33,7 @@ this code with float multiplication takes extra 8 bits vs using long, below
 
 
 20251223
-Fixed startup issues with ASCII protocol, 
+Fixed startup issues with ASCII protocol,
 changed sign-on message on LCD to include saved protocol; i.e.: "3.0 In", "3.0 Dn","3.0 Mb","3.0 AS"
 
 20251219 IK
@@ -45,14 +48,14 @@ NEED testing on BM!
 >>BUG>>> the simulation and atmel code causing HBAT alarm when voltage is 125V
 while in auto mode, the VS code flickers "HBAT" alarm temporary replacing auto messages like VBAT, TD, etc. Atmel does not do it
 
-Visual Studio 2022, C/C++ project. 
-I have macros to set or reset bits in a variable 
-#define setBit(var, bit_value) (var |= bit_value) //bit_value is Bit_XX, =2^Bit_XX 
-#define clearBit(var, bit_value) (var &= ~(bit_value)) 
+Visual Studio 2022, C/C++ project.
+I have macros to set or reset bits in a variable
+#define setBit(var, bit_value) (var |= bit_value) //bit_value is Bit_XX, =2^Bit_XX
+#define clearBit(var, bit_value) (var &= ~(bit_value))
 I try to find all references to a variable "Uint16 local_alarm_status " The "Read/Write" column in the references output lists this statement (and others) incorrectly as "read"
-setBit(local_alarm_status, AlarmBit); // set local alarm bit 
+setBit(local_alarm_status, AlarmBit); // set local alarm bit
 If I replace macro with a real names, Visual Studio correctly identifies operation as "write":
-local_alarm_status |= AlarmBit; //setBit(local_alarm_status, AlarmBit); 
+local_alarm_status |= AlarmBit; //setBit(local_alarm_status, AlarmBit);
 Should I report a bug or it is how intellisense supposes to work?
 This is expected behavior, not a true compiler bug   but it is a known limitation of Visual Studio's IntelliSense,
 
@@ -71,7 +74,7 @@ But it needs multiple overloaded templets for different variable types (uint8_t,
 This code compiles in VS but does not compile in IAR: (Print_F ans SPRINTF are not defined in a global score)
 
 
-20251119 
+20251119
 >>Added finction SetCalibrationValue(). partly tested, its NEED a special case for I420 calibration
 
 20251117 testing firmware:

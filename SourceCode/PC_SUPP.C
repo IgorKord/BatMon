@@ -147,11 +147,16 @@ void delay_us(unsigned long long us)
 
 void RealTimeCode(void)
 {
-	// Simulate 5 × 1ms ticks to match embedded timing
+// Simulate 5x 1ms ticks to match embedded timing. IK20251222. this also increase blinking frequency in LIMIT mode, not good
 	//for (int i = 0; i < 5; i++)
 	{
 		TIMER2_COMPA_interrupt(); // decrements counters
 	}
+	/* IK20251229 Crok Added continuous processing while button held (mouse down). It causes instant inc/dec, without 6 sec delay
+	* After further thougt, Grok removed t
+	if (Display_Info.buttons_hits & (BUTTON_UP_INSTANT_PRESS_BIT | BUTTON_DOWN_INSTANT_PRESS_BIT)) {  // Check if any held
+		Operation();  // Or CheckExecuteFrontPanelCmd() to apply changes
+	} */
 }
 
 //empty functions for PC simulation
@@ -496,6 +501,11 @@ LRESULT CALLBACK ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		btnPressStartTime[btnIndex] = GetTickCount64();
 		setBit(win_btn_lines, (BUTTON_AUTO_INSTANT_PRESS_BIT << btnIndex)); // (Bit_0<<btnIndex)
 		Display_Info.ButtonStateChanged = BTN_PRESSED; // event flag rised - will be cleared in main thread after processing via menu
+		setBit(Display_Info.buttons_hits, (BUTTON_AUTO_INSTANT_PRESS_BIT << btnIndex));  // Or down based on button ID
+		if (btnIndex == BTN_INDEX_UP) //if (Display_Info.buttons_hits & BUTTON_UP_INSTANT_PRESS_BIT)
+			timer.up_button = 1;  // start counting
+		else if (btnIndex == BTN_INDEX_DOWN) //if(Display_Info.buttons_hits & BUTTON_DOWN_INSTANT_PRESS_BIT)
+			timer.down_button = 1;  // start counting
 		win_btn_pressed = SET;
 		InvalidateRect(hWnd, NULL, TRUE); // force repainting
 	  break;
@@ -519,7 +529,11 @@ LRESULT CALLBACK ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		// 20250710 here is simulation of Get_Button_Press() function
 		// Clear any previous state for this button
 		clearBit(Display_Info.butt_states, ((BUTTON_AUTO_SHORT_PRESS_BIT | BUTTON_AUTO_LONG_PRESS_BIT) << btnIndex));
-
+		clearBit(Display_Info.buttons_hits,((BUTTON_AUTO_INSTANT_PRESS_BIT) << btnIndex));
+		if (btnIndex == BTN_INDEX_UP)
+			timer.up_button = 0;  // stop counting
+		else if (btnIndex == BTN_INDEX_DOWN)
+			timer.down_button = 0;  // stop counting
 		if (duration >= SHORT_PRESS_DELAY)
 		{
 			if (duration >= LONG_PRESS_DELAY)

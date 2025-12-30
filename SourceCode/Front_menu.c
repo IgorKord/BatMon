@@ -15,6 +15,7 @@
 #include "GLOBALS.H"
 #include <string.h> // for memset, memcpy
 
+#define INC_DEC_VOLTS_BY_10
 //-!- IK20250808  modes should be unified into one structure?
 uint8  last_display_mode;
 uint8  In_setup_alarm_limits_mode;				// indicates if in the setup alarm limits mode (after LIMIT button was pressed for 3+ sec). allows to setup HBAT, LBAT, etc., limits. to disable alarms
@@ -36,8 +37,9 @@ uint16 latched_alarm_status;				// remebers alarms if latch is enabled. persiste
 #define Delta_long_press_Voltages    1.0f  // IK202511111 used in manual mode to increment/decrement voltages
 float Delta_Voltages = Delta_short_press_Voltages; // IK202511111 used in manual mode to increment/decrement voltages
 
-#define INC_DEC_BY_10_HOLD_TIME_ms		10000	// 10 sec
-#define DEC_INC_BY_100_HOLD_TIME_ms		20000	// 20 sec
+#define INC_DEC_BY_10_HOLD_TIME_ms		6000	// 10 sec
+#define DEC_INC_BY_100_HOLD_TIME_ms		9000	// 20 sec
+#define UpDownChange_rate_ms_START   200    // Initial repeat interval 200ms
 
 #define MAX_Vrip_LIMIT		2000
 #define MAX_DNP3_ADDRESS	((uint16)65519)
@@ -138,7 +140,8 @@ void RecognizeButtonState(uint8 Btn_Index, volatile uint16 *p_timer)
 			if (Btn_Index == BTN_INDEX_DOWN)
 				setBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);
 			// restart counting for the next LONG_PRESS_DELAY cycle (use 1, not 0)
-			*p_timer = 1;
+			//Grok20251229 said no; *p_timer -= (LONG_PRESS_DELAY - 1); // Grok20251229: instead of = 1; changed to subtract LONG_PRESS_DELAY on long press to accumulate total hold time for accel.
+			timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Set to 200ms for repeat interval
 		}
 		// otherwise keep counting; do not set short-press while held
 	}
@@ -176,6 +179,21 @@ void Do_Front_menu(void)
 	//key_pos =	  (Display_Info.butt_states);
 	// set events Short Press and / or Long Press
 	Operation();
+	// Continuous auto-repeat during hold (called from main loop / RealTimeCode)
+	if ((Display_Info.buttons_hits & (BUTTON_UP_INSTANT_PRESS_BIT | BUTTON_DOWN_INSTANT_PRESS_BIT)) &&
+		(Display_Info.butt_states & (BUTTON_UP_STILL_HELD_BIT | BUTTON_DOWN_STILL_HELD_BIT))) {
+
+		if (timer.UpDownChange_rate_ms == 0) {  // Trigger only when countdown done
+			timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms
+
+			if (Display_Info.buttons_hits & BUTTON_UP_INSTANT_PRESS_BIT) {
+				ProcessUPbutton();
+			}
+			if (Display_Info.buttons_hits & BUTTON_DOWN_INSTANT_PRESS_BIT) {
+				ProcessDOWNbutton();
+			}
+		}
+	}
 	Display_Info.DisplayNeedsUpdateFlag = SET;
 }
 
@@ -225,10 +243,20 @@ void ProcessUPbutton() {
 
 			if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
 			{
-				if (Display_Info.butt_states & BUTTON_UP_STILL_HELD_BIT)
-					Delta_Voltages = Delta_long_press_Voltages;				// IK20251111 increase increment to 1.0f Volts
-				else
-					Delta_Voltages = Delta_short_press_Voltages;			// IK20251111 decrease increment to 0.1V Volts
+				Delta_Voltages = Delta_short_press_Voltages;			// IK20251111 decrease delta to 0.1V Volts
+				if (Display_Info.butt_states & BUTTON_UP_STILL_HELD_BIT) {
+					// Volts are incrementing / decrementing by 10V delta V maximum; the voltage range is about 20 to 300V
+					if (timer.up_button > INC_DEC_BY_10_HOLD_TIME_ms) {  // >6000ms total
+						Delta_Voltages = 10.0f;  // Cap at +10V
+					}
+					else {//if (timer.up_button > INC_DEC_BY_10_HOLD_TIME_ms) {  // >6000ms total
+						Delta_Voltages = Delta_long_press_Voltages;  // -1.0f
+					}
+				} 
+				if (timer.UpDownChange_rate_ms == 0) {
+					timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms
+					// the CheckVariableRangeAndChange(...Delta_Voltages...);  is called below
+				}
 			}
 
 			if (display_mode == HI_BAT_THRESHOLD)
@@ -387,6 +415,23 @@ void ProcessDOWNbutton() {
 				//	setBit(Display_Info.Status, DISP_STATE_ButtonDOWN_BIT);		// Display_Info.Status |= 0x04;	//Set down button
 				//	clearBit(Display_Info.Status, DISP_STATE_ButtonUP_BIT);		// Display_Info.Status &= 0xF7;	//clear up button
 				//}
+				if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
+				{
+					Delta_Voltages = -Delta_short_press_Voltages;			// IK20251111 decrease delta to 0.1V Volts
+					if (Display_Info.butt_states & BUTTON_DOWN_STILL_HELD_BIT) {
+						// Volts are incrementing / decrementing by 10V delta V maximum; the voltage range is about 20 to 300V
+						if (timer.down_button > INC_DEC_BY_10_HOLD_TIME_ms) {  // >9000ms total
+							Delta_Voltages = -10.0f;  // Cap at -10V
+						}
+						else{// if (timer.down_button > INC_DEC_BY_10_HOLD_TIME_ms){  // >6000ms total
+							Delta_Voltages = -Delta_long_press_Voltages;  // -1.0f
+						}
+					}
+					if (timer.UpDownChange_rate_ms == 0) {
+						timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms
+						// the CheckVariableRangeAndChange(...Delta_Voltages...);  is called below
+					}
+				}
 
 				else if (display_mode == PHASE_STATE_SET)
 				{
@@ -489,10 +534,10 @@ void ProcessDOWNbutton() {
 				if (timer.down_button <= INC_DEC_BY_10_HOLD_TIME_ms)
 					if (Existing.meter_address > 0)								// valid addresses?
 						Existing.meter_address -= 1;							// decrement 1
-				if ((timer.down_button > INC_DEC_BY_10_HOLD_TIME_ms) && (timer.up_button < DEC_INC_BY_100_HOLD_TIME_ms))
+				if ((timer.down_button > INC_DEC_BY_10_HOLD_TIME_ms) && (timer.down_button < DEC_INC_BY_100_HOLD_TIME_ms))
 					if (Existing.meter_address > 10)							// valid addresses?
 						Existing.meter_address -= 10;							// decrement 10
-				if ((timer.down_button > DEC_INC_BY_100_HOLD_TIME_ms) && (timer.up_button < 65000))
+				if ((timer.down_button > DEC_INC_BY_100_HOLD_TIME_ms) && (timer.down_button < 65000))
 					if (Existing.meter_address > 100)							// valid addresses?
 						Existing.meter_address -= 100;							// decrement 100
 			}
@@ -801,7 +846,7 @@ void Operation(void)
 		clearBit(Display_Info.butt_states, BUTTON_UP_LONG_PRESS_BIT); // Display_Info.butt_states &= 0xFFDF;  //clear long press of UP
 	}//end long press of up
 
-  //Check Down Button
+	//Check Down Button
 	if (Display_Info.butt_states & BUTTON_DOWN_SHORT_PRESS_BIT)    //Short press of Down button
 	{
 		ProcessDOWNbutton(); // IK20250804 moved to a separate function
@@ -816,6 +861,28 @@ void Operation(void)
 		clearBit(Display_Info.butt_states, BUTTON_DOWN_LONG_PRESS_BIT);	//  Display_Info.butt_states &= 0xFF7F;  //clear long press of down
 	}//end long press of down
 
+	// Grok20251229 Add continuous repeat during hold
+	if ((Display_Info.buttons_hits & BUTTON_UP_INSTANT_PRESS_BIT) && (Display_Info.butt_states & BUTTON_UP_STILL_HELD_BIT)) {
+		ProcessUPbutton();  // Call repeatedly while held
+	}
+	if ((Display_Info.buttons_hits & BUTTON_DOWN_INSTANT_PRESS_BIT) && (Display_Info.butt_states & BUTTON_DOWN_STILL_HELD_BIT)) {
+		ProcessDOWNbutton();
+	}
+	if ((Display_Info.buttons_hits & (BUTTON_UP_INSTANT_PRESS_BIT | BUTTON_DOWN_INSTANT_PRESS_BIT)) &&  // Any UP/DOWN held?
+		(Display_Info.butt_states & (BUTTON_UP_STILL_HELD_BIT | BUTTON_DOWN_STILL_HELD_BIT))) {  // Long press active?
+
+		if (timer.UpDownChange_rate_ms == 0) {  // Repeat trigger point
+			timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms for next repeat
+
+			// Apply the change based on which button is held
+			if (Display_Info.buttons_hits & BUTTON_UP_INSTANT_PRESS_BIT) {
+				ProcessUPbutton();
+			}
+			if (Display_Info.buttons_hits & BUTTON_DOWN_INSTANT_PRESS_BIT) {
+				ProcessDOWNbutton();
+			}
+		}
+	}
 	//Display_Info.Status housekeeping, handle pulse LED
 	if (rt.pulse == FALSE) {											// set/clr bit in display status
 		Display_PulseLED_OFF;	// clearBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT); // Bit_2

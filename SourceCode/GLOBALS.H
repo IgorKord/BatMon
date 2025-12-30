@@ -1091,6 +1091,8 @@ void SetGetAlarm(void);				// Alarm set/get: 'alarm rv>enab', 'alarm rv>disa'; '
 void Get_Button_Press(void);
 void SetLED(int LEDindex, int ColorIndex);
 void Operation(void);
+void ProcessUPbutton();
+void ProcessDOWNbutton();
 void Write_Numeric_Display(char* num_str);	//IK20250102 write up to 10 chars to upper LED (up to 5 chars and and up to 5 dots)
 void Write_ASCII_Display(char* str);
 void Write_ASCII_Display_FlashString(char FL* str_f_ptr);
