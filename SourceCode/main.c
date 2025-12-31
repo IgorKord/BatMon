@@ -992,7 +992,7 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 	//ISR_TxOutputHandler(); // output to UART
 
 	/********************* Do General Timer Updating ********/
-	timer.time_keep++;								//-!- IK20250623 NOT CHECKED IN FIRMWARE ! always increasing, set to a value by DNP SysData.NV_UI.StartUpProtocol
+	timer.time_keep++;					// always increasing, set to a value by DNP SysData.NV_UI.StartUpProtocol
 	timer.extender++;
 
 	if ((rt.operating_protocol == ASCII_CMDS) && (rt.OperStatusWord & SendRealTimeData_eq1_Bit)) {
@@ -1015,6 +1015,7 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 		//#endif
 	{
 		timer.extender = 0;								// reset extender
+		timer.FreeRunningCounter++;			//Grok20251231
 		//IK20250812 moved here to check every 1 ms alarms
 		if ((rt.OutData.measured.battery_voltage_f > 14.0f) &&			// between 14 and 380 vdc
 			(rt.OutData.measured.battery_voltage_f < 380.0f))			// waits till getting good battery voltage
@@ -1069,7 +1070,7 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 			timer.AlarmLED_blink--;
 		if (timer.UpDownChange_rate_ms != 0)		// IK20250710 Limits how fast values are changed if user holds UP or DOWN button. 100 ms timer,
 			timer.UpDownChange_rate_ms--;
-		if (timer.disp_var_change_ms != 0) // in auto mode, changes variables with this period
+		if (timer.disp_var_change_ms != 0)			// in auto mode, changes variables with this period
 			timer.disp_var_change_ms--;
 		if (timer.InfoLED_blink_ms != 0)
 			timer.InfoLED_blink_ms--;

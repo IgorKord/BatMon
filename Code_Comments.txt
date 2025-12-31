@@ -1,3 +1,7 @@
+20251231_501A_BM_dnw_Grok.zip
+Grok-proposed changes implemented. Test: the button short press does not do anything. Holding auto for 1 sec changes shown item, 
+but this change should be on short press-release. Holding Limit for few seconds does not bring LIMIT menu
+
 20251230
 checked in firmware: correctly increments/decrements voltages, but has dificulty to enter or leave LIMIT mode. Managed to get into LIMIT once, but pressing and holding does not leave LIMIT
 

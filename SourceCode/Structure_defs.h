@@ -418,6 +418,7 @@ typedef struct 	// Encapsulate into structure to keep timer variables together
 	volatile uint16 up_button;
 	volatile uint16 down_button;
 	volatile uint16 reset_button;
+	volatile uint16 FreeRunningCounter; // Grok20251231
 	// display mode timers
 	volatile uint16 UpDownChange_rate_ms;	// IK20250710 Limits how fast values are changed if user holds UP or DOWN button. 100 ms timer, replace with uint8?
 	volatile uint16 AlarmLED_blink;	// controls LED 'Alarm' blinking
@@ -425,7 +426,7 @@ typedef struct 	// Encapsulate into structure to keep timer variables together
 	volatile uint16 RealTimeUpdate;			// in ASCII protocol, periodically send brief info if command enables it
 	volatile uint16 InfoLED_blink_ms;		// controls InfoLED indicators blink mode
 	volatile Uint32 limit_mode_timeout_ms;	// allows automatic switch back from LIMIT mode after 10 min of user inactivity
-	volatile Uint32 time_keep;
+	volatile Uint32 time_keep;				// increasing with 100 us interval
 	// alarm timers
 } TIMERS;
 extern TIMERS timer;

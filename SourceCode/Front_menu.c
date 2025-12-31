@@ -15,16 +15,60 @@
 #include "GLOBALS.H"
 #include <string.h> // for memset, memcpy
 
-#define BTN_IGNORE_MS         100 // DEBOUNCE_DELAY					
-#define BTN_AUTOINC_MS       1000 // LONG_PRESS_DELAY				
-#define BTN_DELTA_10_MS      2000 // INC_DEC_BY_10_HOLD_TIME_ms		
-#define BTN_DELTA_100_MS     4000 // DEC_INC_BY_100_HOLD_TIME_ms	
-#define BTN_AUTOINC_PERIOD    200 // UpDownChange_rate_ms_START		
+#define BTN_IGNORE_MS         100 // DEBOUNCE_DELAY
+#define BTN_AUTOINC_MS       1000 // LONG_PRESS_DELAY
+#define BTN_DELTA_10_MS      2000 // INC_DEC_BY_10_HOLD_TIME_ms
+#define BTN_DELTA_100_MS     4000 // DEC_INC_BY_100_HOLD_TIME_ms
+#define BTN_AUTOINC_PERIOD    200 // UpDownChange_rate_ms_START
 typedef enum
 {
 	DIR_DOWN = -1,
+	DIR_OTHER = 0,
 	DIR_UP = +1
 } ButtonDirection_t;
+
+// Grok 20251230
+// Button state machine (adapted from specs/EXAMPLE)
+typedef enum {
+	BUT_IDLE,
+	BUT_PRESSED,  // Held, waiting for release or long threshold
+	BUT_AUTOINC   // UP/DOWN only: Auto inc/dec during hold
+} ButtonState_t;
+
+typedef struct {
+	ButtonState_t state;
+	uint16 pressStartTime;  // From FreeRunningCounter
+	uint16 lastIncTime;     // For BTN_AUTOINC_PERIOD repeat
+	volatile uint16* p_timer;  // e.g., &timer.up_button
+	uint8 button_bit;       // e.g., BUTTON_UP_INSTANT_PRESS_BIT
+	uint8 short_bit;        // BUTTON_*_SHORT_PRESS_BIT
+	uint8 long_bit;         // BUTTON_*_LONG_PRESS_BIT
+	uint8 held_bit;         // BUTTON_*_STILL_HELD_BIT
+	ButtonDirection_t dir;    // DIR_UP, DIR_DOWN, 0 for LIMIT
+} ButtonHandler_t;
+
+// Handlers array
+ButtonHandler_t button_handlers[] = {
+	// AUTO
+	{.state = BUT_IDLE, .pressStartTime = 0, .lastIncTime = 0, .p_timer = &timer.auto_button,
+	   .button_bit = BUTTON_AUTO_INSTANT_PRESS_BIT, .short_bit = BUTTON_AUTO_SHORT_PRESS_BIT, .long_bit = BUTTON_AUTO_SHORT_PRESS_BIT, .held_bit = BUTTON_AUTO_SHORT_PRESS_BIT, .dir = DIR_OTHER},
+	  // LIMIT
+	{.state = BUT_IDLE, .pressStartTime = 0, .lastIncTime = 0, .p_timer = &timer.limit_button,
+	   .button_bit = BUTTON_LIMIT_INSTANT_PRESS_BIT, .short_bit = BUTTON_LIMIT_SHORT_PRESS_BIT, .long_bit = BUTTON_LIMIT_SHORT_PRESS_BIT, .held_bit = BUTTON_LIMIT_SHORT_PRESS_BIT, .dir = DIR_OTHER},
+	// UP
+	{.state = BUT_IDLE, .pressStartTime = 0, .lastIncTime = 0, .p_timer = &timer.up_button,
+	 .button_bit = BUTTON_UP_INSTANT_PRESS_BIT, .short_bit = BUTTON_UP_SHORT_PRESS_BIT, .long_bit = BUTTON_UP_SHORT_PRESS_BIT, .held_bit = BUTTON_UP_SHORT_PRESS_BIT, .dir = DIR_UP},
+	 // DOWN
+	{.state = BUT_IDLE, .pressStartTime = 0, .lastIncTime = 0, .p_timer = &timer.down_button,
+	  .button_bit = BUTTON_DOWN_INSTANT_PRESS_BIT, .short_bit = BUTTON_DOWN_SHORT_PRESS_BIT, .long_bit = BUTTON_DOWN_SHORT_PRESS_BIT, .held_bit = BUTTON_DOWN_SHORT_PRESS_BIT, .dir = DIR_DOWN},
+	  // RESET
+	{.state = BUT_IDLE, .pressStartTime = 0, .lastIncTime = 0, .p_timer = &timer.limit_button,
+	   .button_bit = BUTTON_RESET_INSTANT_PRESS_BIT, .short_bit = BUTTON_RESET_SHORT_PRESS_BIT, .long_bit = BUTTON_RESET_SHORT_PRESS_BIT, .held_bit = BUTTON_RESET_SHORT_PRESS_BIT, .dir = DIR_OTHER}
+};
+// Enum for indices
+enum {BTN_AUTO = 0, BTN_LIMIT = 1, BTN_UP = 2, BTN_DOWN = 3, BTN_RESET = 4, BTN_NUMBER = 5 };
+// Global free-running counter (add to ISR: FreeRunningCounter++;)
+// in timer: volatile uint16 FreeRunningCounter;
 
 //-!- IK20250808  modes should be unified into one structure?
 uint8  last_display_mode;
@@ -142,113 +186,101 @@ static inline void ProcessDOWNbutton(void)
 // this is minimum holding button interval, pressing for longer interval would create "button hold" event and clear "button pressed" event
 //IK20250708 in "Structure_defs.h" #define LONG_PRESS_DELAY    3000 // ms, 3.0 sec
 //uint16 timer_ms; //IK202050929 global variable for test
-void RecognizeButtonState(uint8 Btn_Index, volatile uint16* p_timer)
+void RecognizeButtonState(void)
 {
-	static uint16 lastRepeatTime[BTN_MAX_INDEX + 1] = { 0 };
+	for (int btn = 0; btn < BTN_NUMBER; btn++) {
+		ButtonHandler_t* h = &button_handlers[btn];
+		uint8 current = (Display_Info.buttons_hits & h->button_bit) != 0;
+		uint16 heldTime = (h->state != BUT_IDLE) ? (timer.FreeRunningCounter - h->pressStartTime) : 0;
 
-	uint16 holdingTime;
+		switch (h->state) {
+		case BUT_IDLE:
+			if (current) {
+				h->pressStartTime = timer.FreeRunningCounter;
+				h->lastIncTime = timer.FreeRunningCounter;
+				*(h->p_timer) = 1;
+				h->state = BUT_PRESSED;
+			}
+			break;
+		case BUT_PRESSED:
+			if (!current) {
+				*(h->p_timer) = 0;
+				if (heldTime < BTN_IGNORE_MS) {
+					// Ignore
+				}
+				else if (heldTime <= 3000) {  // 100-3000ms: Short press
+					Display_Info.butt_states |= h->short_bit;
+				}
+				else if (heldTime <= BTN_DELTA_10_MS) {  // >3000 <=6000: Long press (for all on release)
+					Display_Info.butt_states |= h->long_bit;
+				}
+				// For UP/DOWN >3000: Already in AUTOINC if transitioned, do nothing on release
+				Display_Info.butt_states &= ~h->held_bit;
+				h->state = BUT_IDLE;
+			}
+			else {
+				// Still held → check for auto threshold (UP/DOWN only)
+				if (btn != BTN_LIMIT && heldTime > BTN_AUTOINC_MS) {
+					Display_Info.butt_states |= h->long_bit | h->held_bit;
+					timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;  // 200ms
 
-	uint16 instantMask = (BUTTON_AUTO_INSTANT_PRESS_BIT << Btn_Index);
-	uint16 shortMask = (BUTTON_AUTO_SHORT_PRESS_BIT << Btn_Index);
-	uint16 longMask = (BUTTON_AUTO_LONG_PRESS_BIT << Btn_Index);
-	uint16 heldMask = (BUTTON_AUTO_STILL_HELD_BIT << Btn_Index);
+					// First auto action
+					Delta_Voltages = h->dir * Delta_short_press_Voltages;  // 0.1f or -0.1f
+					if (btn == BTN_UP) ProcessUPbutton(); else ProcessDOWNbutton();
+					h->lastIncTime = timer.FreeRunningCounter;
+					h->state = BUT_AUTOINC;
+				}
+			}
+			break;
+		case BUT_AUTOINC:
+			if (!current) {
+				// Released during auto → do nothing
+				*(h->p_timer) = 0;
+				Display_Info.butt_states &= ~(h->long_bit | h->held_bit);
+				h->state = BUT_IDLE;
+			}
+			else {
+				// Update delta for UP/DOWN
+				if (heldTime > BTN_DELTA_10_MS && heldTime <= BTN_DELTA_100_MS) {  // >6000 <=9000
+					Delta_Voltages = h->dir * Delta_long_press_Voltages;  // 1.0f or -1.0f
+				}
+				else if (heldTime > BTN_DELTA_100_MS) {  // >9000 cap at 10f
+					Delta_Voltages = h->dir * 10.0f;
+				}
+				else {
+					Delta_Voltages = h->dir * Delta_short_press_Voltages;  // Default during auto
+				}
 
-	if (Display_Info.buttons_hits & instantMask)
-	{
-		if (*p_timer == 0)
-		{
-			*p_timer = 1;
-			lastRepeatTime[Btn_Index] = 0;
-			clearBit(Display_Info.butt_states,
-				shortMask | longMask | heldMask);
+				// Repeat every 200ms
+				if (timer.FreeRunningCounter - h->lastIncTime >= BTN_AUTOINC_PERIOD) {
+					h->lastIncTime = timer.FreeRunningCounter;
+					if (btn == BTN_UP) ProcessUPbutton(); else if (btn == BTN_DOWN) ProcessDOWNbutton();
+				}
+			}
+			break;
 		}
 
-		holdingTime = *p_timer;
-
-		if ((Btn_Index == BTN_INDEX_UP || Btn_Index == BTN_INDEX_DOWN) &&
-			holdingTime >= BTN_AUTOINC_MS)
-		{
-			setBit(Display_Info.butt_states, heldMask);
-
-			/* Delta selection */
-			if (holdingTime < BTN_DELTA_10_MS)
-				Delta_Voltages = Delta_short_press_Voltages;
-			else if (holdingTime < BTN_DELTA_100_MS)
-				Delta_Voltages = Delta_long_press_Voltages;
-			else
-				Delta_Voltages = Delta_very_long_press_Voltages;
-
-			if ((holdingTime - lastRepeatTime[Btn_Index]) >= BTN_AUTOINC_PERIOD)
-			{
-				lastRepeatTime[Btn_Index] = holdingTime;
-
-				if (Btn_Index == BTN_INDEX_UP)
-					ProcessUPbutton();
-				else
-					ProcessDOWNbutton();
+		// LIMIT-specific enter/exit (in PRESSED or AUTOINC)
+		if (btn == BTN_LIMIT) {
+			if (h->state == BUT_PRESSED && heldTime > BTN_AUTOINC_MS) {
+				limit_mode = TRUE;  // Enter once
+			}
+			else if (h->state == BUT_AUTOINC && heldTime > BTN_DELTA_10_MS) {
+				limit_mode = FALSE;  // Exit once after another 3s
 			}
 		}
-	}
-	else if (*p_timer > 0)
-	{
-		holdingTime = *p_timer;
-		*p_timer = 0;
-
-		if (holdingTime < BTN_IGNORE_MS)
-		{
-			/* ignore */
-		}
-		else if (holdingTime < BTN_AUTOINC_MS)
-		{
-			setBit(Display_Info.butt_states, shortMask);
-		}
-		else if (holdingTime < BTN_DELTA_10_MS)
-		{
-			if (Btn_Index != BTN_INDEX_UP && Btn_Index != BTN_INDEX_DOWN)
-				setBit(Display_Info.butt_states, longMask);
-		}
-		clearBit(Display_Info.butt_states, heldMask);
 	}
 }
 
 void Get_Button_Press(void)	// IK2025111 not called from Visual Studio
 {
-	RecognizeButtonState(BTN_INDEX_AUTO, &timer.auto_button);	//check state of Manual/Auto button, it arrives via TWI from Front board
-	RecognizeButtonState(BTN_INDEX_LIMIT, &timer.limit_button);
-	RecognizeButtonState(BTN_INDEX_UP, &timer.up_button);
-	RecognizeButtonState(BTN_INDEX_DOWN, &timer.down_button);
-	RecognizeButtonState(BTN_INDEX_RESET, &timer.reset_button);
-	//if ((((Display_Info.buttons_hits & BTN_INDEX_UP) != 0) && (timer.up_button > LONG_PRESS_DELAY))
-	//|| (((Display_Info.buttons_hits & BTN_INDEX_DOWN) != 0) && (timer.down_button > LONG_PRESS_DELAY)))
-	//	Delta_Voltages = Delta_long_press_Voltages; // IK20251111 used in manual mode to increment/decrement voltages
-	//else
-	//	Delta_Voltages = Delta_short_press_Voltages; // IK20251111 used in manual mode to increment/decrement voltages
+	RecognizeButtonState();
 }
 
 void Do_Front_menu(void)
 {
 	//Buttons : BIT_0 = 1 LEFT pressed, BIT_3 = 1 central ENTER pressed, BIT_4 = 1 RIGHT pressed, BIT_5 = 1 UP pressed, BIT_6 = 1 DOWN pressed
-	//int key_pos;           // Front Panel keypad reading
-
-	//key_pos =	  (Display_Info.butt_states);
-	// set events Short Press and / or Long Press
 	Operation();
-	// Continuous auto-repeat during hold (called from main loop / RealTimeCode)
-	if ((Display_Info.buttons_hits & (BUTTON_UP_INSTANT_PRESS_BIT | BUTTON_DOWN_INSTANT_PRESS_BIT)) &&
-		(Display_Info.butt_states & (BUTTON_UP_STILL_HELD_BIT | BUTTON_DOWN_STILL_HELD_BIT))) {
-
-		if (timer.UpDownChange_rate_ms == 0) {  // Trigger only when countdown done
-			timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms
-
-			if (Display_Info.buttons_hits & BUTTON_UP_INSTANT_PRESS_BIT) {
-				ProcessUPbutton();
-			}
-			if (Display_Info.buttons_hits & BUTTON_DOWN_INSTANT_PRESS_BIT) {
-				ProcessDOWNbutton();
-			}
-		}
-	}
-	/**/
 	Display_Info.DisplayNeedsUpdateFlag = SET;
 }
 
@@ -631,7 +663,7 @@ int CheckVariableRangeAndChange(uint8 UnitTypeIndex, uint8 CriteriaIndex, float 
 
 	if (*value < min) return_val = -1; // WAS too low  (will be clamped)
 	else if (*value > max) return_val = 1;  // WAS too high (will be clamped)
-	
+
 	// perform operation
 	temp += DELTA_value * IncEq_pls1_DecEq_mns1;// Apply signed delta
 
