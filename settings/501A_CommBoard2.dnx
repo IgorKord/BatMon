@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <settings>
     <DebugChecksum>
-        <Checksum>967427812</Checksum>
+        <Checksum>3673379397</Checksum>
     </DebugChecksum>
     <Disassembly>
         <MixedMode>1</MixedMode>
@@ -21,8 +21,8 @@
         <ShowArgs>0</ShowArgs>
     </CallStack>
     <Breakpoints2>
-        <Bp0>_ 1 "STD_CODE2" "{$PROJ_DIR$\SourceCode\Front_menu.c}.242.5" 0 0 1 "" 0 ""</Bp0>
-        <Bp1>_ 1 "STD_CODE2" "{$PROJ_DIR$\SourceCode\Front_menu.c}.242.5" 0 0 1 "" 0 ""</Bp1>
+        <Bp0>_ 1 "STD_CODE2" "{$PROJ_DIR$\SourceCode\Front_menu.c}.243.5" 0 0 1 "" 0 ""</Bp0>
+        <Bp1>_ 1 "STD_CODE2" "{$PROJ_DIR$\SourceCode\Front_menu.c}.243.5" 0 0 1 "" 0 ""</Bp1>
         <Count>2</Count>
     </Breakpoints2>
     <TermIOLog>

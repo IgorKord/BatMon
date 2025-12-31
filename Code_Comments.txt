@@ -1,3 +1,6 @@
+20251230
+checked in firmware: correctly increments/decrements voltages, but has dificulty to enter or leave LIMIT mode. Managed to get into LIMIT once, but pressing and holding does not leave LIMIT
+
 20251229
 This code SHOULD fix auto increment/decrement acceleration but, pressing LIMT button for 3+ sec causes rapid change on Info display.   Commenting out code in Do_Front_menu() after Operation() does not help
 

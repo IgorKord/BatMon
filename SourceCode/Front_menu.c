@@ -20,6 +20,11 @@
 #define BTN_DELTA_10_MS      2000 // INC_DEC_BY_10_HOLD_TIME_ms		
 #define BTN_DELTA_100_MS     4000 // DEC_INC_BY_100_HOLD_TIME_ms	
 #define BTN_AUTOINC_PERIOD    200 // UpDownChange_rate_ms_START		
+typedef enum
+{
+	DIR_DOWN = -1,
+	DIR_UP = +1
+} ButtonDirection_t;
 
 //-!- IK20250808  modes should be unified into one structure?
 uint8  last_display_mode;
@@ -90,6 +95,31 @@ char FL * mode_strings[] = {				// used in Front_menu.c, strings for display mod
 "OUTL",			// 38  OUTPUT_LOWER_STRING,
 };
 
+#if (false)
+void Process_UP_DOWN_button(float* Voltage, float VoltageMax, float VoltageMin, uint8 direction )
+{
+	/* direction: +1 = UP, -1 = DOWN */
+	float temp = *Voltage;
+	temp += (float)direction * Delta_Voltages;
+
+	/* Clamp to limits */
+	if (temp > VoltageMax)
+		temp = VoltageMax;
+	else if (temp < VoltageMin)
+		temp = VoltageMin;
+	*Voltage = temp; // update value once
+}
+
+static inline void ProcessUPbutton(void)
+{
+	Process_UP_DOWN_button(+1);
+}
+
+static inline void ProcessDOWNbutton(void)
+{
+	Process_UP_DOWN_button(-1);
+}
+#endif
 /*********************************************************************/
 /*                G E T   B U T T O N   P R E S S                    */
 /*********************************************************************/
@@ -228,7 +258,7 @@ void ProcessUPbutton() {
 	{
 		if (timer.UpDownChange_rate_ms == 0)				// and timer is 0
 		{
-			timer.UpDownChange_rate_ms = 100;				// set for 0.1 sec, decrements in timer ISR
+			timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;				// set for 0.1 sec, decrements in timer ISR
 			if (In_setup_alarm_limits_mode == TRUE) // change in SYS menu
 			{
 				if (display_mode == ALARM_RIV)	clearBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Voltage_Bit);
@@ -255,7 +285,28 @@ void ProcessUPbutton() {
 						//clearBit(Display_Info.Status, DISP_STATE_0_1mA_BIT);		// Display_Info.Status &= 0x7F; //clr 0-1ma bit
 						clearBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);
 					}
+					timer.limit_mode_timeout_ms = 0;									// keeps it going for another ten minutes
 				}
+			} // end of BUTTON_UP_LONG_PRESS_BIT
+			// below, both short and long press
+			else if (display_mode == PHASE_STATE_SET)
+				setBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);		// Triple_Phase_Setting
+
+			else if (display_mode == PULSE_STATE_SET)
+				rt.pulse = ON;
+
+			else if (display_mode == BUZZER_STATE_SET)
+				setBit(SysData.NV_UI.SavedStatusWord, Buzzer_ON_eq1_Bit);
+
+			else if (display_mode == LATCHED_STATE_SET)
+				setBit(SysData.NV_UI.SavedStatusWord, Latch_ON_eq1_Bit);				// set latched (persistent) alarms
+
+			else if (display_mode == AUTO_MAN_MODE)
+			{
+				Is_in_auto_mode = TRUE;													// changes to Auto
+				//manual_mode = FALSE;
+				limit_mode = FALSE;
+			}
 
 				//if (display_mode == CAL_V_BAT)								// bump up volts
 				//{
@@ -263,26 +314,24 @@ void ProcessUPbutton() {
 				//	clearBit(Display_Info.Status, DISP_STATE_ButtonDOWN_BIT);		// Display_Info.Status &= 0xFB;    //clear down button
 				//}
 
-				timer.limit_mode_timeout_ms = 0;									// keeps it going for another ten minutes
-			}
 
-			if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
-			{
-				Delta_Voltages = Delta_short_press_Voltages;			// IK20251111 decrease delta to 0.1V Volts
-				if (Display_Info.butt_states & BUTTON_UP_STILL_HELD_BIT) {
-					// Volts are incrementing / decrementing by 10V delta V maximum; the voltage range is about 20 to 300V
-					if (timer.up_button > INC_DEC_BY_10_HOLD_TIME_ms) {  // >6000ms total
-						Delta_Voltages = 10.0f;  // Cap at +10V
-					}
-					else {//if (timer.up_button > INC_DEC_BY_10_HOLD_TIME_ms) {  // >6000ms total
-						Delta_Voltages = Delta_long_press_Voltages;  // -1.0f
-					}
-				}
-				if (timer.UpDownChange_rate_ms == 0) {
-					timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms
-					// the CheckVariableRangeAndChange(...Delta_Voltages...);  is called below
-				}
-			}
+			//if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
+			//{
+			//	Delta_Voltages = Delta_short_press_Voltages;			// IK20251111 decrease delta to 0.1V Volts
+			//	if (Display_Info.butt_states & BUTTON_UP_STILL_HELD_BIT) {
+			//		// Volts are incrementing / decrementing by 10V delta V maximum; the voltage range is about 20 to 300V
+			//		if (timer.up_button > INC_DEC_BY_10_HOLD_TIME_ms) {  // >6000ms total
+			//			Delta_Voltages = Delta_very_long_press_Voltages;  // Cap at +10V
+			//		}
+			//		else {//if (timer.up_button > INC_DEC_BY_10_HOLD_TIME_ms) {  // >6000ms total
+			//			Delta_Voltages = Delta_long_press_Voltages;  // -1.0f
+			//		}
+			//	}
+			//	if (timer.UpDownChange_rate_ms == 0) {
+			//		timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms
+			//		// the CheckVariableRangeAndChange(...Delta_Voltages...);  is called below
+			//	}
+			//}
 
 			if (display_mode == HI_BAT_THRESHOLD)
 			{
@@ -315,10 +364,6 @@ void ProcessUPbutton() {
 				//Increase_time_delay();
 				if (SysData.NV_UI.alarm_delay_sec_f <= (MAX_time_delay - INCREMENT_time_delay))
 					SysData.NV_UI.alarm_delay_sec_f += INCREMENT_time_delay;            //plus 1 second
-			}
-			else if (display_mode == PHASE_STATE_SET)
-			{
-				setBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);
 			}
 
 			else if ((display_mode == CAL2_4mA) || (display_mode == CAL6_0mA))// (Display_Info.Status & DISP_STATE_LOmA_BIT)			// 4 mA setting
@@ -379,24 +424,6 @@ void ProcessUPbutton() {
 				rt.UBRR0_setting = Calculate_USART_UBRRregister((Uint32)SysData.NV_UI.baud_rate); // IK20251217 in main(), the difference will be detected and applied
 			}
 
-			else if (display_mode == PHASE_STATE_SET)
-				setBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);		// Triple_Phase_Setting
-
-			else if (display_mode == PULSE_STATE_SET)
-				rt.pulse = ON;
-
-			else if (display_mode == BUZZER_STATE_SET)
-				setBit(SysData.NV_UI.SavedStatusWord, Buzzer_ON_eq1_Bit);
-
-			else if (display_mode == LATCHED_STATE_SET)
-				setBit(SysData.NV_UI.SavedStatusWord, Latch_ON_eq1_Bit);				// set latched (persistent) alarms
-
-			else if (display_mode == AUTO_MAN_MODE)
-			{
-				Is_in_auto_mode = TRUE;													// changes to Auto
-				//manual_mode = FALSE;
-				limit_mode = FALSE;
-			}
 		} // end of timer 100 ms
 	}//end limit mode
 }
@@ -406,7 +433,7 @@ void ProcessDOWNbutton() {
 	{
 		if (timer.UpDownChange_rate_ms == 0)              //and timer is 0
 		{
-			timer.UpDownChange_rate_ms = 100;              //set for 0.1 sec
+			timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;              //set for 0.1 sec
 			if (In_setup_alarm_limits_mode == TRUE) // change in SYS menu
 			{
 				if (display_mode == ALARM_RIV)	setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Voltage_Bit);
@@ -433,6 +460,7 @@ void ProcessDOWNbutton() {
 						//clearBit(Display_Info.Status, DISP_STATE_0_1mA_BIT);	// Display_Info.Status &= 0x7F;	//clr 0-1ma bit
 						clearBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);
 					}
+					timer.limit_mode_timeout_ms = 0;									// keeps it going for another ten minutes
 				}
 
 				//else if (display_mode == CAL_V_BAT)											// bump down volts
@@ -440,50 +468,50 @@ void ProcessDOWNbutton() {
 				//	setBit(Display_Info.Status, DISP_STATE_ButtonDOWN_BIT);		// Display_Info.Status |= 0x04;	//Set down button
 				//	clearBit(Display_Info.Status, DISP_STATE_ButtonUP_BIT);		// Display_Info.Status &= 0xF7;	//clear up button
 				//}
-				if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
-				{
-					Delta_Voltages = -Delta_short_press_Voltages;			// IK20251111 decrease delta to 0.1V Volts
-					if (Display_Info.butt_states & BUTTON_DOWN_STILL_HELD_BIT) {
-						// Volts are incrementing / decrementing by 10V delta V maximum; the voltage range is about 20 to 300V
-						if (timer.down_button > INC_DEC_BY_10_HOLD_TIME_ms) {  // >9000ms total
-							Delta_Voltages = -10.0f;  // Cap at -10V
-						}
-						else{// if (timer.down_button > INC_DEC_BY_10_HOLD_TIME_ms){  // >6000ms total
-							Delta_Voltages = -Delta_long_press_Voltages;  // -1.0f
-						}
-					}
-					if (timer.UpDownChange_rate_ms == 0) {
-						timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms
-						// the CheckVariableRangeAndChange(...Delta_Voltages...);  is called below
-					}
-				}
+			} // end of DOWN_LONG_PRESS
+				//if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
+				//{
+				//	Delta_Voltages = -Delta_short_press_Voltages;			// IK20251111 decrease delta to 0.1V Volts
+				//	if (Display_Info.butt_states & BUTTON_DOWN_STILL_HELD_BIT) {
+				//		// Volts are incrementing / decrementing by 10V delta V maximum; the voltage range is about 20 to 300V
+				//		if (timer.down_button > INC_DEC_BY_10_HOLD_TIME_ms) {  // >9000ms total
+				//			Delta_Voltages = -Delta_very_long_press_Voltages;  // Cap at -10V
+				//		}
+				//		else{// if (timer.down_button > INC_DEC_BY_10_HOLD_TIME_ms){  // >6000ms total
+				//			Delta_Voltages = -Delta_long_press_Voltages;  // -1.0f
+				//		}
+				//	}
+				//	if (timer.UpDownChange_rate_ms == 0) {
+				//		timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms
+				//		// the CheckVariableRangeAndChange(...Delta_Voltages...);  is called below
+				//	}
+				//}
 
-				else if (display_mode == PHASE_STATE_SET)
-				{
-					clearBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);	// Down button changes phase 3 -> 1, Single_Phase_Setting
-				}
-				else if (display_mode == PULSE_STATE_SET)
-				{
-					rt.pulse = OFF;
-				}
-				else if (display_mode == BUZZER_STATE_SET)
-				{
-					clearBit(SysData.NV_UI.SavedStatusWord, Buzzer_ON_eq1_Bit);
-				}
-				else if (display_mode == LATCHED_STATE_SET)
-				{
-					clearBit(SysData.NV_UI.SavedStatusWord, Latch_ON_eq1_Bit);			// clear latched (persistent) alarms
-				}
-				if (display_mode == AUTO_MAN_MODE)
-				{
-					Is_in_auto_mode = FALSE;											// changes from Auto to manual
-					//manual_mode = TRUE;
-					limit_mode = FALSE;
-				}
-				timer.limit_mode_timeout_ms = 0;										// keeps it going for another ten minutes
-			} // end of long press
-			else
-				Delta_Voltages = Delta_short_press_Voltages;							// IK20251111 decrease increment to 0.1V Volts
+			else if (display_mode == PHASE_STATE_SET)
+			{
+				clearBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);	// Down button changes phase 3 -> 1, Single_Phase_Setting
+			}
+			else if (display_mode == PULSE_STATE_SET)
+			{
+				rt.pulse = OFF;
+			}
+			else if (display_mode == BUZZER_STATE_SET)
+			{
+				clearBit(SysData.NV_UI.SavedStatusWord, Buzzer_ON_eq1_Bit);
+			}
+			else if (display_mode == LATCHED_STATE_SET)
+			{
+				clearBit(SysData.NV_UI.SavedStatusWord, Latch_ON_eq1_Bit);			// clear latched (persistent) alarms
+			}
+			if (display_mode == AUTO_MAN_MODE)
+			{
+				Is_in_auto_mode = FALSE;											// changes from Auto to manual
+				//manual_mode = TRUE;
+				limit_mode = FALSE;
+			}
+			timer.limit_mode_timeout_ms = 0;										// keeps it going for another ten minutes
+			//else
+			//	Delta_Voltages = Delta_short_press_Voltages;							// IK20251111 decrease increment to 0.1V Volts
 
 			if (display_mode == HI_BAT_THRESHOLD)
 			{
@@ -593,27 +621,28 @@ void ProcessDOWNbutton() {
 /// <param name="CriteriaIndex">The index specifying the alarm criteria within the unit type.</param>
 /// <param name="*value">The pointer to the value to check against the allowed range and change.</param>
 /// <param name="DELTA_value">The increment/decrement step value.</param>
-/// <returns>Returns -1 if the value is below the minimum, 1 if above the maximum, and 0 if within the range and increment/decrement succeed.</returns>
-int CheckVariableRangeAndChange(uint8 UnitTypeIndex, uint8 CriteriaIndex, float *value, float DELTA_value, uint8 IncEq_1_DecEQ_0)
+/// <returns>Returns -1 if the value is below the minimum, +1 if above the maximum, and 0 if within the range and increment/decrement if succeed.</returns>
+int CheckVariableRangeAndChange(uint8 UnitTypeIndex, uint8 CriteriaIndex, float *value, float DELTA_value, signed char IncEq_pls1_DecEq_mns1)
 {
 	float min = Alarm_Limits[UnitTypeIndex].AlarmCriteria[CriteriaIndex][MinSet]; // MinSet is from enum SetRange
 	float max = Alarm_Limits[UnitTypeIndex].AlarmCriteria[CriteriaIndex][MaxSet];
-	// IK20250728 uint16 DELTA_value // can be a parameter, but for now it is constant
-	if (*value < min) return -1; // too low
-	if (*value > max) return 1;  // too high
-	// in range, perform operation
-	if (IncEq_1_DecEQ_0 == 1) { // increment
-		if (*value <= (max - DELTA_value))
-			*value += DELTA_value; // increment by 0.1V for voltage criteria , 1 mV or 1 mA for ripple
-		else
-			*value = max;
-	} else if (IncEq_1_DecEQ_0 == 0) { // decrement
-		if (*value >= (min + DELTA_value))
-			*value -= DELTA_value; // decrement by by 0.1V for voltage criteria , 1 mV or 1 mA for ripple
-		else
-			*value = min;
-	}
-	return 0; // in range
+	float temp = *value;
+	int return_val = 0;// assuming *value is in range
+
+	if (*value < min) return_val = -1; // WAS too low  (will be clamped)
+	else if (*value > max) return_val = 1;  // WAS too high (will be clamped)
+	
+	// perform operation
+	temp += DELTA_value * IncEq_pls1_DecEq_mns1;// Apply signed delta
+
+	// Clamp
+	if (temp > max)
+		temp = max;
+	else if (temp < min)
+		temp = min;
+
+	*value = temp;
+	return return_val;
 }
 
 typedef struct   {

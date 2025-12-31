@@ -418,7 +418,7 @@ typedef int                  int16;
 
 //IK20231205 moved 'literals' from "main.c"
 #define INCREMENT           1
-#define DECREMENT           0
+#define DECREMENT           -1
 #define FALSE               0
 #define TRUE                1
 #define false               0
@@ -1072,7 +1072,7 @@ void EEPROM_Save(void* StartAdr, uint16 BitSize); // IK20250804 save data from S
 #define SaveToEE(VAR)     EEPROM_Save(&(VAR), sizeof(VAR))
 void EEPROM_Load_to_SysData(void* StartAdr, uint16 BitSize); // IK20250804 load data from EEPROM_SysData to SysData structure
 #define LoadFromEE(VAR)     EEPROM_Load_to_SysData(&(VAR), sizeof(VAR))
-int CheckVariableRangeAndChange(uint8 UnitTypeIndex, uint8 CriteriaIndex, float* value, float DELTA_value, uint8 IncEq_1_DecEQ_0);
+int CheckVariableRangeAndChange(uint8 UnitTypeIndex, uint8 CriteriaIndex, float* value, float DELTA_value, signed char IncEq_pls1_DecEq_mns1);
 
 void CalibrationSteps(uint16 RawADCcounts);
 void SendCrLf(void);
