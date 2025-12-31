@@ -16,6 +16,7 @@
 #include <string.h> // for memset, memcpy
 
 #define BTN_IGNORE_MS         100 // DEBOUNCE_DELAY
+#define BTN_SHORT_MAX_MS     3000 // For short press on release
 #define BTN_AUTOINC_MS       3000 // LONG_PRESS_DELAY
 #define BTN_DELTA_1_MS       3000 // INC_DEC_BY_10_HOLD_TIME_ms
 #define BTN_DELTA_10_MS      6000 // INC_DEC_BY_10_HOLD_TIME_ms
@@ -187,9 +188,8 @@ static inline void ProcessDOWNbutton(void)
 // this is minimum holding button interval, pressing for longer interval would create "button hold" event and clear "button pressed" event
 //IK20250708 in "Structure_defs.h" #define LONG_PRESS_DELAY    3000 // ms, 3.0 sec
 //uint16 timer_ms; //IK202050929 global variable for test
-void RecognizeButtonState(void)
-{
-	for (int btn = 0; btn < BTN_NUMBER; btn++) {
+void RecognizeButtonState(void) {
+	for (int btn = 0; btn < NUM_BUTTONS; btn++) {
 		ButtonHandler_t* h = &button_handlers[btn];
 		uint8 current = (Display_Info.buttons_hits & h->button_bit) != 0;
 		uint16 heldTime = (h->state != BUT_IDLE) ? (timer.FreeRunningCounter - h->pressStartTime) : 0;
@@ -203,82 +203,77 @@ void RecognizeButtonState(void)
 				h->state = BUT_PRESSED;
 			}
 			break;
+
 		case BUT_PRESSED:
 			if (!current) {
+				// Released
 				*(h->p_timer) = 0;
-				if (heldTime < BTN_IGNORE_MS) {
-					// Ignore
+				uint16 releaseTime = heldTime;
+				if (releaseTime >= BTN_IGNORE_MS) {
+					if (releaseTime <= BTN_SHORT_MAX_MS) {
+						Display_Info.butt_states |= h->short_bit;  // Short press (e.g., AUTO cycle)
+					}
+					else if (releaseTime <= BTN_DELTA_1_MS) {  // >3000 <=6000 on release: Long
+						Display_Info.butt_states |= h->long_bit;
+					}
+					// >6000 on release: Long already set if transitioned, but do nothing extra
 				}
-				else if (heldTime <= 3000) {  // 100-3000ms: Short press
-					Display_Info.butt_states |= h->short_bit;
-				}
-				else if (heldTime <= BTN_DELTA_10_MS) {  // >3000 <=6000: Long press (for all on release)
-					Display_Info.butt_states |= h->long_bit;
-				}
-				// For UP/DOWN >3000: Already in AUTOINC if transitioned, do nothing on release
 				Display_Info.butt_states &= ~h->held_bit;
 				h->state = BUT_IDLE;
 			}
 			else {
-				// Still held -> check for auto threshold (UP/DOWN only)
-				if (btn != BTN_LIMIT && heldTime > BTN_AUTOINC_MS) {
-					Display_Info.butt_states |= h->long_bit | h->held_bit;
-					timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;  // Optional, if still used elsewhere
+				// Still held
+				if (heldTime > BTN_AUTOINC_MS) {
+					Display_Info.butt_states |= h->held_bit;
 
-					// Initial delta = 0.1f
-					Delta_Voltages = h->dir * Delta_short_press_Voltages;
-					if (btn == BTN_UP) ProcessUPbutton(); else ProcessDOWNbutton();
-
-					h->lastIncTime = timer.FreeRunningCounter;
-					h->state = BUT_AUTOINC;
+					if (btn == BTN_UP || btn == BTN_DOWN) {
+						// Enter auto for UP/DOWN
+						Delta_Voltages = h->dir * Delta_short_press_Voltages;  // Start 0.1f
+						if (btn == BTN_UP) ProcessUPbutton(); else ProcessDOWNbutton();
+						h->lastIncTime = timer.FreeRunningCounter;
+						h->state = BUT_AUTOINC;
+					}
+					else if (btn == BTN_LIMIT) {
+						if (limit_mode == FALSE) {
+							limit_mode = TRUE;
+							h->pressStartTime = timer.FreeRunningCounter;  // Reset for short presses inside
+						}
+						else if (heldTime > BTN_AUTOINC_MS) {  // Re-hold >3000 inside TRUE
+							limit_mode = FALSE;
+						}
+					}
+					// For other buttons (AUTO, RESET): Long on release only
 				}
 			}
 			break;
+
 		case BUT_AUTOINC:  // UP/DOWN only
 			if (!current) {
-				// Released during auto -> do nothing
 				*(h->p_timer) = 0;
 				Display_Info.butt_states &= ~h->held_bit;
 				h->state = BUT_IDLE;
 			}
 			else {
-				// Update delta based on total heldTime (three levels)
-				if (heldTime > BTN_DELTA_10_MS) {  // >9000ms
-					Delta_Voltages = h->dir * Delta_very_long_press_Voltages;  // 10.0f or -10.0f
+				// Three-level delta
+				if (heldTime > BTN_DELTA_10_MS) {  // >9000
+					Delta_Voltages = h->dir * Delta_very_long_press_Voltages;  // 10.0f
 				}
-				else if (heldTime > BTN_DELTA_1_MS) {  // >6000ms
-					Delta_Voltages = h->dir * Delta_long_press_Voltages;  // 1.0f or -1.0f
+				else if (heldTime > BTN_DELTA_1_MS) {  // >6000
+					Delta_Voltages = h->dir * Delta_long_press_Voltages;  // 1.0f
 				}
-				else {  // >3000ms but <=6000ms
-					Delta_Voltages = h->dir * Delta_short_press_Voltages;  // 0.1f or -0.1f
+				else {  // >3000 <=6000
+					Delta_Voltages = h->dir * Delta_short_press_Voltages;  // 0.1f
 				}
 
-				// Repeat every 200ms
 				if (timer.FreeRunningCounter - h->lastIncTime >= BTN_AUTOINC_PERIOD) {
 					h->lastIncTime = timer.FreeRunningCounter;
-					if (btn == BTN_UP) {
-						ProcessUPbutton();
-					}
-					else if (btn == BTN_DOWN) {
-						ProcessDOWNbutton();
-					}
+					if (btn == BTN_UP) ProcessUPbutton(); else ProcessDOWNbutton();
 				}
 			}
 			break;
-		}
-
-		// LIMIT-specific enter/exit (in PRESSED or AUTOINC)
-		if (btn == BTN_LIMIT) {
-			if (h->state == BUT_PRESSED && heldTime > BTN_AUTOINC_MS) {
-				limit_mode = TRUE;  // Enter once
-			}
-			else if (h->state == BUT_AUTOINC && heldTime > BTN_DELTA_10_MS) {
-				limit_mode = FALSE;  // Exit once after another 3s
-			}
 		}
 	}
 }
-
 void Get_Button_Press(void)	// IK2025111 not called from Visual Studio
 {
 	RecognizeButtonState();
@@ -873,7 +868,7 @@ void Operation(void)
 			In_setup_alarm_limits_mode = FALSE;			// exit from setup mode
 			display_mode = SHOW_FW_VER;					// = 12 // display show "SYS "
 		}
-
+		/*
 		else if (limit_mode == FALSE)					// main entry point from the normal mode to the limit mode
 		{
 			limit_mode = TRUE;							// different menus
@@ -923,7 +918,7 @@ void Operation(void)
 
 		clearBit(Display_Info.butt_states, BUTTON_LIMIT_LONG_PRESS_BIT); // Display_Info.butt_states&= 0xFFF7;//clear long press of limit
 	}//end of long press of limit button
-
+*/
    //Check Up Button
 	if (Display_Info.butt_states & BUTTON_UP_SHORT_PRESS_BIT)    //Short press AND RELEASE of up button
 	{
@@ -964,8 +959,8 @@ void Operation(void)
 	if ((Display_Info.buttons_hits & (BUTTON_UP_INSTANT_PRESS_BIT | BUTTON_DOWN_INSTANT_PRESS_BIT)) &&  // Any UP/DOWN held?
 		(Display_Info.butt_states & (BUTTON_UP_STILL_HELD_BIT | BUTTON_DOWN_STILL_HELD_BIT))) {  // Long press active?
 
-		if (timer.UpDownChange_rate_ms == 0) {  // Repeat trigger point
-			timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms for next repeat
+		//if (timer.UpDownChange_rate_ms == 0) {  // Repeat trigger point
+		//	timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms for next repeat
 
 			// Apply the change based on which button is held
 			if (Display_Info.buttons_hits & BUTTON_UP_INSTANT_PRESS_BIT) {
