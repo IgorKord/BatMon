@@ -16,9 +16,10 @@
 #include <string.h> // for memset, memcpy
 
 #define BTN_IGNORE_MS         100 // DEBOUNCE_DELAY
-#define BTN_AUTOINC_MS       1000 // LONG_PRESS_DELAY
-#define BTN_DELTA_10_MS      2000 // INC_DEC_BY_10_HOLD_TIME_ms
-#define BTN_DELTA_100_MS     4000 // DEC_INC_BY_100_HOLD_TIME_ms
+#define BTN_AUTOINC_MS       3000 // LONG_PRESS_DELAY
+#define BTN_DELTA_1_MS       3000 // INC_DEC_BY_10_HOLD_TIME_ms
+#define BTN_DELTA_10_MS      6000 // INC_DEC_BY_10_HOLD_TIME_ms
+#define BTN_DELTA_100_MS     9000 // DEC_INC_BY_100_HOLD_TIME_ms
 #define BTN_AUTOINC_PERIOD    200 // UpDownChange_rate_ms_START
 typedef enum
 {
@@ -219,42 +220,48 @@ void RecognizeButtonState(void)
 				h->state = BUT_IDLE;
 			}
 			else {
-				// Still held --> check for auto threshold (UP/DOWN only)
+				// Still held -> check for auto threshold (UP/DOWN only)
 				if (btn != BTN_LIMIT && heldTime > BTN_AUTOINC_MS) {
 					Display_Info.butt_states |= h->long_bit | h->held_bit;
-					timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;  // 200ms
+					timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;  // Optional, if still used elsewhere
 
-					// First auto action
-					Delta_Voltages = h->dir * Delta_short_press_Voltages;  // 0.1f or -0.1f
+					// Initial delta = 0.1f
+					Delta_Voltages = h->dir * Delta_short_press_Voltages;
 					if (btn == BTN_UP) ProcessUPbutton(); else ProcessDOWNbutton();
+
 					h->lastIncTime = timer.FreeRunningCounter;
 					h->state = BUT_AUTOINC;
 				}
 			}
 			break;
-		case BUT_AUTOINC:
+		case BUT_AUTOINC:  // UP/DOWN only
 			if (!current) {
-				// Released during auto --> do nothing
+				// Released during auto -> do nothing
 				*(h->p_timer) = 0;
-				Display_Info.butt_states &= ~(h->long_bit | h->held_bit);
+				Display_Info.butt_states &= ~h->held_bit;
 				h->state = BUT_IDLE;
 			}
 			else {
-				// Update delta for UP/DOWN
-				if (heldTime > BTN_DELTA_10_MS && heldTime <= BTN_DELTA_100_MS) {  // >6000 <=9000
+				// Update delta based on total heldTime (three levels)
+				if (heldTime > BTN_DELTA_10_MS) {  // >9000ms
+					Delta_Voltages = h->dir * Delta_very_long_press_Voltages;  // 10.0f or -10.0f
+				}
+				else if (heldTime > BTN_DELTA_1_MS) {  // >6000ms
 					Delta_Voltages = h->dir * Delta_long_press_Voltages;  // 1.0f or -1.0f
 				}
-				else if (heldTime > BTN_DELTA_100_MS) {  // >9000 cap at 10f
-					Delta_Voltages = h->dir * 10.0f;
-				}
-				else {
-					Delta_Voltages = h->dir * Delta_short_press_Voltages;  // Default during auto
+				else {  // >3000ms but <=6000ms
+					Delta_Voltages = h->dir * Delta_short_press_Voltages;  // 0.1f or -0.1f
 				}
 
 				// Repeat every 200ms
 				if (timer.FreeRunningCounter - h->lastIncTime >= BTN_AUTOINC_PERIOD) {
 					h->lastIncTime = timer.FreeRunningCounter;
-					if (btn == BTN_UP) ProcessUPbutton(); else if (btn == BTN_DOWN) ProcessDOWNbutton();
+					if (btn == BTN_UP) {
+						ProcessUPbutton();
+					}
+					else if (btn == BTN_DOWN) {
+						ProcessDOWNbutton();
+					}
 				}
 			}
 			break;
