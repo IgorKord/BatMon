@@ -219,7 +219,7 @@ void RecognizeButtonState(void)
 				h->state = BUT_IDLE;
 			}
 			else {
-				// Still held → check for auto threshold (UP/DOWN only)
+				// Still held --> check for auto threshold (UP/DOWN only)
 				if (btn != BTN_LIMIT && heldTime > BTN_AUTOINC_MS) {
 					Display_Info.butt_states |= h->long_bit | h->held_bit;
 					timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;  // 200ms
@@ -234,7 +234,7 @@ void RecognizeButtonState(void)
 			break;
 		case BUT_AUTOINC:
 			if (!current) {
-				// Released during auto → do nothing
+				// Released during auto --> do nothing
 				*(h->p_timer) = 0;
 				Display_Info.butt_states &= ~(h->long_bit | h->held_bit);
 				h->state = BUT_IDLE;
