@@ -15,17 +15,26 @@
 #include "GLOBALS.H"
 #include <string.h> // for memset, memcpy
 
-#define BTN_IGNORE_MS         100 // DEBOUNCE_DELAY					
-#define BTN_AUTOINC_MS       1000 // LONG_PRESS_DELAY				
-#define BTN_DELTA_10_MS      2000 // INC_DEC_BY_10_HOLD_TIME_ms		
-#define BTN_DELTA_100_MS     4000 // DEC_INC_BY_100_HOLD_TIME_ms	
-#define BTN_AUTOINC_PERIOD    200 // UpDownChange_rate_ms_START		
+#define BTN_IGNORE_MS         100 // DEBOUNCE_DELAY
+#define BTN_SHORT_MAX_MS     3000 // For short press on release
+#define BTN_AUTOINC_MS       3000 // LONG_PRESS_DELAY
+#define BTN_DELTA_1_MS       3000 // INC_DEC_BY_10_HOLD_TIME_ms
+#define BTN_DELTA_10_MS      6000 // INC_DEC_BY_10_HOLD_TIME_ms
+#define BTN_DELTA_100_MS     9000 // DEC_INC_BY_100_HOLD_TIME_ms
+#define BTN_AUTOINC_PERIOD    200 // UpDownChange_rate_ms_START
 typedef enum
 {
 	DIR_DOWN = -1,
+	DIR_OTHER = 0,
 	DIR_UP = +1
 } ButtonDirection_t;
 
+// Button state machine
+typedef enum {
+	BUT_IDLE,
+	BUT_PRESSED,  // Held, waiting for release or long threshold
+	BUT_AUTOINC   // UP/DOWN only: Auto inc/dec during hold
+} ButtonState_t;
 //-!- IK20250808  modes should be unified into one structure?
 uint8  last_display_mode;
 uint8  In_setup_alarm_limits_mode;				// indicates if in the setup alarm limits mode (after LIMIT button was pressed for 3+ sec). allows to setup HBAT, LBAT, etc., limits. to disable alarms
@@ -47,6 +56,9 @@ uint16 latched_alarm_status;				// remebers alarms if latch is enabled. persiste
 #define Delta_long_press_Voltages		1.0f	// IK20251111 used in manual mode to increment/decrement voltages
 #define Delta_very_long_press_Voltages	10.0f	// IK20251230 used in manual mode to increment/decrement voltages
 float Delta_Voltages = Delta_short_press_Voltages; // IK20251111 used in manual mode to increment/decrement voltages
+
+//#define INC_DEC_BY_10_HOLD_TIME_ms		10000	// 10 sec
+//#define DEC_INC_BY_100_HOLD_TIME_ms		20000	// 20 sec
 
 #define MAX_Vrip_LIMIT		2000
 #define MAX_DNP3_ADDRESS	((uint16)65519)
@@ -95,31 +107,6 @@ char FL * mode_strings[] = {				// used in Front_menu.c, strings for display mod
 "OUTL",			// 38  OUTPUT_LOWER_STRING,
 };
 
-#if (false)
-void Process_UP_DOWN_button(float* Voltage, float VoltageMax, float VoltageMin, uint8 direction )
-{
-	/* direction: +1 = UP, -1 = DOWN */
-	float temp = *Voltage;
-	temp += (float)direction * Delta_Voltages;
-
-	/* Clamp to limits */
-	if (temp > VoltageMax)
-		temp = VoltageMax;
-	else if (temp < VoltageMin)
-		temp = VoltageMin;
-	*Voltage = temp; // update value once
-}
-
-static inline void ProcessUPbutton(void)
-{
-	Process_UP_DOWN_button(+1);
-}
-
-static inline void ProcessDOWNbutton(void)
-{
-	Process_UP_DOWN_button(-1);
-}
-#endif
 /*********************************************************************/
 /*                G E T   B U T T O N   P R E S S                    */
 /*********************************************************************/
@@ -142,73 +129,50 @@ static inline void ProcessDOWNbutton(void)
 // this is minimum holding button interval, pressing for longer interval would create "button hold" event and clear "button pressed" event
 //IK20250708 in "Structure_defs.h" #define LONG_PRESS_DELAY    3000 // ms, 3.0 sec
 //uint16 timer_ms; //IK202050929 global variable for test
-void RecognizeButtonState(uint8 Btn_Index, volatile uint16* p_timer)
+void RecognizeButtonState(uint8 Btn_Index, volatile uint16 *p_timer)
 {
-	static uint16 lastRepeatTime[BTN_MAX_INDEX + 1] = { 0 };
+	// if a timer was already running (>0) it means the button was pressed;
+	// if running interval = timer.auto_button = (button released - button pressed) is between 0.1 & 3.0 sec
+	// set "Short Press" event
+#ifdef DISPLAY_MENU
+	uint16 timer_ms;
+	if (Btn_Index > BTN_MAX_INDEX) return; // safety exit if index is wrong
+	timer_ms = (uint16)(*p_timer); // read a timer once; this is a quick function for button capture, timer would not change more than a ms, not important for menu operation
 
-	uint16 holdingTime;
+	// start from debouncing, clear both bits
+	clearBit(Display_Info.butt_states, ((BUTTON_AUTO_SHORT_PRESS_BIT | BUTTON_AUTO_LONG_PRESS_BIT) << Btn_Index));
 
-	uint16 instantMask = (BUTTON_AUTO_INSTANT_PRESS_BIT << Btn_Index);
-	uint16 shortMask = (BUTTON_AUTO_SHORT_PRESS_BIT << Btn_Index);
-	uint16 longMask = (BUTTON_AUTO_LONG_PRESS_BIT << Btn_Index);
-	uint16 heldMask = (BUTTON_AUTO_STILL_HELD_BIT << Btn_Index);
-
-	if (Display_Info.buttons_hits & instantMask)
+	//check state of a button, it arrives via TWI from Front board as a bit in byte
+	// button currently pressed? (buttons_hits is sampled via TWI once in 20 ms)
+	if ((Display_Info.buttons_hits & (BUTTON_AUTO_INSTANT_PRESS_BIT << Btn_Index)) != 0)
 	{
-		if (*p_timer == 0)
-		{
+		if (timer_ms == 0) {
+			// start counting (1 means enabled and ~1 ms elapsed after next ISR tick)
 			*p_timer = 1;
-			lastRepeatTime[Btn_Index] = 0;
-			clearBit(Display_Info.butt_states,
-				shortMask | longMask | heldMask);
 		}
+		else if (timer_ms >= LONG_PRESS_DELAY) {
+			// reached a long-hold block: issue one long event and restart timer for next block
+			setBit(Display_Info.butt_states, (BUTTON_AUTO_LONG_PRESS_BIT << Btn_Index));
 
-		holdingTime = *p_timer;
-
-		if ((Btn_Index == BTN_INDEX_UP || Btn_Index == BTN_INDEX_DOWN) &&
-			holdingTime >= BTN_AUTOINC_MS)
-		{
-			setBit(Display_Info.butt_states, heldMask);
-
-			/* Delta selection */
-			if (holdingTime < BTN_DELTA_10_MS)
-				Delta_Voltages = Delta_short_press_Voltages;
-			else if (holdingTime < BTN_DELTA_100_MS)
-				Delta_Voltages = Delta_long_press_Voltages;
-			else
-				Delta_Voltages = Delta_very_long_press_Voltages;
-
-			if ((holdingTime - lastRepeatTime[Btn_Index]) >= BTN_AUTOINC_PERIOD)
-			{
-				lastRepeatTime[Btn_Index] = holdingTime;
-
-				if (Btn_Index == BTN_INDEX_UP)
-					ProcessUPbutton();
-				else
-					ProcessDOWNbutton();
-			}
+			if (Btn_Index == BTN_INDEX_UP)
+				setBit(Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT);
+			if (Btn_Index == BTN_INDEX_DOWN)
+				setBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);
+			// restart counting for the next LONG_PRESS_DELAY cycle (use 1, not 0)
+			*p_timer = 1;
 		}
+		// otherwise keep counting; do not set short-press while held
 	}
-	else if (*p_timer > 0)
+	else // button released
 	{
-		holdingTime = *p_timer;
+		// if released between short and long thresholds -> short press event
+		if (timer_ms >= SHORT_PRESS_DELAY && timer_ms < LONG_PRESS_DELAY) {
+			setBit(Display_Info.butt_states, (BUTTON_AUTO_SHORT_PRESS_BIT << Btn_Index));
+		}
+		// stop timer on release
 		*p_timer = 0;
-
-		if (holdingTime < BTN_IGNORE_MS)
-		{
-			/* ignore */
-		}
-		else if (holdingTime < BTN_AUTOINC_MS)
-		{
-			setBit(Display_Info.butt_states, shortMask);
-		}
-		else if (holdingTime < BTN_DELTA_10_MS)
-		{
-			if (Btn_Index != BTN_INDEX_UP && Btn_Index != BTN_INDEX_DOWN)
-				setBit(Display_Info.butt_states, longMask);
-		}
-		clearBit(Display_Info.butt_states, heldMask);
 	}
+#endif // #ifdef DISPLAY_MENU
 }
 
 void Get_Button_Press(void)	// IK2025111 not called from Visual Studio
@@ -228,27 +192,7 @@ void Get_Button_Press(void)	// IK2025111 not called from Visual Studio
 void Do_Front_menu(void)
 {
 	//Buttons : BIT_0 = 1 LEFT pressed, BIT_3 = 1 central ENTER pressed, BIT_4 = 1 RIGHT pressed, BIT_5 = 1 UP pressed, BIT_6 = 1 DOWN pressed
-	//int key_pos;           // Front Panel keypad reading
-
-	//key_pos =	  (Display_Info.butt_states);
-	// set events Short Press and / or Long Press
 	Operation();
-	// Continuous auto-repeat during hold (called from main loop / RealTimeCode)
-	if ((Display_Info.buttons_hits & (BUTTON_UP_INSTANT_PRESS_BIT | BUTTON_DOWN_INSTANT_PRESS_BIT)) &&
-		(Display_Info.butt_states & (BUTTON_UP_STILL_HELD_BIT | BUTTON_DOWN_STILL_HELD_BIT))) {
-
-		if (timer.UpDownChange_rate_ms == 0) {  // Trigger only when countdown done
-			timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms
-
-			if (Display_Info.buttons_hits & BUTTON_UP_INSTANT_PRESS_BIT) {
-				ProcessUPbutton();
-			}
-			if (Display_Info.buttons_hits & BUTTON_DOWN_INSTANT_PRESS_BIT) {
-				ProcessDOWNbutton();
-			}
-		}
-	}
-	/**/
 	Display_Info.DisplayNeedsUpdateFlag = SET;
 }
 
@@ -285,53 +229,20 @@ void ProcessUPbutton() {
 						//clearBit(Display_Info.Status, DISP_STATE_0_1mA_BIT);		// Display_Info.Status &= 0x7F; //clr 0-1ma bit
 						clearBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);
 					}
-					timer.limit_mode_timeout_ms = 0;									// keeps it going for another ten minutes
 				}
+
+
+				timer.limit_mode_timeout_ms = 0;									// keeps it going for another ten minutes
 			} // end of BUTTON_UP_LONG_PRESS_BIT
 			// below, both short and long press
-			else if (display_mode == PHASE_STATE_SET)
-				setBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);		// Triple_Phase_Setting
 
-			else if (display_mode == PULSE_STATE_SET)
-				rt.pulse = ON;
-
-			else if (display_mode == BUZZER_STATE_SET)
-				setBit(SysData.NV_UI.SavedStatusWord, Buzzer_ON_eq1_Bit);
-
-			else if (display_mode == LATCHED_STATE_SET)
-				setBit(SysData.NV_UI.SavedStatusWord, Latch_ON_eq1_Bit);				// set latched (persistent) alarms
-
-			else if (display_mode == AUTO_MAN_MODE)
+			if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
 			{
-				Is_in_auto_mode = TRUE;													// changes to Auto
-				//manual_mode = FALSE;
-				limit_mode = FALSE;
+				if (Display_Info.butt_states & BUTTON_UP_STILL_HELD_BIT)
+					Delta_Voltages = Delta_long_press_Voltages;				// IK20251111 increase increment to 1.0f Volts
+				else
+					Delta_Voltages = Delta_short_press_Voltages;			// IK20251111 decrease increment to 0.1V Volts
 			}
-
-				//if (display_mode == CAL_V_BAT)								// bump up volts
-				//{
-				//	setBit(Display_Info.Status, DISP_STATE_ButtonUP_BIT);			// Display_Info.Status |= 0x08;    //Set up button
-				//	clearBit(Display_Info.Status, DISP_STATE_ButtonDOWN_BIT);		// Display_Info.Status &= 0xFB;    //clear down button
-				//}
-
-
-			//if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
-			//{
-			//	Delta_Voltages = Delta_short_press_Voltages;			// IK20251111 decrease delta to 0.1V Volts
-			//	if (Display_Info.butt_states & BUTTON_UP_STILL_HELD_BIT) {
-			//		// Volts are incrementing / decrementing by 10V delta V maximum; the voltage range is about 20 to 300V
-			//		if (timer.up_button > INC_DEC_BY_10_HOLD_TIME_ms) {  // >6000ms total
-			//			Delta_Voltages = Delta_very_long_press_Voltages;  // Cap at +10V
-			//		}
-			//		else {//if (timer.up_button > INC_DEC_BY_10_HOLD_TIME_ms) {  // >6000ms total
-			//			Delta_Voltages = Delta_long_press_Voltages;  // -1.0f
-			//		}
-			//	}
-			//	if (timer.UpDownChange_rate_ms == 0) {
-			//		timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms
-			//		// the CheckVariableRangeAndChange(...Delta_Voltages...);  is called below
-			//	}
-			//}
 
 			if (display_mode == HI_BAT_THRESHOLD)
 			{
@@ -419,14 +330,30 @@ void ProcessUPbutton() {
 				t_long = Baud_Rates[BaudRateIndex]; // IK20251224 ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
 				Existing.baud_rate = t_long << 2;										// IK20250826  Baud_Rates are saved divided by 4 to keep values inside uint16 range
 				//Existing.baud_rate = Baud_Rates[BaudRateIndex] * 4.0f;				// IK20251224  using float math, it takes extra 8 bytes of flash
-				SysData.NV_UI.baud_rate = Existing.baud_rate;							// Store the new baud rate in NV_UI
-				SaveToEE(SysData.NV_UI.baud_rate);										// Store the new baud rate in EEPROM
-				rt.UBRR0_setting = Calculate_USART_UBRRregister((Uint32)SysData.NV_UI.baud_rate); // IK20251217 in main(), the difference will be detected and applied
+				Set_and_Save_New_BaudRateIndex(BaudRateIndex);
 			}
 
+			else if (display_mode == PHASE_STATE_SET)
+				setBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);		// Triple_Phase_Setting
+
+			else if (display_mode == PULSE_STATE_SET)
+				rt.pulse = ON;
+
+			else if (display_mode == BUZZER_STATE_SET)
+				setBit(SysData.NV_UI.SavedStatusWord, Buzzer_ON_eq1_Bit);
+
+			else if (display_mode == LATCHED_STATE_SET)
+				setBit(SysData.NV_UI.SavedStatusWord, Latch_ON_eq1_Bit);				// set latched (persistent) alarms
+
+			else if (display_mode == AUTO_MAN_MODE)
+			{
+				Is_in_auto_mode = TRUE;													// changes to Auto
+				//manual_mode = FALSE;
+				limit_mode = FALSE;
+			}
 		} // end of timer 100 ms
 	}//end limit mode
-}
+}	// end of ProcessUPbutton
 
 void ProcessDOWNbutton() {
 	if (limit_mode == TRUE)
@@ -460,7 +387,6 @@ void ProcessDOWNbutton() {
 						//clearBit(Display_Info.Status, DISP_STATE_0_1mA_BIT);	// Display_Info.Status &= 0x7F;	//clr 0-1ma bit
 						clearBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);
 					}
-					timer.limit_mode_timeout_ms = 0;									// keeps it going for another ten minutes
 				}
 
 				//else if (display_mode == CAL_V_BAT)											// bump down volts
@@ -468,50 +394,33 @@ void ProcessDOWNbutton() {
 				//	setBit(Display_Info.Status, DISP_STATE_ButtonDOWN_BIT);		// Display_Info.Status |= 0x04;	//Set down button
 				//	clearBit(Display_Info.Status, DISP_STATE_ButtonUP_BIT);		// Display_Info.Status &= 0xF7;	//clear up button
 				//}
-			} // end of DOWN_LONG_PRESS
-				//if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
-				//{
-				//	Delta_Voltages = -Delta_short_press_Voltages;			// IK20251111 decrease delta to 0.1V Volts
-				//	if (Display_Info.butt_states & BUTTON_DOWN_STILL_HELD_BIT) {
-				//		// Volts are incrementing / decrementing by 10V delta V maximum; the voltage range is about 20 to 300V
-				//		if (timer.down_button > INC_DEC_BY_10_HOLD_TIME_ms) {  // >9000ms total
-				//			Delta_Voltages = -Delta_very_long_press_Voltages;  // Cap at -10V
-				//		}
-				//		else{// if (timer.down_button > INC_DEC_BY_10_HOLD_TIME_ms){  // >6000ms total
-				//			Delta_Voltages = -Delta_long_press_Voltages;  // -1.0f
-				//		}
-				//	}
-				//	if (timer.UpDownChange_rate_ms == 0) {
-				//		timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms
-				//		// the CheckVariableRangeAndChange(...Delta_Voltages...);  is called below
-				//	}
-				//}
 
-			else if (display_mode == PHASE_STATE_SET)
-			{
-				clearBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);	// Down button changes phase 3 -> 1, Single_Phase_Setting
-			}
-			else if (display_mode == PULSE_STATE_SET)
-			{
-				rt.pulse = OFF;
-			}
-			else if (display_mode == BUZZER_STATE_SET)
-			{
-				clearBit(SysData.NV_UI.SavedStatusWord, Buzzer_ON_eq1_Bit);
-			}
-			else if (display_mode == LATCHED_STATE_SET)
-			{
-				clearBit(SysData.NV_UI.SavedStatusWord, Latch_ON_eq1_Bit);			// clear latched (persistent) alarms
-			}
-			if (display_mode == AUTO_MAN_MODE)
-			{
-				Is_in_auto_mode = FALSE;											// changes from Auto to manual
-				//manual_mode = TRUE;
-				limit_mode = FALSE;
-			}
-			timer.limit_mode_timeout_ms = 0;										// keeps it going for another ten minutes
-			//else
-			//	Delta_Voltages = Delta_short_press_Voltages;							// IK20251111 decrease increment to 0.1V Volts
+				else if (display_mode == PHASE_STATE_SET)
+				{
+					clearBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);	// Down button changes phase 3 -> 1, Single_Phase_Setting
+				}
+				else if (display_mode == PULSE_STATE_SET)
+				{
+					rt.pulse = OFF;
+				}
+				else if (display_mode == BUZZER_STATE_SET)
+				{
+					clearBit(SysData.NV_UI.SavedStatusWord, Buzzer_ON_eq1_Bit);
+				}
+				else if (display_mode == LATCHED_STATE_SET)
+				{
+					clearBit(SysData.NV_UI.SavedStatusWord, Latch_ON_eq1_Bit);			// clear latched (persistent) alarms
+				}
+				if (display_mode == AUTO_MAN_MODE)
+				{
+					Is_in_auto_mode = FALSE;											// changes from Auto to manual
+					//manual_mode = TRUE;
+					limit_mode = FALSE;
+				}
+				timer.limit_mode_timeout_ms = 0;										// keeps it going for another ten minutes
+			} // end of long press
+			else
+				Delta_Voltages = Delta_short_press_Voltages;							// IK20251111 decrease increment to 0.1V Volts
 
 			if (display_mode == HI_BAT_THRESHOLD)
 			{
@@ -602,10 +511,7 @@ void ProcessDOWNbutton() {
 				if (BaudRateIndex > Baud_300_i)
 					BaudRateIndex--;											// Decrement baud rate index
 
-				Existing.baud_rate = (Baud_Rates[BaudRateIndex] << 2);			// IK20250724 Baud_Rates are saved shifting right by 2 (==divided by 4) to keep values inside uint16 range
-				SysData.NV_UI.baud_rate = Existing.baud_rate;					// Store the new baud rate in NV_UI
-				SaveToEE(SysData.NV_UI.baud_rate);								// Store the new baud rate in EEPROM
-				rt.UBRR0_setting = Calculate_USART_UBRRregister((Uint32)SysData.NV_UI.baud_rate); // IK20251217 in main(), the difference will be detected and applied
+				Set_and_Save_New_BaudRateIndex(BaudRateIndex);
 			}
 		} // end of timer 100 ms
 	}//end limit mode
@@ -631,7 +537,7 @@ int CheckVariableRangeAndChange(uint8 UnitTypeIndex, uint8 CriteriaIndex, float 
 
 	if (*value < min) return_val = -1; // WAS too low  (will be clamped)
 	else if (*value > max) return_val = 1;  // WAS too high (will be clamped)
-	
+
 	// perform operation
 	temp += DELTA_value * IncEq_pls1_DecEq_mns1;// Apply signed delta
 
@@ -850,7 +756,7 @@ void Operation(void)
 		{
 			limit_mode = FALSE;							// go back to last mode
 			timer.limit_mode_timeout_ms = 0;
-			In_calibr_menu_mode = last_mode;			//-!- IK20251014 was Is_in_auto_mode = last_mode, but last_mode was set to In_calibr_menu_mode above ??
+			In_calibr_menu_mode = last_mode;				//-!- IK20251014 was Is_in_auto_mode = last_mode, but last_mode was set to In_calibr_menu_mode above ??
 			rt.InfoLED_blink_eq1 = FALSE;				// info display NOT blinking indicating normal mode
 
 			display_mode = VOLTS;
@@ -915,28 +821,6 @@ void Operation(void)
 		clearBit(Display_Info.butt_states, BUTTON_DOWN_LONG_PRESS_BIT);	//  Display_Info.butt_states &= 0xFF7F;  //clear long press of down
 	}//end long press of down
 
-	// Grok20251229 Add continuous repeat during hold
-	if ((Display_Info.buttons_hits & BUTTON_UP_INSTANT_PRESS_BIT) && (Display_Info.butt_states & BUTTON_UP_STILL_HELD_BIT)) {
-		ProcessUPbutton();  // Call repeatedly while held
-	}
-	if ((Display_Info.buttons_hits & BUTTON_DOWN_INSTANT_PRESS_BIT) && (Display_Info.butt_states & BUTTON_DOWN_STILL_HELD_BIT)) {
-		ProcessDOWNbutton();
-	}
-	if ((Display_Info.buttons_hits & (BUTTON_UP_INSTANT_PRESS_BIT | BUTTON_DOWN_INSTANT_PRESS_BIT)) &&  // Any UP/DOWN held?
-		(Display_Info.butt_states & (BUTTON_UP_STILL_HELD_BIT | BUTTON_DOWN_STILL_HELD_BIT))) {  // Long press active?
-
-		if (timer.UpDownChange_rate_ms == 0) {  // Repeat trigger point
-			timer.UpDownChange_rate_ms = UpDownChange_rate_ms_START;  // Reset to 200ms for next repeat
-
-			// Apply the change based on which button is held
-			if (Display_Info.buttons_hits & BUTTON_UP_INSTANT_PRESS_BIT) {
-				ProcessUPbutton();
-			}
-			if (Display_Info.buttons_hits & BUTTON_DOWN_INSTANT_PRESS_BIT) {
-				ProcessDOWNbutton();
-			}
-		}
-	}
 	//Display_Info.Status housekeeping, handle pulse LED
 	if (rt.pulse == FALSE) {											// set/clr bit in display status
 		Display_PulseLED_OFF;	// clearBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT); // Bit_2
@@ -1195,27 +1079,6 @@ void DisplayPrepare(void)
 		}
 		if (display_mode == COMM_BAUD)
 			ReplaceDoubleII(Display_Info.DigitalStr);// Replace possible double '1','1' with a char '`' 0x60, 96D. Display board will show 11 on the leftmost 7-seg numeric LED
-		//{
-		//	uint8 indx = 0;
-		//	while (Display_Info.DigitalStr[indx] != 0)
-		//	{
-		//		char ch1 = Display_Info.DigitalStr[indx];
-		//		char ch2 = Display_Info.DigitalStr[indx + 1];
-		//		if ((ch1 == 'I' || ch1 == '1') && (ch2 == 'I' || ch2 == '1'))
-		//		{
-		//			Display_Info.DigitalStr[indx] = 0x60; // '`' char to indicate double I
-		//			//shift rest of string to the left by one
-		//			while (Display_Info.DigitalStr[indx+1] != 0)
-		//			{
-		//				Display_Info.DigitalStr[indx + 1] = Display_Info.DigitalStr[indx + 2];
-		//				indx++;
-		//			}
-		//			//Display_Info.DigitalStr[indx] = 0; // terminate string
-		//			indx = 0; // restart scanning from beginning
-		//		}
-		//		indx++;
-		//	}
-		//}
 	}
 	else
 		Display_Info.DigitalStr[0] = 0; // empty string

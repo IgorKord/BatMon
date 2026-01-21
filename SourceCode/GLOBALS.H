@@ -1102,6 +1102,8 @@ uint16 PutStr(const char* Str);
 uint16 CopyConstString(const char FL* str_f_ptr, char* dest);
 void Set_USART_UBBRregister(Uint32 BaudRate); // IK20250206
 uint16 Calculate_USART_UBRRregister(Uint32 BaudRate) ;
+void Set_and_Save_New_BaudRateIndex(uint8 BR_index);
+
 /* without redefining sprintf IAR gives warning
 	Warning[w6]: Type conflict for external/entry "SPRINT_F", in module "Front_menu" against external/entry in module "main" ; prototyped function vs K&R function   // In module Front_menu: //
 	  // K&R Function, args 0, attr 0 //

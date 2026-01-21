@@ -177,8 +177,8 @@ typedef struct                      // this structure must be initialized, DO NO
 	float baud_rate;				// 0x01C baud rate, default is Baud_19200. //IK20250826 included 115200, thus, need Uint32, menu changes value based on a list of possible baud rates
 	float meter_address;			// 0x020 battery monitor address, menu changes value by 1 increment/decrement. If hold longer, changes by 10, even longer - by 100
 	uint8  StartUpProtocol;			// 0x024 only valid values:    SETUP = 0x00,	DNP3 = 0x01,	MODBUS = 0x02,	ASCII_CMDS = 0x03,	ASCII_MENU = 0x04
-	//uint8  UART_parity;							// parity type for modbus (none,odd,even)
-	uint8  UART_parity;				// 0x025 only valid values 0 = NONE; 1 = EVEN; 2 = ODD
+	uint8  BRate_index;				// IK202601714 index of baud rate in Baud_Rates[] array, used to set SysData.NV_UI.baud_rate and Existing.baud_rate
+	//uint8  UART_parity;				// 0x025 only valid values 0 = NONE; 1 = EVEN; 2 = ODD
 	uint8  unit_type;				// 0x026 only valid values 24, 48, 125, 250
 	uint8  unit_index;				// 0x027 corresponds to unit_type, range (0...3), used to access array Alarm_Limits[]
 	uint16 host_address;			// 0x028 host address, not changed during operation
@@ -418,6 +418,7 @@ typedef struct 	// Encapsulate into structure to keep timer variables together
 	volatile uint16 up_button;
 	volatile uint16 down_button;
 	volatile uint16 reset_button;
+	volatile uint16 FreeRunningCounter; // Grok20251231
 	// display mode timers
 	volatile uint16 UpDownChange_rate_ms;	// IK20250710 Limits how fast values are changed if user holds UP or DOWN button. 100 ms timer, replace with uint8?
 	volatile uint16 AlarmLED_blink;	// controls LED 'Alarm' blinking
@@ -425,7 +426,7 @@ typedef struct 	// Encapsulate into structure to keep timer variables together
 	volatile uint16 RealTimeUpdate;			// in ASCII protocol, periodically send brief info if command enables it
 	volatile uint16 InfoLED_blink_ms;		// controls InfoLED indicators blink mode
 	volatile Uint32 limit_mode_timeout_ms;	// allows automatic switch back from LIMIT mode after 10 min of user inactivity
-	volatile Uint32 time_keep;
+	volatile Uint32 time_keep;				// increasing with 100 us interval
 	// alarm timers
 } TIMERS;
 extern TIMERS timer;

@@ -239,7 +239,7 @@ char FW_PartNumber[] = "826-509-A";   // IK20230706 must be in RAM and not the c
 char FW_PartNumber[] = "826-501-A";   // IK20230706 must be in RAM and not the char* for printf
 #endif //#ifdef LAST_GASP
 
-char FW_Date[] = "28-Dec-2025";     // IK20230706 must be in RAM for printf
+char FW_Date[] = "21-Jan-2025";     // IK20230706 must be in RAM for printf
 #define FW_VERSION   (uint8)30 // increment with new release
 #define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
 #ifdef INCLUDE_DAY_TIME_INTO_FW // this includes "comp @ __DATE__ __TIME__" but in Vsual Studio just-in-time compile will not work
@@ -354,7 +354,7 @@ enum ECHO_STATE {
 uint8  EchoStatus;                         // true - send echo back to COM port, false (default) - no echo
 
 /*----------- word definitions -----------*/
-uint8   BaudRateIndex; // IK20250724 index of baud rate in Baud_Rates[] array, used to set SysData.NV_UI.baud_rate and Existing.baud_rate
+uint8 BaudRateIndex; // IK20250724 index of baud rate in Baud_Rates[] array, used to set SysData.NV_UI.baud_rate and Existing.baud_rate
 
 //---- Event variables
 uint8  event_type;
@@ -401,7 +401,6 @@ uint8 const UnitTypes[4] = {
 	UNIT_125V, // = 125
 	UNIT_250V, // = 250
 };
-
 
 // Small or capital letters - does not matter, get converted into lower case
 const char FL * ProtocolNames[] =
@@ -473,6 +472,19 @@ double AddNoise(double InVal, double NSR)
 }
 
 #endif // PC
+// IK20260114 function to set and save in the SysData and EEPROM a new baud rate based on index in Baud_Rates[] array
+void Set_and_Save_New_BaudRateIndex(uint8 BR_index)
+{
+	Uint32 BaudRate;
+	if (BR_index >= Last_Baud_Index) {
+		BR_index = Baud_19200_i; // default
+	}
+	BaudRate = (Uint32)Baud_Rates[BR_index] << 2; // IK20250724 restore full baud rate value by shifting left 2
+	//Existing.baud_rate = BaudRate;
+	Existing.BRate_index = BR_index;
+	SaveToEE(SysData.NV_UI.BRate_index = BR_index);			// Store the new baud rate index in EEPROM
+	rt.UBRR0_setting = Calculate_USART_UBRRregister((Uint32)SysData.NV_UI.baud_rate); // IK20251217 in main(), the difference will be detected and applied
+}
 
 uint16 Calculate_USART_UBRRregister(Uint32 BaudRate) // IK20250206
 {
@@ -992,7 +1004,7 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 	//ISR_TxOutputHandler(); // output to UART
 
 	/********************* Do General Timer Updating ********/
-	timer.time_keep++;								//-!- IK20250623 NOT CHECKED IN FIRMWARE ! always increasing, set to a value by DNP SysData.NV_UI.StartUpProtocol
+	timer.time_keep++;					// always increasing, set to a value by DNP SysData.NV_UI.StartUpProtocol
 	timer.extender++;
 
 	if ((rt.operating_protocol == ASCII_CMDS) && (rt.OperStatusWord & SendRealTimeData_eq1_Bit)) {
@@ -1015,6 +1027,7 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 		//#endif
 	{
 		timer.extender = 0;								// reset extender
+		timer.FreeRunningCounter++;						// Grok20251231
 		//IK20250812 moved here to check every 1 ms alarms
 		if ((rt.OutData.measured.battery_voltage_f > 14.0f) &&			// between 14 and 380 vdc
 			(rt.OutData.measured.battery_voltage_f < 380.0f))			// waits till getting good battery voltage
@@ -1069,7 +1082,7 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 			timer.AlarmLED_blink--;
 		if (timer.UpDownChange_rate_ms != 0)		// IK20250710 Limits how fast values are changed if user holds UP or DOWN button. 100 ms timer,
 			timer.UpDownChange_rate_ms--;
-		if (timer.disp_var_change_ms != 0) // in auto mode, changes variables with this period
+		if (timer.disp_var_change_ms != 0)			// in auto mode, changes variables with this period
 			timer.disp_var_change_ms--;
 		if (timer.InfoLED_blink_ms != 0)
 			timer.InfoLED_blink_ms--;
@@ -4457,7 +4470,7 @@ void Parse_Modbus_Msg(void)
 
 		case READ_HOLDING_REGISTERS:					// Function 3 Read holding regs IK20250718 for BatMon, holding rt.registers contain votage and current analog values
 		case READ_INPUT_REGISTERS:						// Function 4 Read Input Registers
-			if (msg == ModBusGOOD)							// CRC check passed
+			if (msg == ModBusGOOD)						// CRC check passed
 			{
 				send_modbus = ILLEGAL_ADDRESS;			// asked for addr not implemented
 				if (rt.device_register == rt.first_register)	// reg addr is equal to 1st reg
@@ -4476,7 +4489,7 @@ void Parse_Modbus_Msg(void)
 				send_modbus = SEND_NOTHING;				// send no reply cause msg was bad
 			break;
 		case DIAGNOSTICS:								// Function 8 Diagnostics
-			if (msg == ModBusGOOD)							// if msg is good
+			if (msg == ModBusGOOD)						// if msg is good
 			{
 				if (rt.device_register == 0)
 				{										// if subfunction is return
@@ -4503,7 +4516,7 @@ void Parse_Modbus_Msg(void)
 		//case POLL_CONTROLLER:							// Function 14 Poll Controller
 		//case FORCE_MULTIPLE_COILS:					// Function 15 Force Multiple Coils
 		//case PRESET_MULTIPLE_REGISTERS:				// Function 16 Preset Multiple Regs
-			if (msg == ModBusGOOD)							// good msg but this function
+			if (msg == ModBusGOOD)						// good msg but this function
 				send_modbus = NOT_SUPPORTED_MODBUS;		// is not a supported in this product
 			else
 				send_modbus = SEND_NOTHING;				// bad msg so don't reply
@@ -4791,8 +4804,8 @@ void Parse_Setup_Msg(void)
 			{
 				if (Is_Numeric(&rt.HostRxBuff[5]) == true)	// can be converted into numeric
 				{
-					int tmp_int = atol(&rt.HostRxBuff[5]);
-					if ((tmp_int < Baud_300) || (tmp_int > Baud_19200))
+					Uint32 tmp_int = atol(&rt.HostRxBuff[5]);
+					if ((tmp_int < Baud_300) || (tmp_int > Baud_115200))  //-!- IK20260114 NEED TO SAVE BaudRateIndex
 						break;
 					else
 						SysData.NV_UI.baud_rate = tmp_int;
@@ -5635,13 +5648,13 @@ void Parse_Display_Data(void){
 	{
 		if ((Display_Info.Status & DISP_BRD_I_CAL_MODE) != 0)
 			rt.i_cal_active = true;
-		timer.PWM_calibration = 5000;								// to store values when timer.PWM_calibration becomes less than 2000
+		timer.PWM_calibration = 5000;							// to store values when timer.PWM_calibration becomes less than 2000
 	}
-	if (Display_Info.Status & DISP_STATE_LOmA_BIT)			// doing 4ma or 0ma?
+	if (Display_Info.Status & DISP_STATE_LOmA_BIT)				// doing 4ma or 0ma?
 	{
 		rt.cal_4mA = true;
 		rt.cal_20mA = false;
-		if (I420_calibr_lock == I420calibUNLOCKED)							// if calibration not attempted
+		if (I420_calibr_lock == I420calibUNLOCKED)				// if calibration not attempted
 		{
 			if (Display_Info.Status & DISP_STATE_0_1mA_BIT)
 				setBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);	// doing 0 mA; I01 == 1, I420 == 0
@@ -5653,7 +5666,7 @@ void Parse_Display_Data(void){
 	{
 		rt.cal_4mA = false;
 		rt.cal_20mA = true;
-		if (I420_calibr_lock == I420calibUNLOCKED)						// if calibration not attempted
+		if (I420_calibr_lock == I420calibUNLOCKED)				// if calibration not attempted
 		{
 			if (Display_Info.Status & DISP_STATE_0_1mA_BIT)
 				setBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);	// doing 1 mA; I01 == 1, I420 == 0
@@ -6138,7 +6151,16 @@ void Init_UART() {
 	UCSR0C = 0x06;									// no UART_parity, async, 1 stop
 	UCSR0A = 0x20;									// redundant because it is set a reset anyway
 	UCSR0B = 0x98;									// enable rcv & xmt,
+#ifdef ASCII_TESTING
+	rt.operating_protocol = ASCII_CMDS;		//-!- IK20241222 overwrite for test
+	Existing.baud_rate = Baud_115200;
+	BaudRateIndex = Baud_115200_i;			// IK20250826 set to 115200 baud, for quicker screen update
+#else
+//	rt.operating_protocol = SETUP;                 //initial SysData.NV_UI.StartUpProtocol
+//	Existing.baud_rate = Baud_9600;	// =9600
+	BaudRateIndex = Baud_9600_i;	// IK20250724 set to 9600 baud, index to 7
 	Existing.baud_rate = SysData.NV_UI.baud_rate;	// on init, take a value saved into SysData
+#endif
 	Set_USART_UBBRregister((Uint32)Existing.baud_rate);	// 9600 baud
 }
 
@@ -7565,6 +7587,15 @@ void SetGetPhase(void)
 	}
 }
 
+signed char Find_BR_index(Uint32 BaudRateVal) {
+	uint8 i;
+	for (i = 0; i < Last_Baud_Index; i++)
+	{
+		if (((Uint32)Baud_Rates[i] << 2) == BaudRateVal)
+			return i;
+	}
+	return (signed char)-1;
+}
 /*************************************************************/
 // Get 'baud[?]' returns Set command syntax 'baud>XXXXX', reading from SysData which is the copy of EEPROM_SysData created at startup.
 // Command accepts only std rates. Setting in EEPROM is updated after 'save' command.
@@ -7576,15 +7607,25 @@ void SetGetBaudRate(void)
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); // number starting 1 byte after command
 	if (temp_Inp_str[CMD_LEN] == '=')
 	{
-		if (param == (('1' + 256 * '9') + ('2' + 256 * '0') * 65536))		// "19200"
-			SysData.NV_UI.baud_rate = Baud_19200;
+		int BR = -1; // negative means invalid. Real BaudRate is 4 times bigger than BR, so BR is 16-bit value
+		// compare 4 ASCII chars in 'param' to known baud rates
+		if (param == (('1' + 256 * '1') + ('5' + 256 * '2') * 65536))		// "115200"
+			BR = Baud_115200>>2;
+		else if (param == (('1' + 256 * '9') + ('2' + 256 * '0') * 65536))	// "19200"
+			BR = Baud_19200>>2;
 		else if (param == (('9' + 256 * '6') + ('0' + 256 * '0') * 65536))	// "9600"
-			SysData.NV_UI.baud_rate = Baud_9600;
+			BR = Baud_9600>>2;
 		else if (param == (('4' + 256 * '8') + ('0' + 256 * '0') * 65536))	// "4800"
-			SysData.NV_UI.baud_rate = Baud_4800;
+			BR = Baud_4800>>2;
 		else if (param == (('2' + 256 * '4') + ('0' + 256 * '0') * 65536))	// "2400"
-			SysData.NV_UI.baud_rate = Baud_2400;
-		else  Send_RCI_Param_Error_as_FlashConst("19200 9600 4800 2400");
+			BR = Baud_2400>>2;
+		else {
+			Send_RCI_Param_Error_as_FlashConst("115200 19200 9600 4800 2400");
+		}
+		if (BR != -1)
+		{
+			SysData.NV_UI.baud_rate = BR<<2;
+		}
 	}
 	else // ? -- get command
 	{
