@@ -200,32 +200,41 @@ void Do_Front_menu(void)
 void ProcessUPbutton() {
 	if (limit_mode == TRUE)
 	{
-		if (timer.UpDownChange_rate_ms == 0)
+		if (timer.UpDownChange_rate_ms == 0)				// and timer is 0
 		{
-			timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;
-			if (In_setup_alarm_limits_mode == TRUE)
+			timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;				// set for 0.1 sec, decrements in timer ISR
+			if (In_setup_alarm_limits_mode == TRUE) // change in SYS menu
 			{
 				if (display_mode == ALARM_RIV)	clearBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Voltage_Bit);
 				if (display_mode == ALARM_RII)	clearBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Current_Bit);
-				if (display_mode == ALARM_AC)	clearBit(SysData.NV_UI.disabled_alarms, Alarm_AC_Loss_Bit);
+				if (display_mode == ALARM_AC)	clearBit(SysData.NV_UI.disabled_alarms, Alarm_AC_Loss_Bit       );
 				if (display_mode == ALARM_HI_Z)	clearBit(SysData.NV_UI.disabled_alarms, Alarm_High_Impedance_Bit);
 			}
 
-			// LONG PRESS UP
-			if (Display_Info.butt_states & BUTTON_UP_LONG_PRESS_BIT)
+			// ************   LONG PRESS UP    **************
+			if (Display_Info.butt_states & BUTTON_UP_LONG_PRESS_BIT)		//Long press of up button
 			{
 				if ((display_mode == CAL2_4mA) || (display_mode == CAL3_20mA) ||
 					(display_mode == CAL6_0mA) || (display_mode == CAL7_1mA))
 				{
-					setBit(Display_Info.Status, DISP_STATE_ButtonUP_BIT);
-					clearBit(Display_Info.Status, DISP_STATE_ButtonDOWN_BIT);
+					setBit(Display_Info.Status, DISP_STATE_ButtonUP_BIT);			// Display_Info.Status |= 0x08;    //Set up button
+					clearBit(Display_Info.Status, DISP_STATE_ButtonDOWN_BIT);		// Display_Info.Status &= 0xFB;    //clear down button
 					if ((display_mode == CAL6_0mA) || (display_mode == CAL7_1mA))
+					{
+						//setBit(Display_Info.Status, DISP_STATE_0_1mA_BIT);		// Display_Info.Status |= 0x80; //set 0-1ma bit
 						setBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);
+					}
 					else
+					{
+						//clearBit(Display_Info.Status, DISP_STATE_0_1mA_BIT);		// Display_Info.Status &= 0x7F; //clr 0-1ma bit
 						clearBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);
+					}
 				}
-				timer.limit_mode_timeout_ms = 0;
-			}
+
+
+				timer.limit_mode_timeout_ms = 0;									// keeps it going for another ten minutes
+			} // end of BUTTON_UP_LONG_PRESS_BIT
+			// below, both short and long press
 
 			// Accelerated increment logic
 			if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
@@ -235,31 +244,31 @@ void ProcessUPbutton() {
 					if (timer.up_button > BTN_DELTA_100_MS)
 						Delta_Voltages = Delta_very_long_press_Voltages; // 10.0f
 					else if (timer.up_button > BTN_DELTA_10_MS)
-						Delta_Voltages = Delta_long_press_Voltages; // 1.0f
+					Delta_Voltages = Delta_long_press_Voltages;				// IK20251111 increase increment to 1.0f Volts
 					else
 						Delta_Voltages = Delta_short_press_Voltages; // 0.1f
 				}
 				else
 				{
-					Delta_Voltages = Delta_short_press_Voltages;
+					Delta_Voltages = Delta_short_press_Voltages;			// IK20251111 decrease increment to 0.1V Volts
 				}
 			}
 
 			if (display_mode == HI_BAT_THRESHOLD)
 			{
-				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_HI_BAT, &SysData.NV_UI.high_bat_threshold_V_f, Delta_Voltages, INCREMENT);
+				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_HI_BAT, &SysData.NV_UI.high_bat_threshold_V_f, Delta_Voltages, INCREMENT); // increment if in range
 			}
 			else if (display_mode == LOW_BAT_THRESHOLD)
 			{
-				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_LOW_BAT, &SysData.NV_UI.low_bat_threshold_V_f, Delta_Voltages, INCREMENT);
+				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_LOW_BAT, &SysData.NV_UI.low_bat_threshold_V_f, Delta_Voltages, INCREMENT); // increment if in range
 			}
 			else if (display_mode == PLUS_GF_THRESHOLD)
 			{
-				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_PLUS_GF, &SysData.NV_UI.plus_gf_threshold_V_f, Delta_Voltages, INCREMENT);
+				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_PLUS_GF, &SysData.NV_UI.plus_gf_threshold_V_f, Delta_Voltages, INCREMENT); // increment if in range
 			}
 			else if (display_mode == MINUS_GF_THRESHOLD)
 			{
-				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_MINUS_GF, &SysData.NV_UI.minus_gf_threshold_V_f, Delta_Voltages, INCREMENT);
+				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_MINUS_GF, &SysData.NV_UI.minus_gf_threshold_V_f, Delta_Voltages, INCREMENT); // increment if in range
 			}
 			else if (display_mode == RippleVOLT_TR_HOLD)
 			{
@@ -359,32 +368,30 @@ void ProcessUPbutton() {
 void ProcessDOWNbutton() {
 	if (limit_mode == TRUE)
 	{
-		if (limit_mode == TRUE)
+		if (timer.UpDownChange_rate_ms == 0)              //and timer is 0
 		{
-			if (timer.UpDownChange_rate_ms == 0)
+			timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;              //set for 0.1 sec
+			if (In_setup_alarm_limits_mode == TRUE) // change in SYS menu
 			{
-				timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;
-				if (In_setup_alarm_limits_mode == TRUE)
-				{
-					if (display_mode == ALARM_RIV)	setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Voltage_Bit);
-					if (display_mode == ALARM_RII)	setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Current_Bit);
-					if (display_mode == ALARM_AC)	setBit(SysData.NV_UI.disabled_alarms, Alarm_AC_Loss_Bit);
-					if (display_mode == ALARM_HI_Z)	setBit(SysData.NV_UI.disabled_alarms, Alarm_High_Impedance_Bit);
-				}
+				if (display_mode == ALARM_RIV)	setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Voltage_Bit);
+				if (display_mode == ALARM_RII)	setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Current_Bit);
+				if (display_mode == ALARM_AC)	setBit(SysData.NV_UI.disabled_alarms, Alarm_AC_Loss_Bit);
+				if (display_mode == ALARM_HI_Z)	setBit(SysData.NV_UI.disabled_alarms, Alarm_High_Impedance_Bit);
+			}
 
-				// LONG PRESS DOWN
-				if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)
+			// ************   LONG PRESS DOWN    **************
+			if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)			// Long press of down button
+			{
+				//setBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);	// IK20251111 allow to set accelerated decrement delta
+				if ((display_mode == CAL2_4mA) || (display_mode == CAL3_20mA) ||
+					(display_mode == CAL6_0mA) || (display_mode == CAL7_1mA))
 				{
-					if ((display_mode == CAL2_4mA) || (display_mode == CAL3_20mA) ||
-						(display_mode == CAL6_0mA) || (display_mode == CAL7_1mA))
-					{
-						setBit(Display_Info.Status, DISP_STATE_ButtonDOWN_BIT);
-						clearBit(Display_Info.Status, DISP_STATE_ButtonUP_BIT);
-						if ((display_mode == CAL6_0mA) || (display_mode == CAL7_1mA))
-							setBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);
-						else
-							clearBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);
-					}
+					setBit(Display_Info.Status, DISP_STATE_ButtonDOWN_BIT);		// Display_Info.Status |= 0x04;	//Set down button
+					clearBit(Display_Info.Status, DISP_STATE_ButtonUP_BIT);		// Display_Info.Status &= 0xF7;	//clear up button
+					if ((display_mode == CAL6_0mA) || (display_mode == CAL7_1mA))
+						setBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);
+					else
+						clearBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);
 					timer.limit_mode_timeout_ms = 0;
 				}
 
@@ -403,9 +410,9 @@ void ProcessDOWNbutton() {
 					else
 					{
 						Delta_Voltages = Delta_short_press_Voltages;
+
 					}
 				}
-
 
 				//else if (display_mode == CAL_V_BAT)											// bump down volts
 				//{
@@ -663,152 +670,210 @@ Schar SelectNextMode(Schar this_mode, NextMenuItem * acting_menu) {
 /*********************************************************************/
 #ifdef DISPLAY_MENU
 void Operation(void)
-{
+{   //Check Display_Info.butt_states
+	//Check Manual/Auto button
+//#ifdef PC // menu diagnostic -> console
 #if (0) // menu diagnostic -> console
 	uint8 ch;
 	gotoxy(1, 24);
 	PutStr(" Channel  |NotConn|Battery| Fault | -GND  |NotConn|RipCurr|RipVolt|NotConn\r\n");
-	PutStr("ADC counts");
+//	gotoxy(1, 25);
+	PutStr("ADC counts" );
 	for (ch = 0;ch < 8;ch++) {
 		printf("| %5d ", rt.ADC_buff[ch]);
 	}
 	printf("Buttons Hits 0x%02X, states 0x%04X ", Display_Info.buttons_hits, Display_Info.butt_states);
-	printf("| ShowMode %s ", (Is_in_auto_mode == FALSE ? "Manual" : " Auto "));
+	printf("| ShowMode %s ", (Is_in_auto_mode == FALSE? "Manual":" Auto "));
 	printf("| DispMode %d, %s ", display_mode, mode_strings[display_mode]);
-	printf("| SetupMode %s ", (In_setup_alarm_limits_mode == TRUE ? "Setup" : " Work "));
+	printf("| SetupMode %s ", (In_setup_alarm_limits_mode == TRUE? "Setup":" Work "));
 #endif
-
-	if (Display_Info.butt_states & BUTTON_AUTO_SHORT_PRESS_BIT)
+	// change "Auto - manual" mode
+	if (Display_Info.butt_states & BUTTON_AUTO_SHORT_PRESS_BIT)			// short press
 	{
-		if (Is_in_auto_mode == FALSE)
+		if (Is_in_auto_mode == FALSE)									// display in manual mode, click  selects next value to show
 		{
-			if (display_mode < VOLTS) display_mode = VOLTS;
-			else  display_mode++;
-			if (display_mode > PHASE_SHOW) display_mode = VOLTS;
+			if (display_mode < VOLTS) display_mode = VOLTS;				// <28? =28. in manual mode limit range between VOLTS and PHASE_SHOW
+			else  display_mode++; //increment display mode
+			if (display_mode > PHASE_SHOW) display_mode = VOLTS;		// >35
+
 			rt.InfoLED_blink_eq1 = FALSE;
 			last_display_mode = display_mode;
 		}
-		clearBit(Display_Info.butt_states, BUTTON_AUTO_SHORT_PRESS_BIT);
-	}
+		clearBit(Display_Info.butt_states, BUTTON_AUTO_SHORT_PRESS_BIT);	// clear short press
+	}  // End of short press
 
-	if (Display_Info.butt_states & BUTTON_AUTO_LONG_PRESS_BIT)
+	if (Display_Info.butt_states & BUTTON_AUTO_LONG_PRESS_BIT)				// Long press of Manual/auto
 	{
-		Is_in_auto_mode = 1 - Is_in_auto_mode;
+		Is_in_auto_mode = 1 - Is_in_auto_mode;								// toggle auto/manual mode
 		if (Is_in_auto_mode == TRUE)
-			Display_AutoLED_ON;
+			Display_AutoLED_ON;												// turn on AUTO LED
 		else
-			Display_AutoLED_OFF;
+			Display_AutoLED_OFF;											// turn off AUTO LED
+
 		display_mode = VOLTS;
 		clearBit(Display_Info.butt_states, BUTTON_AUTO_LONG_PRESS_BIT);
-	}
+	}//end of long press ops
 
-	if (Display_Info.butt_states & BUTTON_LIMIT_SHORT_PRESS_BIT)
+	//Check Limit Button
+	if (Display_Info.butt_states & BUTTON_LIMIT_SHORT_PRESS_BIT)			//Short press of Limit button
 	{
-		if (limit_mode == TRUE)
+		if (limit_mode == TRUE)            //in limit mode so change functions
 		{
 			timer.disp_var_change_ms = 400;
+
 			if (In_setup_alarm_limits_mode == TRUE)
+			{
 				display_mode = SelectNextMode(display_mode, next_ALARM_display_mode);
+			}
 			else if (In_calibr_menu_mode == TRUE)
+			{
 				display_mode = SelectNextMode(display_mode, next_CAL_display_mode);
+			}
 			else
 			{
 				display_mode = SelectNextMode(display_mode, next_LIMIT_display_mode);
-				if ((display_mode > CAL1_SET_4_20_MODE))
-					display_mode = LIMIT_START;
+				if ((display_mode > CAL1_SET_4_20_MODE)
+				//    || (display_mode < LIMIT_START) // enum LIMIT_MODE is zero
+					) // below 0 < display_mode > above 11
+					display_mode = LIMIT_START; // = 0
 			}
 		}
-		clearBit(Display_Info.butt_states, BUTTON_LIMIT_SHORT_PRESS_BIT);
-	}
+		clearBit(Display_Info.butt_states, BUTTON_LIMIT_SHORT_PRESS_BIT);// Display_Info.butt_states &= 0xFFFB;    //clear short press of limit
+	}//end of limit button short press
 
-	if (Display_Info.butt_states & BUTTON_LIMIT_LONG_PRESS_BIT)
+	if (Display_Info.butt_states & BUTTON_LIMIT_LONG_PRESS_BIT)              // Long press of Limit button
 	{
-		if ((display_mode == CAL1_SET_4_20_MODE)
-			|| (display_mode == CAL5_SET_0_1_MODE)
-			&& (In_calibr_menu_mode == FALSE))
+		if ((display_mode == CAL1_SET_4_20_MODE)		// == 13 if it is ALREADY in a current loop calibration mode low limit (4 mA or 0mA)
+			|| (display_mode == CAL5_SET_0_1_MODE)		// == 16
+			&& (In_calibr_menu_mode == FALSE))			// but calibration has not been started yet - start it
 		{
 			In_calibr_menu_mode = TRUE;
-			if (display_mode == CAL1_SET_4_20_MODE)
-				display_mode = CAL2_4mA;
+			if (display_mode == CAL1_SET_4_20_MODE)		// == 13
+				display_mode = CAL2_4mA;				// == 14 low I 4 mA msg
 			else
-				display_mode = CAL6_0mA;
+				display_mode = CAL6_0mA;				// == 17 low I 0 mA msg
 		}
-		else if ((display_mode == SHOW_FW_VER) && (In_setup_alarm_limits_mode == FALSE))
+		else if ((display_mode == SHOW_FW_VER) && (In_setup_alarm_limits_mode == FALSE)) // if display show "SYS " and not in setup mode, means in a System mode where soft alarms are enabled/disabled - enter setup (LIMIT) mode
 		{
 			In_setup_alarm_limits_mode = TRUE;
 			rt.InfoLED_blink_eq1 = FALSE;
-			display_mode = ALARM_AC;
+			display_mode = ALARM_AC;					// == 20 AC alarm msg, info LED shows "ALAC"
 		}
 		else if ((display_mode >= ALARM_AC) && (display_mode <= ALARM_HI_Z) && (In_setup_alarm_limits_mode == TRUE))
 		{
-			SaveToEE(SysData.NV_UI.disabled_alarms);
-			In_setup_alarm_limits_mode = FALSE;
-			display_mode = SHOW_FW_VER;
+			SaveToEE(SysData.NV_UI.disabled_alarms);	// store potentially new value
+			In_setup_alarm_limits_mode = FALSE;			// exit from setup mode
+			display_mode = SHOW_FW_VER;					// = 12 // display show "SYS "
 		}
-		else if (limit_mode == FALSE)
+
+		else if (limit_mode == FALSE)					// main entry point from the normal mode to the limit mode
 		{
-			limit_mode = TRUE;
-			last_mode = In_calibr_menu_mode;
-			In_calibr_menu_mode = FALSE;
-			Is_in_auto_mode = FALSE;
+			limit_mode = TRUE;							// different menus
+			last_mode = In_calibr_menu_mode;			// upon entering remember what mode we were in: we can enter from top menu, or return from CAL menu, or from SYS / ALARM setup menu
+			In_calibr_menu_mode = FALSE;				// change mode to limit mode
+			Is_in_auto_mode = FALSE;					// set to false, manual mode
 			In_setup_alarm_limits_mode = FALSE;
-			rt.InfoLED_blink_eq1 = TRUE;
-			display_mode = LIMIT_START;
-			memcpy(&Existing, &SysData.NV_UI, sizeof(SysData.NV_UI));
+			rt.InfoLED_blink_eq1 = TRUE;				// info display blinking indicating limit mode
+			display_mode = LIMIT_START;					// = 0, display shows 'LMIT'
+			memcpy(&Existing, &SysData.NV_UI, sizeof(SysData.NV_UI)); //remember current values in the Existing structure to see the changes. To extend life of EEPROM, do not write to it if nothing changed
 		}
-		else
+		else //if (limit_mode == TRUE)					// if is ALREADY in the limit mode - exit from it
 		{
-			limit_mode = FALSE;
+			limit_mode = FALSE;							// go back to last mode
 			timer.limit_mode_timeout_ms = 0;
-			In_calibr_menu_mode = last_mode;
-			rt.InfoLED_blink_eq1 = FALSE;
+			In_calibr_menu_mode = last_mode;				//-!- IK20251014 was Is_in_auto_mode = last_mode, but last_mode was set to In_calibr_menu_mode above ??
+			rt.InfoLED_blink_eq1 = FALSE;				// info display NOT blinking indicating normal mode
+
 			display_mode = VOLTS;
-			comm_value_change = FALSE;
-			if (Existing.high_bat_threshold_V_f != SysData.NV_UI.high_bat_threshold_V_f)
+			comm_value_change = FALSE; // IK20251031 allow to reload Comm address from EEPROM next time in the menu
+			if (Existing.high_bat_threshold_V_f != SysData.NV_UI.high_bat_threshold_V_f)	//is it changed?
 				SaveToEE(SysData.NV_UI.high_bat_threshold_V_f);
-			if (Existing.low_bat_threshold_V_f != SysData.NV_UI.low_bat_threshold_V_f)
+			if (Existing.low_bat_threshold_V_f != SysData.NV_UI.low_bat_threshold_V_f)		//is it changed?
 				SaveToEE(SysData.NV_UI.low_bat_threshold_V_f);
-			if (Existing.plus_gf_threshold_V_f != SysData.NV_UI.plus_gf_threshold_V_f)
+			if (Existing.plus_gf_threshold_V_f != SysData.NV_UI.plus_gf_threshold_V_f)		//is it changed?
 				SaveToEE(SysData.NV_UI.plus_gf_threshold_V_f);
-			if (Existing.minus_gf_threshold_V_f != SysData.NV_UI.minus_gf_threshold_V_f)
+			if (Existing.minus_gf_threshold_V_f != SysData.NV_UI.minus_gf_threshold_V_f)	//is it changed?
 				SaveToEE(SysData.NV_UI.minus_gf_threshold_V_f);
-			if (Existing.ripple_V_threshold_mV_f != SysData.NV_UI.ripple_V_threshold_mV_f)
+			if (Existing.ripple_V_threshold_mV_f != SysData.NV_UI.ripple_V_threshold_mV_f)	//is it changed?
 				SaveToEE(SysData.NV_UI.ripple_V_threshold_mV_f);
-			if (Existing.ripple_I_threshold_mA_f != SysData.NV_UI.ripple_I_threshold_mA_f)
+			if (Existing.ripple_I_threshold_mA_f != SysData.NV_UI.ripple_I_threshold_mA_f)	//is it changed?
 				SaveToEE(SysData.NV_UI.ripple_I_threshold_mA_f);
-			if (Existing.alarm_delay_sec_f != SysData.NV_UI.alarm_delay_sec_f)
+			if (Existing.alarm_delay_sec_f != SysData.NV_UI.alarm_delay_sec_f)				//is it changed?
 				SaveToEE(SysData.NV_UI.alarm_delay_sec_f);
-			if ((Existing.SavedStatusWord) != (SysData.NV_UI.SavedStatusWord))
+			if ((Existing.SavedStatusWord) != (SysData.NV_UI.SavedStatusWord))				//is it changed?
 				SaveToEE(SysData.NV_UI.SavedStatusWord);
+// IK20250812 not saving pulse status in EEPROM, there is possibility that it would be enabled after power-off - on
+			//if (Existing.phase != SysData.NV_UI.phase) //is it changed?
+			//	SaveToEE(SysData.NV_UI.phase);
+			// buzzer and latch are bits in SavedStatusWord
+			//if (Existing.pulse != SysData.NV_UI.pulse) //is it changed?
+			//	SaveToEE(SysData.NV_UI.pulse);
+			//if (Existing.latch_state != SysData.NV_UI.latch_state) //is it changed?
+			//	SaveToEE(SysData.NV_UI.latch_state);
+			//-!- IK20251007 add storage of calibration factors
+		}//end of limit mode true
+
+		clearBit(Display_Info.butt_states, BUTTON_LIMIT_LONG_PRESS_BIT); // Display_Info.butt_states&= 0xFFF7;//clear long press of limit
+	}//end of long press of limit button
+
+   //Check Up Button
+	if (Display_Info.butt_states & BUTTON_UP_SHORT_PRESS_BIT)    //Short press AND RELEASE of up button
+	{
+		ProcessUPbutton(); // IK20250804 moved to a separate function
+		//clearBit(Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT);	// IK20251111  set regular increment delta
+		//clearBit(Display_Info.butt_states, BUTTON_UP_SHORT_PRESS_BIT); // clear button UP short press event
+		clearBit(Display_Info.butt_states, BUTTON_UP_SHORT_PRESS_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
+	}//end short press of up button
+
+	if (Display_Info.butt_states & BUTTON_UP_LONG_PRESS_BIT)			// happen after 3 sec hold
+	{
+		ProcessUPbutton(); // sets Bit (Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT)
+		clearBit(Display_Info.butt_states, BUTTON_UP_LONG_PRESS_BIT); // Display_Info.butt_states &= 0xFFDF;  //clear long press of UP
+	}//end long press of up
+
+	//Check Down Button
+	if (Display_Info.butt_states & BUTTON_DOWN_SHORT_PRESS_BIT)    //Short press of Down button
+	{
+		ProcessDOWNbutton(); // IK20250804 moved to a separate function
+		//clearBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
+		//clearBit(Display_Info.butt_states, BUTTON_DOWN_SHORT_PRESS_BIT); // Display_Info.butt_states &= 0xFFBF;  //clear short down press
+		clearBit(Display_Info.butt_states, BUTTON_DOWN_SHORT_PRESS_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
+	}//end short press of down button
+
+	if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)			// Long press of down button
+	{
+		ProcessDOWNbutton(); // IK20250804 moved to a separate function
+		clearBit(Display_Info.butt_states, BUTTON_DOWN_LONG_PRESS_BIT);	//  Display_Info.butt_states &= 0xFF7F;  //clear long press of down
+	}//end long press of down
+
+	//Display_Info.Status housekeeping, handle pulse LED
+	if (rt.pulse == FALSE) {											// set/clr bit in display status
+		Display_PulseLED_OFF;	// clearBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT); // Bit_2
+		clearBit(Display_Info.Status, DISP_STATE_PulseON_BIT);			// clear Bit_6);
+	}
+	else //if (SysData.NV_UI.pulse == TRUE)
+	{
+		Display_PulseLED_ON;											// setBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT);	// Bit_2
+		setBit(Display_Info.Status, DISP_STATE_PulseON_BIT);			// set Bit_6;
+	}
+
+	//Check Reset Button
+	if (Display_Info.butt_states & BUTTON_RESET_SHORT_PRESS_BIT)		//Short press of Reset button
+	{
+		if (limit_mode == TRUE)
+		{ //Nothing done for short press of reset
 		}
-		clearBit(Display_Info.butt_states, BUTTON_LIMIT_LONG_PRESS_BIT);
-	}
+		clearBit(Display_Info.butt_states, BUTTON_RESET_SHORT_PRESS_BIT); //  Display_Info.butt_states &= 0xFEFF; // clear short press
+	}//nothing done for short press of reset
 
-	// UP button
-	if (Display_Info.butt_states & BUTTON_UP_SHORT_PRESS_BIT)
+	if (Display_Info.butt_states & BUTTON_RESET_LONG_PRESS_BIT)			// Long press of Reset button
 	{
-		ProcessUPbutton();
-		clearBit(Display_Info.butt_states, BUTTON_UP_SHORT_PRESS_BIT);
-	}
-
-	if (Display_Info.butt_states & BUTTON_UP_LONG_PRESS_BIT)
-	{
-		ProcessUPbutton();
-		clearBit(Display_Info.butt_states, BUTTON_UP_LONG_PRESS_BIT);
-	}
-
-	// DOWN button
-	if (Display_Info.butt_states & BUTTON_DOWN_SHORT_PRESS_BIT)
-	{
-		ProcessDOWNbutton();
-		clearBit(Display_Info.butt_states, BUTTON_DOWN_SHORT_PRESS_BIT);
-	}
-
-	if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)
-	{
-		ProcessDOWNbutton();
-		clearBit(Display_Info.butt_states, BUTTON_DOWN_LONG_PRESS_BIT);
-	}
+		Display_Info.alarm_status = 0;									// ext reset clear alarms
+		latched_alarm_status = 0;										// and latched states
+		clearBit(SysData.NV_UI.SavedStatusWord, Buzzer_ON_eq1_Bit);		// turn buzzer off
+		clearBit(Display_Info.butt_states, BUTTON_RESET_LONG_PRESS_BIT);// Display_Info.butt_states &= 0xFDFF; // clear long press
+		display_mode = VOLTS;											// go back to batt volts after clearing
+	}//end long press
 //End check Display_Info.butt_states code
 
 //handle changing display items while in auto mode
