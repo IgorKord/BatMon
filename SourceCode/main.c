@@ -429,7 +429,7 @@ TIMERS timer;
 
 char* CommStr;
 Uint32 ErrorStatus = sizeof(SysData);	// error word, used for test here, it is calculated in bytes
-
+uint16 timeDelta;
 /*-------------------------- prototypes ----------------------------*/
 //NONE
 //void
@@ -482,7 +482,8 @@ void Set_and_Save_New_BaudRateIndex(uint8 BR_index)
 	BaudRate = (Uint32)Baud_Rates[BR_index] << 2; // IK20250724 restore full baud rate value by shifting left 2
 	//Existing.baud_rate = BaudRate;
 	Existing.BRate_index = BR_index;
-	SaveToEE(SysData.NV_UI.BRate_index = BR_index);			// Store the new baud rate index in EEPROM
+	SysData.NV_UI.BRate_index = BR_index;
+	SaveToEE(SysData.NV_UI.BRate_index);			// Store the new baud rate index in EEPROM
 	rt.UBRR0_setting = Calculate_USART_UBRRregister((Uint32)SysData.NV_UI.baud_rate); // IK20251217 in main(), the difference will be detected and applied
 }
 
@@ -1007,17 +1008,6 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 	timer.time_keep++;					// always increasing, set to a value by DNP SysData.NV_UI.StartUpProtocol
 	timer.extender++;
 
-	if ((rt.operating_protocol == ASCII_CMDS) && (rt.OperStatusWord & SendRealTimeData_eq1_Bit)) {
-		if ((timer.RealTimeUpdate > 10000)) {
-			setBit(rt.OperStatusWord, RealTimeDataReady_eq1_Bit); // IK20250820 it will clear in main loop when sending brief info
-			timer.RealTimeUpdate = 0;
-		}
-		else if (
-			//((rt.OperStatusWord & RealTimeDataReady_eq1_Bit) == 0) &&
-			(timer.RealTimeUpdate > 0))
-			timer.RealTimeUpdate++;
-	}
-
 	if (timer.ModBus_100us != 0)
 		timer.ModBus_100us--;
 	if (timer.UART_delay_100us != 0)
@@ -1028,6 +1018,17 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 	{
 		timer.extender = 0;								// reset extender
 		timer.FreeRunningCounter++;						// Grok20251231
+
+		if ((rt.operating_protocol == ASCII_CMDS) && (rt.OperStatusWord & SendRealTimeData_eq1_Bit)) 
+		{
+			if (timer.RealTimeUpdate > 0)
+				timer.RealTimeUpdate++;
+			if ((timer.RealTimeUpdate > 200)) 
+			{
+				setBit(rt.OperStatusWord, RealTimeDataReady_eq1_Bit); // IK20250820 it will clear in main loop when sending brief info
+				timer.RealTimeUpdate = 0;
+			}
+		}
 		//IK20250812 moved here to check every 1 ms alarms
 		if ((rt.OutData.measured.battery_voltage_f > 14.0f) &&			// between 14 and 380 vdc
 			(rt.OutData.measured.battery_voltage_f < 380.0f))			// waits till getting good battery voltage
@@ -6875,12 +6876,12 @@ uint8 ReadButtons() {
 		  Display_Info.last_butt_pressed = twi.buffer[BYTE_2];
 	}
 #else // for PC
-
+	Get_Button_Press();
 #endif // #ifndef PC
-	if (timer.up_button >= LONG_PRESS_DELAY)
-		setBit(Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
-	if (timer.down_button >= LONG_PRESS_DELAY)
-		setBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
+	//if (timer.up_button >= LONG_PRESS_DELAY)
+	//	setBit(Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
+	//if (timer.down_button >= LONG_PRESS_DELAY)
+	//	setBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
 
 //#ifdef TIME_TESTING
 //	ClearTestPin44;										// IK20250523 reset test pin #44 (easy to solder to)
@@ -8226,7 +8227,8 @@ void main(void)
 		if ((rt.OperStatusWord & (RealTimeDataReady_eq1_Bit | SendRealTimeData_eq1_Bit)) == (RealTimeDataReady_eq1_Bit | SendRealTimeData_eq1_Bit)) // IK20250820 it will clear in main loop when sending brief info
 		{
 			clearBit(rt.OperStatusWord, RealTimeDataReady_eq1_Bit);
-			Print_System_Info(REALTIME_SNAPSHOT);
+			// Print_System_Info(REALTIME_SNAPSHOT);
+			gotoxy(1, 20); printf("D=%5d", timeDelta); // IK20260128
 			timer.RealTimeUpdate = 1; // to start incrementing timer again
 		}
 

@@ -58,11 +58,6 @@ int PUTCHAR(int c) //returning same char
 	return c;
 }
 
-
-//void asm(char* strptr)
-//{
-//
-//}
 #define inversion 1
 #define noninv 0
 
@@ -152,11 +147,6 @@ void RealTimeCode(void)
 	{
 		TIMER2_COMPA_interrupt(); // decrements counters
 	}
-	/* IK20251229 Crok Added continuous processing while button held (mouse down). It causes instant inc/dec, without 6 sec delay
-	* After further thougt, Grok removed t
-	if (Display_Info.buttons_hits & (BUTTON_UP_INSTANT_PRESS_BIT | BUTTON_DOWN_INSTANT_PRESS_BIT)) {  // Check if any held
-		Operation();  // Or CheckExecuteFrontPanelCmd() to apply changes
-	} */
 }
 
 //empty functions for PC simulation
@@ -169,9 +159,6 @@ int dummy_function(void)
 //void _NOP(void) {};
 void __watchdog_reset(void) {};
 void __no_operation(void) { delay_us(SIM_NOP_DELAY_US); };
-//void __disable_interrupt(void) {};
-//void __enable_interrupt(void) {};
-//void _WDR(void) {};
 void _CLI(void) {};
 void _SEI(void) {};
 
@@ -194,82 +181,6 @@ int chrrdy(void)
 	}
 	return t_int;
 }
-
-// IK20250710  - not used
-//int getch_pc(void)
-//{
-//	while (!chrrdy())
-//	{
-//		CheckExecuteFrontPanelCmd(); // System - specific code INSIDE
-//		//	PC_emulator();		// calculate emulation stimula
-//		//	IRQ_Handler();		// call control interrupt for emulation
-//	};
-//	return getch();
-//}
-
-
-/****************************************************************
-*
-*	char * convert_to_binary(long b_data, int invert)
-*  invert=0 - no inversion
-*  invert=1 - inversion
-*  invert=12 - 12 bit conversion  invert=13 - 12 bit inverted conversion
-*  invert=16 - 16 bit conversion  invert=17 - 16 bit inverted conversion
-*  invert=24 - 24 bit conversion  invert=25 - 24 bit inverted conversion
-*  invert=32 - 32 bit conversion  invert=33 - 32 bit inverted conversion
-*
-***************************************************************** /
-char * convert_to_binary(long b_data, int invert)
-{
-	long b,d,l;
-	char buffer[80];
-
-	d=b_data;
-
-	//if ((d>2047) || (d<-2048)) k=15; // convert to unsigned 16 bits integer
-
-	if (invert&1)
-	{
-		b=(d^0xffffffff);
-		invert--;
-	}
-	else b=d;
-	if(invert==0) invert=16; // minimum conversion =16 bit
-	for (l=0; l<=invert-1;l++)
-	{
-		buffer[l]= (b & 1) + 48;
-		b>>=1;
-	}
-	buffer[l]='\0';
-	l=0;
-	for(b=invert-1;b>=0;b--)  //convert string backwards
-	{
-		buff1[l++] = buffer[b];
-		buff1[l++]=32;
-		switch (b)
-		{
-			case 4:
-			case 8:
-			case 12:
-			case 16:
-			case 20:
-			case 24:
-			case 28:
-			buff1[l++]=32;
-			break;
-		}
-	}
-	if(invert==16)
-	{
-		if ((d>-2049) && (d<2048)) // 12-bits, set first 4 bits to " "
-		{
-			buff1[0]=buff1[2]=buff1[4]=buff1[6]=' ';
-		}
-	}
-	buff1[l++]='\0';
-	return buff1;
-}
-
 /********* GUI FRONT PANEL ********/
 HBRUSH hbr_LED_off;
 HBRUSH hbr_LED_Red;
@@ -395,6 +306,7 @@ double RMS_added_value_factor = 1 / (RMS_averaging_time * LOOP_SAMPLE_FREQUENCY)
 double AvgLoopTime = 0;
 BOOL AvgLoopTimeIsReset = false;
 //  LARGE_INTEGER time;   // For converting tick into real time
+
 void PC_SimulationApplication(void* pArg)
 {
 	(void)pArg;  // avoid unused parameter warning
@@ -443,14 +355,8 @@ void PC_SimulationApplication(void* pArg)
 			{
 				AvgLoopTime = (AvgLoopTime * RMS_avg_old_value_factor) + (tickDiff * RMS_added_value_factor); // LPF'd loopTime in ticks
 				prev_tick.QuadPart = tick.QuadPart;
-				//	if( PC_LOOP_INITIALIZED == TRUE) //let main thread initialize / substitute variables
 					RealTimeCode();//Sleep(1): 60 frames per second only??? Sleep(0): 487000 frames per second ???
-				//	if((GetTickCount64()-prev_ms) >= 1000)
-				//		MessageBox(NULL, "1000ms", "test", MB_OK);
-				//	Sleep(1); //release time slot
 			}
-			// Sleep(#): A value of zero causes the thread to relinquish the remainder of its time slice to any other thread that is ready to run.
-			//	If there are no other threads ready to run, the function returns immediately, and the thread continues execution.
 			else 	// if Sleep(1) GREATELY reduced Real Time because of Windows internal tick can be 16 ms, so it could wait between 1 and 15 ms  !!!  performance release time slot
 				Sleep(0);
 		}
@@ -469,18 +375,11 @@ void PC_SimulationApplication(void* pArg)
 	}
 	//end_control_thrend:
 	//	return Msg.wParam;
-		// Tell thread to die and record its death.
+	// Tell thread to die and record its death.
 	ReleaseMutex(hRunMutex);
 }
 
 // detecting button press and duration:
-
-// IK20250715 copilot suggested function
-//void UpdateAllButtons(uint8* pressed_states, volatile uint16* butt_states) {
-//	for (int i = 0; i < NUM_BUTTONS; ++i) {
-//		ButtonHandler_Update(&button_handlers[i], pressed_states[i], SHORT_PRESS_DELAY, LONG_PRESS_DELAY, butt_states);
-//	}
-//}
 
 ULONGLONG btnPressStartTime[NUM_BUTTONS] = { 0 };
 
@@ -488,6 +387,92 @@ BOOL btnPressedState[NUM_BUTTONS] = { FALSE, FALSE, FALSE, FALSE , FALSE };
 BOOL btnLongPressActive[NUM_BUTTONS] = { FALSE, FALSE, FALSE, FALSE, FALSE };
 static bool ignoreNextButtonUp[NUM_BUTTONS] = { false };
 
+static int ButtonIndexToControlId(int btnIndex)
+{
+	switch (btnIndex)
+	{
+	case BTN_INDEX_RETURN: return IDC_BUT_RETURN;
+	case BTN_INDEX_ENTER:  return IDC_BUT_ENTER;
+	case BTN_INDEX_MNS:    return IDC_BUT_MNS;
+	case BTN_INDEX_PLS:    return IDC_BUT_PLS;
+	case BTN_INDEX_RESET:  return IDC_BUT_RESET;
+	default:               return 0;
+	}
+}
+
+static void HandleSimKeyDown(WPARAM vk)
+{
+	if (vk == VK_PRIOR) // Page Up => PLUS (UP button)
+	{
+		if (!btnPressedState[BTN_INDEX_PLS]) // ignore auto-repeat
+		{
+			btnPressedState[BTN_INDEX_PLS] = TRUE;
+			btnPressStartTime[BTN_INDEX_PLS] = GetTickCount64();
+		}
+
+		setBit(win_btn_lines, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_PLS));
+		Display_Info.ButtonStateChanged = BTN_PRESSED;
+		setBit(Display_Info.buttons_hits, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_PLS));
+		win_btn_pressed = SET;
+
+		if (g_hToolbar)
+		{
+			InvalidateRect(GetDlgItem(g_hToolbar, IDC_BUT_PLS), NULL, TRUE);
+		}
+	}
+	else if (vk == VK_NEXT) // Page Down => MINUS (DOWN button)
+	{
+		if (!btnPressedState[BTN_INDEX_MNS]) // ignore auto-repeat
+		{
+			btnPressedState[BTN_INDEX_MNS] = TRUE;
+			btnPressStartTime[BTN_INDEX_MNS] = GetTickCount64();
+		}
+
+		setBit(win_btn_lines, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_MNS));
+		Display_Info.ButtonStateChanged = BTN_PRESSED;
+		setBit(Display_Info.buttons_hits, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_MNS));
+		win_btn_pressed = SET;
+
+		if (g_hToolbar)
+		{
+			InvalidateRect(GetDlgItem(g_hToolbar, IDC_BUT_MNS), NULL, TRUE);
+		}
+	}
+}
+
+static void HandleSimKeyUp(WPARAM vk)
+{
+	if (vk == VK_PRIOR) // Page Up
+	{
+		btnPressedState[BTN_INDEX_PLS] = FALSE;
+		btnLongPressActive[BTN_INDEX_PLS] = FALSE;
+		btnPressStartTime[BTN_INDEX_PLS] = 0;
+
+		clearBit(win_btn_lines, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_PLS));
+		win_btn_pressed = CLR;
+		Display_Info.ButtonStateChanged = BTN_RELEASED;
+
+		if (g_hToolbar)
+		{
+			InvalidateRect(GetDlgItem(g_hToolbar, IDC_BUT_PLS), NULL, TRUE);
+		}
+	}
+	else if (vk == VK_NEXT) // Page Down
+	{
+		btnPressedState[BTN_INDEX_MNS] = FALSE;
+		btnLongPressActive[BTN_INDEX_MNS] = FALSE;
+		btnPressStartTime[BTN_INDEX_MNS] = 0;
+
+		clearBit(win_btn_lines, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_MNS));
+		win_btn_pressed = CLR;
+		Display_Info.ButtonStateChanged = BTN_RELEASED;
+
+		if (g_hToolbar)
+		{
+			InvalidateRect(GetDlgItem(g_hToolbar, IDC_BUT_MNS), NULL, TRUE);
+		}
+	}
+}
 LRESULT CALLBACK ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
 	UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 {
@@ -502,10 +487,6 @@ LRESULT CALLBACK ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		setBit(win_btn_lines, (BUTTON_AUTO_INSTANT_PRESS_BIT << btnIndex)); // (Bit_0<<btnIndex)
 		Display_Info.ButtonStateChanged = BTN_PRESSED; // event flag rised - will be cleared in main thread after processing via menu
 		setBit(Display_Info.buttons_hits, (BUTTON_AUTO_INSTANT_PRESS_BIT << btnIndex));  // Or down based on button ID
-		if (btnIndex == BTN_INDEX_UP) //if (Display_Info.buttons_hits & BUTTON_UP_INSTANT_PRESS_BIT)
-			timer.up_button = 1;  // start counting
-		else if (btnIndex == BTN_INDEX_DOWN) //if(Display_Info.buttons_hits & BUTTON_DOWN_INSTANT_PRESS_BIT)
-			timer.down_button = 1;  // start counting
 		win_btn_pressed = SET;
 		InvalidateRect(hWnd, NULL, TRUE); // force repainting
 	  break;
@@ -548,7 +529,6 @@ LRESULT CALLBACK ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 			PostMessage(hParent, WM_APP + 1, (WPARAM)btnIndex, (LPARAM)duration);
 	  }
 	  break;
-
 	case WM_LBUTTONDBLCLK:
 	  {
 		// Treat double-click as a SHORT PRESS
@@ -691,7 +671,7 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 	BOOL anyHeld = FALSE;
 	switch (Message)
 	{
-		case WM_TIMER:
+	case WM_TIMER:
 		if (wParam == LED_UPDATE_TIMER_ID) {
 			for (int i = 0; i < number_of_LEDs; ++i) {
 				InvalidateRect(hDlg, rect_LED[i], FALSE);  // Repaint all LEDs
@@ -709,8 +689,13 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 				SetDlgItemText(g_hToolbar, IDC_BUT_HELD_TIME, msg_str);
 
 				btnLongPressActive[i] = (held_ms >= LONG_PRESS_DELAY); // track for drawing
-				InvalidateRect(GetDlgItem(hDlg, IDC_BUT_RETURN + i), NULL, TRUE); // force repaint
-
+				{
+					int ctlId = ButtonIndexToControlId(i);
+					if (ctlId != 0)
+					{
+						InvalidateRect(GetDlgItem(hDlg, ctlId), NULL, TRUE);
+					}
+				}
 				anyHeld = TRUE;
 				break; // Only show one active button's time
 			}
@@ -718,13 +703,9 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 			{
 				btnLongPressActive[i] = FALSE; // clear when not held
 			}
-			//if (!anyHeld) // clear real time holding string
-			//	SetDlgItemText(g_hToolbar, IDC_BUT_HELD_TIME, "");
-			//return TRUE;
 		}
 		if (InterlockedExchange(&LCD_Changed, 0))  // it checks and returns previous value (i.e. if it was set to '1' if will be executed) and set new value as 0
 		{
-			//if (GetDlgItem(hDlg, IDC_LCD_L1) && GetDlgItem(hDlg, IDC_LCD_L2))
 			if (GetDlgItem(hDlg, IDC_LCD_L1) == NULL || GetDlgItem(hDlg, IDC_LCD_L2) == NULL)
 			{
 				MessageBox(hDlg, TEXT("LCD controls not found!"), TEXT("Error"), MB_OK | MB_ICONERROR);
@@ -813,6 +794,7 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 		UserValue[Vgnd] = 62.5;		// Volts
 		UserValue[Vrip] = 222.2;	// mVolts
 		UserValue[Irip] = 55.5;		// mAmperes
+		SetFocus(hDlg);	// ensure the dialog receives keyboard input.
 		return TRUE;
 	}
 	break;
@@ -866,20 +848,6 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 						return (INT_PTR)colorInvalid;
 					}
 				}
-
-				//switch (inputState[i]) {
-				//case STATE_UNTOUCHED:
-
-				//case STATE_VALID:
-				//	SetBkColor(hdcEdit, colorValid); // white
-				//	return (INT_PTR)colorValid;
-
-				//case STATE_INVALID:
-				//	SetBkColor(hdcEdit, colorInvalid); // yellow
-				//	return (INT_PTR)colorInvalid;
-
-				//case STATE_CONFIRMED:
-				//}
 			}
 		}
 	}
@@ -899,27 +867,6 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 				rect_LED[i]->right,
 				rect_LED[i]->bottom);
 		}
-/*
-		// Fill and draw AUTO LED ellipse
-		SelectObject(hdc, *hbr_LEDcolor_ptr[LEDindx_ASCAN]);
-		Ellipse(hdc, AUTO_LED_x1 - 2, AUTO_LED_y1 - 2, AUTO_LED_x2 + 2, AUTO_LED_y2 + 2);
-
-		// Fill and draw ALARM LED ellipse
-		SelectObject(hdc, *hbr_LEDcolor_ptr[LEDindx_ALARM]);
-		Ellipse(hdc, ALARM_LED_x1 - 2, ALARM_LED_y1 - 2, ALARM_LED_x2 + 2, ALARM_LED_y2 + 2);
-
-		// Fill and draw TX/RX LED ellipse
-		SelectObject(hdc, *hbr_LEDcolor_ptr[LEDindx_TX_RX]);
-		Ellipse(hdc, TX_RX_LED_x1 - 2, TX_RX_LED_y1 - 2, TX_RX_LED_x2 + 2, TX_RX_LED_y2 + 2);
-
-		// Fill and draw PULSE LED ellipse
-		SelectObject(hdc, *hbr_LEDcolor_ptr[LEDindx_TX_RX]);
-		Ellipse(hdc, PULSE_LED_x1 - 2, PULSE_LED_y1 - 2, PULSE_LED_x2 + 2, PULSE_LED_y2 + 2);
-
-		// Restore old objects
-		SelectObject(hdc, hOldBrush);
-		SelectObject(hdc, hOldPen);
-*/
 		EndPaint(hDlg, &ps);
 		return 0;
 	}
@@ -943,17 +890,6 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 					case NUM_PARTIAL:  inputState[i] = STATE_VALID; break; // treat as valid for now
 					case NUM_INVALID:  inputState[i] = STATE_INVALID; break;
 					}
-					//if (strlen(buf) == 0) {
-					//	inputState[i] = STATE_UNTOUCHED;
-					//}
-					//else if (IsNumeric(buf)) {
-					//	inputState[i] = STATE_VALID;
-					//}
-					//else {
-					//	inputState[i] = STATE_INVALID;
-					//}
-
-//					isValid[i] = IsNumeric(buf);
 					InvalidateRect(hCtrl, NULL, TRUE); // Force redraw for color update
 					break;
 				}
@@ -990,9 +926,6 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 		hBrush = CreateSolidBrush(bgColor);
 		FillRect(lpdis->hDC, &lpdis->rcItem, hBrush);
 		DeleteObject(hBrush);
-
-		// Draw simple border rectangle
-		//FrameRect(lpdis->hDC, &lpdis->rcItem, GetStockObject(BLACK_BRUSH));
 
 		// Draw 3D style border rectangle
 		UINT edgeType = (btnPressedState[btnIndex]) ? BDR_SUNKENINNER : BDR_RAISEDINNER;
@@ -1144,23 +1077,28 @@ void LCD_dialog(void* MyParam)
 	// while (PeekMessage(&Msg, hwnd,  0, 0, PM_REMOVE)) //this momentarely creates window and hides or closes it
 	while (GetMessage(&Msg, NULL, 0, 0) > 0)
 	{
+		if (Msg.message == WM_KEYDOWN)
+		{
+			HandleSimKeyDown(Msg.wParam);
+		}
+		else if (Msg.message == WM_KEYUP)
+		{
+			HandleSimKeyUp(Msg.wParam);
+		}
+
+		if (g_hToolbar != NULL && IsDialogMessage(g_hToolbar, &Msg))
+		{
+			continue;
+		}
+
 		TranslateMessage(&Msg);
 		DispatchMessage(&Msg);
-		if (InterlockedExchange(&LCD_Changed, 0)) // it checks and returns previous value and set new value as 0
+
+		if (InterlockedExchange(&LCD_Changed, 0))
 		{
-			//SendMessage(GetDlgItem(g_hToolbar, IDC_LCD_L1), WM_SETFONT, (WPARAM)hFontLarge, TRUE);
-			//SendMessage(GetDlgItem(g_hToolbar, IDC_LCD_L2), WM_SETFONT, (WPARAM)hFontLarge, TRUE);
-			//SetDlgItemText(hDlg, IDC_LCD_L1, &LCD_buffer[0][0]);//line 1
-			//SetDlgItemText(hDlg, IDC_LCD_L2, &LCD_buffer[1][0]);//line 2
-			//--- IK20250703: Chat GPT said - it is bad practice to  update and repaint text box in a separate thread
-			//--- SetDlgItemText(g_hToolbar, IDC_LCD_L1, (LPCSTR)&LCD_buffer[0][0]);//line 1
-			//--- SetDlgItemText(g_hToolbar, IDC_LCD_L2, (LPCSTR)&LCD_buffer[1][0]);//line 2
-			//--- RedrawWindow(g_hToolbar, 0, 0, RDW_INVALIDATE);
-			//--- insted, post message and let GUI thread update it
-			PostMessage(g_hToolbar, WM_UPDATE_LCD, 0, 0); // send to main thread
+			PostMessage(g_hToolbar, WM_UPDATE_LCD, 0, 0);
 		}
-	}
-end_thrend:
+	}end_thrend:
 	// return Msg.wParam;
 	// Tell thread to die and record its death.
 	ReleaseMutex(hRunMutex);
@@ -1270,7 +1208,6 @@ void ClearScreen(void)
 
 
 /*************************/
-//#endif //block windows code
 void gotoxy(int x, int y)
 {
 	COORD xy;
@@ -1336,8 +1273,8 @@ void D_unpack(char c, int xpos, int ypos)
 	int  p;
 	if (c & 0x80) /* unpack D_AT */
 	{
-		/*	#define	D_AT(x,y)	(0x80 + ((y)%2)*0x40 + ((y)/2)*0x14 + (x)) /* packs x y position into char*/
-		/*	#define	D_AT(x,y)	( 128 + ((y)%2) * 64 + ((y)/2) * 20 + (x)) /* packs x y position into char*/
+		/*	#define	D_AT(x,y)	(0x80 + ((y)%2)*0x40 + ((y)/2)*0x14 + (x)) // packs x y position into char
+		/*	#define	D_AT(x,y)	( 128 + ((y)%2) * 64 + ((y)/2) * 20 + (x)) // packs x y position into char*/
 		xpos = ypos = p = 0;
 		p = c & 0x7f;		/* clear upper bit, do not change c  */
 		if (p < 20)
@@ -1446,34 +1383,6 @@ void  D_PutChar(unsigned char c)
 /*************************/
 void  D_PutCtrl(unsigned char c)
 {
-	/*
-		int xpos, ypos, p;
-		xpos = ypos = p = 0;
-		if (c & 0x80 ) // unpack D_AT
-		{
-	//		#define	D_AT(x,y)	(0x80 + ((y)%2)*0x40 + ((y)/2)*0x14 + (x)) // packs x y position into char
-	//		#define	D_AT(x,y)	( 128 + ((y)%2) * 64 + ((y)/2) * 20 + (x)) // packs x y position into char
-			p = c & 0x7f;		// clear upper bit, do not change c
-			if (p <20)
-			{
-				xpos=p+1; ypos=1;
-			}
-			if ((p>=20) && (p<=39))
-			{
-				xpos=p-19; ypos=3;
-			}
-			if ((p>=64) && (p<=83))
-			{
-				xpos=p-63; ypos=2;
-			}
-			if ((p>=84) && (p<=103))
-			{
-				xpos=p-83; ypos=4;
-			}
-			cputsxy("_",xpos,ypos);	// put cursor into position
-			gotoxy(xpos,ypos);
-		}
-	*/
 	if (c == D_CLEAR) clrLCD();
 	else if (((char)c) == D_HOME)
 	{
@@ -1483,10 +1392,6 @@ void  D_PutCtrl(unsigned char c)
 		LCDx[0] = LCDx[1] = LCDy = 0;
 	}
 	else if (((char)c) == D_INIT) D_InitLCD();
-	/*	else if (c==D_ON	    ) clrscr();
-		else if (c==D_OFF	) clrscr();*/
-		//	else if (c==D_CURSON ) putch('_');
-		//	else if (c==D_CURSOFF) putch(' ');
 	else if (((char)c) == (DD_RAM_ADDR))
 	{
 		LCDy = 0;
@@ -1631,16 +1536,11 @@ int get_PC_key(char* key)
 			*key = ch;     //  first bit was NOT =0 or 0xE0, update character via pointer
 			Display_Info.ButtonStateChanged = BTN_RELEASED;
 		}
-		//  rt.Host &= ~CharAvailableFlag; //clear flag
 	}
 
-	// >>>>>>>>>> !!! MOUSE INPUT !!!   bits active (i.e. when button pressed) HIGH  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-	//Display_Info.ButtonStateChanged = win_btn_pressed;
 	Display_Info.buttons_hits = win_btn_lines;// update byte from win_btn_lines, which is updated in CALLBACK ButtonSubclassProc(..)
 	if (win_btn_pressed == SET) //user pressed button on interface using mouse
 	{
-		//Display_Info.butt_states &= 0x00FF;	 // clear second byte
-		//win_btn_pressed = CLR; //clear flag
 		delay_us(1000);// Sleep(1);
 		return win_btn_lines; //return NOT ZERO means button pressed using mouse
 	}
@@ -1690,36 +1590,6 @@ char check_ch(int* ptrKEY)
 		{
 			UDR0 = toupper(received_char); //place received char into UART data register to simulate UART reception
 			USART0_RX_interrupt(); //call UART RX interrupt handler to process received char
-			//putchar( received_char); // echo on console
-			//received_char = tolower(received_char);
-
-			/* IK20251219 Replaced this logic with logic in USART0_RX_interrupt
-			if (rt.operating_protocol == ASCII_CMDS) {
-				if (received_char == CaRet)
-				{
-					setBit(rt.Host, CmdAvailFlag);
-					rt.HostRxBuff[rt.HostRxBuffPtr] = 0;			//store the EoS = 0 instead of '\r'
-					msg_status = MSG_ARRIVED;						// message is complete for parsing
-					//putchar(LF); // move to the next line in console
-				}
-				else
-				{
-					if (msg_status != MSG_DONE) {
-						rt.HostRxBuff[rt.HostRxBuffPtr] = received_char;             //store the new char in Q
-						rt.HostRxBuffPtr++;
-					}
-				}
-			}
-			else if (msg_status != MSG_DONE)
-			{
-				rt.HostRxBuff[rt.HostRxBuffPtr] = received_char;             //store the new char in Q
-				rt.HostRxBuffPtr++;
-			}
-			else if (msg_status == MSG_DONE)
-			{
-				// echo it on console (already done above)
-			}
-			*/
 			*ptrKEY = NO_PRESSED_BUTTONS; //return "NO BUTTONS PRESSED", any button pressed - appropriate bit =0
 			return (received_char);
 		}
@@ -1734,21 +1604,9 @@ int get_ch(void) // for PC
 	int ret_char;
 	while (1)
 	{
-		//instead of interrupt
-		// IK20230612 not checked char_timer--;			// need for emulatiton
-		//		PC_emulator();					// calculate emulation stimula
-		//		IRQ_Handler();					// call control interrupt for emulation
-		//	CHECK IF CMD RECEIVED FROM HOST
 		ret_char = check_ch(&Buttons);
 		delay_us(1000);// Sleep(1);
-		// NO KEYBOARD ACTIVITY: returns 0 and puts "0" in address &Buttons
-		// REGULAR KEY PRESSED: returns ASCII of PC key pressed, and puts "0" in address &Buttons
-		// PUSH BUTTON SWITCH EMULATION KEY PRESSED (Home, end, PgUp, PgDwn,F12):
-		//returns 0 and puts in '&Buttons' button code, also updates Display_Info.butt_states and Display_Info.ButtonStateChanged
-		//		if (Buttons != (BIT_BUT_RIGHT + BIT_BUT_UP + BIT_BUT_DOWN + BIT_BUT_LEFT)) // do LCD_menu
 		CheckExecuteFrontPanelCmd(); //check LCD command
-		//		else
-		//		Sleep(1);
 		if (ret_char != 0)
 			return (ret_char);
 	}

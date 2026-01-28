@@ -17,7 +17,7 @@
 
 #define BTN_IGNORE_MS         100 // DEBOUNCE_DELAY
 #define BTN_SHORT_MAX_MS     3000 // For short press on release
-#define BTN_AUTOINC_MS       3000 // LONG_PRESS_DELAY
+//#define BTN_AUTOINC_MS       300 // LONG_PRESS_DELAY
 #define BTN_DELTA_1_MS       3000 // INC_DEC_BY_10_HOLD_TIME_ms
 #define BTN_DELTA_10_MS      6000 // INC_DEC_BY_10_HOLD_TIME_ms
 #define BTN_DELTA_100_MS     9000 // DEC_INC_BY_100_HOLD_TIME_ms
@@ -48,6 +48,7 @@ uint8  display_mode;						// indicates what is being displayed and the actions a
 //---- Display Board variables
 extern SettingsStruct Existing;				// keep current setting to detect change vs SysData.NV_UI
 extern const char FL* ProtocolNames;
+extern uint16 timeDelta;
 uint8  comm_value_change;					// indicates if a value is being changed
 uint8  baud_value_change;
 uint16 latched_alarm_status;				// remebers alarms if latch is enabled. persistent latched alarm can be cleaned by a reset or by disabling latch bit
@@ -149,17 +150,18 @@ void RecognizeButtonState(uint8 Btn_Index, volatile uint16 *p_timer)
 		if (timer_ms == 0) {
 			// start counting (1 means enabled and ~1 ms elapsed after next ISR tick)
 			*p_timer = 1;
+			Display_Info.PressTimeStamp[Btn_Index] = timer.FreeRunningCounter; // remember time of pressing the button
 		}
 		else if (timer_ms >= LONG_PRESS_DELAY) {
 			// reached a long-hold block: issue one long event and restart timer for next block
-			setBit(Display_Info.butt_states, (BUTTON_AUTO_LONG_PRESS_BIT << Btn_Index));
+			setBit(Display_Info.butt_states, ((BUTTON_AUTO_LONG_PRESS_BIT | BUTTON_AUTO_STILL_HELD_BIT) << Btn_Index)); // set "still_holding" for auto increment/decrement
 
-			if (Btn_Index == BTN_INDEX_UP)
-				setBit(Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT);
-			if (Btn_Index == BTN_INDEX_DOWN)
-				setBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);
-			// restart counting for the next LONG_PRESS_DELAY cycle (use 1, not 0)
-			*p_timer = 1;
+			//if (Btn_Index == BTN_INDEX_UP)
+			//	setBit(Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT);
+			//if (Btn_Index == BTN_INDEX_DOWN)
+			//	setBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);
+
+			*p_timer = 1;// restart counting for the next LONG_PRESS_DELAY cycle (use 1, not 0)
 		}
 		// otherwise keep counting; do not set short-press while held
 	}
@@ -175,7 +177,7 @@ void RecognizeButtonState(uint8 Btn_Index, volatile uint16 *p_timer)
 #endif // #ifdef DISPLAY_MENU
 }
 
-void Get_Button_Press(void)	// IK2025111 not called from Visual Studio
+void Get_Button_Press(void)	// IK20260127 included into Visual Studio
 {
 	RecognizeButtonState(BTN_INDEX_AUTO, &timer.auto_button);	//check state of Manual/Auto button, it arrives via TWI from Front board
 	RecognizeButtonState(BTN_INDEX_LIMIT, &timer.limit_button);
@@ -196,8 +198,8 @@ void Do_Front_menu(void)
 	Display_Info.DisplayNeedsUpdateFlag = SET;
 }
 
-
 void ProcessUPbutton() {
+	timeDelta = timer.FreeRunningCounter - Display_Info.PressTimeStamp[BTN_INDEX_UP]; // calculate time passed from the press
 	if (limit_mode == TRUE)
 	{
 		if (timer.UpDownChange_rate_ms == 0)				// and timer is 0
@@ -231,7 +233,6 @@ void ProcessUPbutton() {
 					}
 				}
 
-
 				timer.limit_mode_timeout_ms = 0;									// keeps it going for another ten minutes
 			} // end of BUTTON_UP_LONG_PRESS_BIT
 			// below, both short and long press
@@ -239,18 +240,13 @@ void ProcessUPbutton() {
 			// Accelerated increment logic
 			if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
 			{
+				Delta_Voltages = Delta_short_press_Voltages;			// IK20251111 decrease increment to 0.1V Volts
 				if (Display_Info.butt_states & BUTTON_UP_STILL_HELD_BIT)
 				{
-					if (timer.up_button > BTN_DELTA_100_MS)
+					if (timeDelta > BTN_DELTA_100_MS)
 						Delta_Voltages = Delta_very_long_press_Voltages; // 10.0f
-					else if (timer.up_button > BTN_DELTA_10_MS)
-					Delta_Voltages = Delta_long_press_Voltages;				// IK20251111 increase increment to 1.0f Volts
-					else
-						Delta_Voltages = Delta_short_press_Voltages; // 0.1f
-				}
-				else
-				{
-					Delta_Voltages = Delta_short_press_Voltages;			// IK20251111 decrease increment to 0.1V Volts
+					else if (timeDelta > BTN_DELTA_10_MS)
+						Delta_Voltages = Delta_long_press_Voltages;				// IK20251111 increase increment to 1.0f Volts
 				}
 			}
 
@@ -320,13 +316,13 @@ void ProcessUPbutton() {
 				if (comm_value_change == FALSE)
 					Existing.meter_address = SysData.NV_UI.meter_address;	//Do once upon 1st change
 				comm_value_change = TRUE;
-				if (timer.up_button <= INC_DEC_BY_10_HOLD_TIME_ms)				// timer increments from zero, holding button less than 10 sec - increment by 1
+				if (timeDelta <= INC_DEC_BY_10_HOLD_TIME_ms)				// timer increments from zero, holding button less than 10 sec - increment by 1
 					if (Existing.meter_address <= MAX_DNP3_ADDRESS) // <= 65519 	// Less than end of valid addresses?
 						Existing.meter_address += 1;		// plus 1
-				if ((timer.up_button > INC_DEC_BY_10_HOLD_TIME_ms) && (timer.up_button < DEC_INC_BY_100_HOLD_TIME_ms))	// holding button 10 to 20 sec - increment by 10
+				if ((timeDelta > INC_DEC_BY_10_HOLD_TIME_ms) && (timeDelta < DEC_INC_BY_100_HOLD_TIME_ms))	// holding button 10 to 20 sec - increment by 10
 					if (Existing.meter_address <= ((MAX_DNP3_ADDRESS/100)*100)) // (65519/100) *100 = 65500)	// Less than end of valid addresses?
 						Existing.meter_address += 10;		// plus 10
-				if ((timer.up_button > DEC_INC_BY_100_HOLD_TIME_ms) && (timer.up_button < 65000))	// holding button 20 to 65 sec - increment by 100
+				if ((timeDelta > DEC_INC_BY_100_HOLD_TIME_ms) && (timeDelta < 65000))	// holding button 20 to 65 sec - increment by 100
 					if (Existing.meter_address <= (MAX_DNP3_ADDRESS/100-1)*100) // 65400)	// Less than end of valid addresses?
 						Existing.meter_address += 100;		// plus 100
 			}
@@ -366,6 +362,7 @@ void ProcessUPbutton() {
 }	// end of ProcessUPbutton
 
 void ProcessDOWNbutton() {
+	timeDelta = timer.FreeRunningCounter - Display_Info.PressTimeStamp[BTN_INDEX_DOWN]; // calculate time passed from the press
 	if (limit_mode == TRUE)
 	{
 		if (timer.UpDownChange_rate_ms == 0)              //and timer is 0
@@ -400,17 +397,16 @@ void ProcessDOWNbutton() {
 				{
 					if (Display_Info.butt_states & BUTTON_DOWN_STILL_HELD_BIT)
 					{
-						if (timer.down_button > BTN_DELTA_100_MS)
-							Delta_Voltages = Delta_very_long_press_Voltages; // 10.0f
-						else if (timer.down_button > BTN_DELTA_10_MS)
-							Delta_Voltages = Delta_long_press_Voltages; // 1.0f
+						if (timeDelta > BTN_DELTA_100_MS)
+							Delta_Voltages = Delta_very_long_press_Voltages;	// 10.0f
+						else if (timeDelta > BTN_DELTA_10_MS)
+							Delta_Voltages = Delta_long_press_Voltages;			// IK20251111 increase decrement to 1.0f Volts
 						else
-							Delta_Voltages = Delta_short_press_Voltages; // 0.1f
+							Delta_Voltages = Delta_short_press_Voltages;		// 0.1f
 					}
 					else
 					{
 						Delta_Voltages = Delta_short_press_Voltages;
-
 					}
 				}
 
@@ -518,13 +514,13 @@ void ProcessDOWNbutton() {
 				if (comm_value_change == FALSE)
 					Existing.meter_address = SysData.NV_UI.meter_address;		// Do once upon 1st change
 				comm_value_change = TRUE;
-				if (timer.down_button <= INC_DEC_BY_10_HOLD_TIME_ms)
+				if (timeDelta <= INC_DEC_BY_10_HOLD_TIME_ms)
 					if (Existing.meter_address > 0)								// valid addresses?
 						Existing.meter_address -= 1;							// decrement 1
-				if ((timer.down_button > INC_DEC_BY_10_HOLD_TIME_ms) && (timer.down_button < DEC_INC_BY_100_HOLD_TIME_ms))
+				if ((timeDelta > INC_DEC_BY_10_HOLD_TIME_ms) && (timeDelta < DEC_INC_BY_100_HOLD_TIME_ms))
 					if (Existing.meter_address > 10)							// valid addresses?
 						Existing.meter_address -= 10;							// decrement 10
-				if ((timer.down_button > DEC_INC_BY_100_HOLD_TIME_ms) && (timer.down_button < 65000))
+				if ((timeDelta > DEC_INC_BY_100_HOLD_TIME_ms) && (timeDelta < 65000))
 					if (Existing.meter_address > 100)							// valid addresses?
 						Existing.meter_address -= 100;							// decrement 100
 			}
@@ -816,12 +812,10 @@ void Operation(void)
 		clearBit(Display_Info.butt_states, BUTTON_LIMIT_LONG_PRESS_BIT); // Display_Info.butt_states&= 0xFFF7;//clear long press of limit
 	}//end of long press of limit button
 
-   //Check Up Button
+	//Check Up Button
 	if (Display_Info.butt_states & BUTTON_UP_SHORT_PRESS_BIT)    //Short press AND RELEASE of up button
 	{
 		ProcessUPbutton(); // IK20250804 moved to a separate function
-		//clearBit(Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT);	// IK20251111  set regular increment delta
-		//clearBit(Display_Info.butt_states, BUTTON_UP_SHORT_PRESS_BIT); // clear button UP short press event
 		clearBit(Display_Info.butt_states, BUTTON_UP_SHORT_PRESS_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
 	}//end short press of up button
 
@@ -830,7 +824,7 @@ void Operation(void)
 		ProcessUPbutton(); // sets Bit (Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT)
 		clearBit(Display_Info.butt_states, BUTTON_UP_LONG_PRESS_BIT); // Display_Info.butt_states &= 0xFFDF;  //clear long press of UP
 	}//end long press of up
-
+	
 	//Check Down Button
 	if (Display_Info.butt_states & BUTTON_DOWN_SHORT_PRESS_BIT)    //Short press of Down button
 	{
