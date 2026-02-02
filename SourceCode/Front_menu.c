@@ -151,10 +151,16 @@ void RecognizeButtonState(uint8 Btn_Index, volatile uint16 *p_timer)
 			// start counting (1 means enabled and ~1 ms elapsed after next ISR tick)
 			*p_timer = 1;
 			Display_Info.PressTimeStamp[Btn_Index] = timer.FreeRunningCounter; // remember time of pressing the button
+			// On new press:
+			clearBit(Display_Info.long_press_fired, (1 << Btn_Index));
 		}
 		else if (timer_ms >= LONG_PRESS_DELAY) {
+			// On long-press trigger:
+			setBit(Display_Info.long_press_fired, (1 << Btn_Index));
 			// reached a long-hold block: issue one long event and restart timer for next block
 			setBit(Display_Info.butt_states, ((BUTTON_AUTO_LONG_PRESS_BIT | BUTTON_AUTO_STILL_HELD_BIT) << Btn_Index)); // set "still_holding" for auto increment/decrement
+			// Prevent short-press from firing on release
+			clearBit(Display_Info.butt_states, (BUTTON_AUTO_SHORT_PRESS_BIT << Btn_Index));
 
 			//if (Btn_Index == BTN_INDEX_UP)
 			//	setBit(Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT);
@@ -168,10 +174,13 @@ void RecognizeButtonState(uint8 Btn_Index, volatile uint16 *p_timer)
 	else // button released
 	{
 		// if released between short and long thresholds -> short press event
-		if (timer_ms >= SHORT_PRESS_DELAY && timer_ms < LONG_PRESS_DELAY) {
+		// Check bitmap instead of array
+		if (!(Display_Info.long_press_fired & (1 << Btn_Index)) &&
+			timer_ms >= SHORT_PRESS_DELAY &&
+			timer_ms < LONG_PRESS_DELAY)
+		{
 			setBit(Display_Info.butt_states, (BUTTON_AUTO_SHORT_PRESS_BIT << Btn_Index));
-		}
-		// stop timer on release
+		}		// stop timer on release
 		*p_timer = 0;
 	}
 #endif // #ifdef DISPLAY_MENU
@@ -760,6 +769,8 @@ void Operation(void)
 			rt.InfoLED_blink_eq1 = TRUE;				// info display blinking indicating limit mode
 			display_mode = LIMIT_START;					// = 0, display shows 'LMIT'
 			memcpy(&Existing, &SysData.NV_UI, sizeof(SysData.NV_UI)); //remember current values in the Existing structure to see the changes. To extend life of EEPROM, do not write to it if nothing changed
+			
+			clearBit(Display_Info.butt_states, BUTTON_LIMIT_SHORT_PRESS_BIT); // - prevent release from advancing menu
 		}
 		else //if (limit_mode == TRUE)					// if is ALREADY in the limit mode - exit from it
 		{

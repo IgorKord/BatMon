@@ -510,6 +510,7 @@ typedef struct  {				// use received from front board (via TWI communication) st
 											// upper two bits reflect event if user continues holding UP or DOWN button more then LONG_PRESS_DELAY. Used to increase delta increment of a limit voltage or DNP /ModBus address
 	volatile uint16  butt_states;			// holds events SHORT_PRESS, LONG_PRESS of button states. Comm board handles states and does menu
 	uint16 PressTimeStamp[NUM_BUTTONS];		// works with FreeRunningCounter to calculate duration of hold for auto increment/decrement 
+	uint8 long_press_fired;					// Add the byte tracking presses for 5 buttons (bits 0-4)
 	volatile char  ButtonStateChanged;		// indicates new button pressed 0=CLR; 1=SET (pressed); 2=BTN_RELEASED
 	volatile char  ProcessingButton;		// indicates that menu is or was called. Blocks other button presses in firmware or, in simulation, Windows multiple events
 	volatile char  DisplayNeedsUpdateFlag;	// display needs update. Sets after button pressed or measurement (ex: battery voltage) is ready and needs to be shown
