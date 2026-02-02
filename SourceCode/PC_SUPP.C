@@ -402,7 +402,7 @@ static int ButtonIndexToControlId(int btnIndex)
 
 static void HandleSimKeyDown(WPARAM vk)
 {
-	if (vk == VK_PRIOR) // Page Up => PLUS (UP button)
+	if (vk == VK_HOME) // 'Home' key => PLUS (UP button)
 	{
 		if (!btnPressedState[BTN_INDEX_PLS]) // ignore auto-repeat
 		{
@@ -411,8 +411,8 @@ static void HandleSimKeyDown(WPARAM vk)
 		}
 
 		setBit(win_btn_lines, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_PLS));
-		Display_Info.ButtonStateChanged = BTN_PRESSED;
 		setBit(Display_Info.buttons_hits, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_PLS));
+		Display_Info.ButtonStateChanged = BTN_PRESSED;
 		win_btn_pressed = SET;
 
 		if (g_hToolbar)
@@ -420,7 +420,7 @@ static void HandleSimKeyDown(WPARAM vk)
 			InvalidateRect(GetDlgItem(g_hToolbar, IDC_BUT_PLS), NULL, TRUE);
 		}
 	}
-	else if (vk == VK_NEXT) // Page Down => MINUS (DOWN button)
+	else if (vk == VK_END) // 'End' key => MINUS (DOWN button)
 	{
 		if (!btnPressedState[BTN_INDEX_MNS]) // ignore auto-repeat
 		{
@@ -429,8 +429,8 @@ static void HandleSimKeyDown(WPARAM vk)
 		}
 
 		setBit(win_btn_lines, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_MNS));
-		Display_Info.ButtonStateChanged = BTN_PRESSED;
 		setBit(Display_Info.buttons_hits, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_MNS));
+		Display_Info.ButtonStateChanged = BTN_PRESSED;
 		win_btn_pressed = SET;
 
 		if (g_hToolbar)
@@ -442,13 +442,15 @@ static void HandleSimKeyDown(WPARAM vk)
 
 static void HandleSimKeyUp(WPARAM vk)
 {
-	if (vk == VK_PRIOR) // Page Up
+	if (vk == VK_HOME) // 'Home' key => PLUS (UP button)
 	{
 		btnPressedState[BTN_INDEX_PLS] = FALSE;
 		btnLongPressActive[BTN_INDEX_PLS] = FALSE;
 		btnPressStartTime[BTN_INDEX_PLS] = 0;
 
 		clearBit(win_btn_lines, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_PLS));
+		clearBit(Display_Info.buttons_hits, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_PLS));
+
 		win_btn_pressed = CLR;
 		Display_Info.ButtonStateChanged = BTN_RELEASED;
 
@@ -457,13 +459,15 @@ static void HandleSimKeyUp(WPARAM vk)
 			InvalidateRect(GetDlgItem(g_hToolbar, IDC_BUT_PLS), NULL, TRUE);
 		}
 	}
-	else if (vk == VK_NEXT) // Page Down
+	else if (vk == VK_END) // 'End' key => MINUS (DOWN button)
 	{
 		btnPressedState[BTN_INDEX_MNS] = FALSE;
 		btnLongPressActive[BTN_INDEX_MNS] = FALSE;
 		btnPressStartTime[BTN_INDEX_MNS] = 0;
 
 		clearBit(win_btn_lines, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_MNS));
+		clearBit(Display_Info.buttons_hits, (BUTTON_AUTO_INSTANT_PRESS_BIT << BTN_INDEX_MNS));
+
 		win_btn_pressed = CLR;
 		Display_Info.ButtonStateChanged = BTN_RELEASED;
 
@@ -473,6 +477,7 @@ static void HandleSimKeyUp(WPARAM vk)
 		}
 	}
 }
+
 LRESULT CALLBACK ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
 	UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 {
@@ -1549,17 +1554,15 @@ int get_PC_key(char* key)
 
 int toupper(int ch)
 {
-	int ch2;
 	int ch1 = ch;// & 0x00ff; // strip high byte
-	ch2 = ch1 + ('A' - 'a');// ch2 is upper case of ch1; ('A' - 'a')= -32
+	int ch2 = ch1 + ('A' - 'a');// ch2 is upper case of ch1; ('A' - 'a')= -32
 	return ((unsigned int)(ch1 - 'a') <= (unsigned int)('z' - 'a')) ? ch2 : ch1;
 }
 
 int tolower(int ch)
 {
-	int ch2;
 	int ch1 = ch;// & 0x00ff; // strip high byte
-	ch2 = ch1 + ('a' - 'A');// ch2 is upper case of ch1; ('A' - 'a')= -32
+	int ch2 = ch1 + ('a' - 'A');// ch2 is upper case of ch1; ('A' - 'a')= -32
 	return ((unsigned int)(ch1 - 'A') <= (unsigned int)('Z' - 'A')) ? ch2 : ch1;
 }
 

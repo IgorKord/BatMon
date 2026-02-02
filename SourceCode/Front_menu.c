@@ -199,11 +199,11 @@ void Do_Front_menu(void)
 }
 
 void ProcessUPbutton() {
-	timeDelta = timer.FreeRunningCounter - Display_Info.PressTimeStamp[BTN_INDEX_UP]; // calculate time passed from the press
 	if (limit_mode == TRUE)
 	{
 		if (timer.UpDownChange_rate_ms == 0)				// and timer is 0
 		{
+			timeDelta = timer.FreeRunningCounter - Display_Info.PressTimeStamp[BTN_INDEX_UP]; // calculate time passed from the press
 			timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;				// set for 0.1 sec, decrements in timer ISR
 			if (In_setup_alarm_limits_mode == TRUE) // change in SYS menu
 			{
@@ -362,13 +362,13 @@ void ProcessUPbutton() {
 }	// end of ProcessUPbutton
 
 void ProcessDOWNbutton() {
-	timeDelta = timer.FreeRunningCounter - Display_Info.PressTimeStamp[BTN_INDEX_DOWN]; // calculate time passed from the press
+	timeDelta = timer.FreeRunningCounter - Display_Info.PressTimeStamp[BTN_INDEX_DOWN];
 	if (limit_mode == TRUE)
 	{
-		if (timer.UpDownChange_rate_ms == 0)              //and timer is 0
+		if (timer.UpDownChange_rate_ms == 0)
 		{
-			timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;              //set for 0.1 sec
-			if (In_setup_alarm_limits_mode == TRUE) // change in SYS menu
+			timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;
+			if (In_setup_alarm_limits_mode == TRUE)
 			{
 				if (display_mode == ALARM_RIV)	setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Voltage_Bit);
 				if (display_mode == ALARM_RII)	setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Current_Bit);
@@ -376,15 +376,28 @@ void ProcessDOWNbutton() {
 				if (display_mode == ALARM_HI_Z)	setBit(SysData.NV_UI.disabled_alarms, Alarm_High_Impedance_Bit);
 			}
 
-			// ************   LONG PRESS DOWN    **************
-			if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)			// Long press of down button
+			// ============ MOVE ACCELERATED LOGIC HERE (BEFORE LONG_PRESS BLOCK) ============
+			// Accelerated decrement logic - same structure as UP button
+			if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
 			{
-				//setBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);	// IK20251111 allow to set accelerated decrement delta
+				Delta_Voltages = Delta_short_press_Voltages;  // default 0.1f
+				if (Display_Info.butt_states & BUTTON_DOWN_STILL_HELD_BIT)
+				{
+					if (timeDelta > BTN_DELTA_100_MS)
+						Delta_Voltages = Delta_very_long_press_Voltages;  // 10.0f
+					else if (timeDelta > BTN_DELTA_10_MS)
+						Delta_Voltages = Delta_long_press_Voltages;       // 1.0f
+				}
+			}
+
+			// ************   LONG PRESS DOWN    **************
+			if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)
+			{
 				if ((display_mode == CAL2_4mA) || (display_mode == CAL3_20mA) ||
 					(display_mode == CAL6_0mA) || (display_mode == CAL7_1mA))
 				{
-					setBit(Display_Info.Status, DISP_STATE_ButtonDOWN_BIT);		// Display_Info.Status |= 0x04;	//Set down button
-					clearBit(Display_Info.Status, DISP_STATE_ButtonUP_BIT);		// Display_Info.Status &= 0xF7;	//clear up button
+					setBit(Display_Info.Status, DISP_STATE_ButtonDOWN_BIT);
+					clearBit(Display_Info.Status, DISP_STATE_ButtonUP_BIT);
 					if ((display_mode == CAL6_0mA) || (display_mode == CAL7_1mA))
 						setBit(SysData.NV_UI.SavedStatusWord, CurOut_I420_eq0_I01_eq1_Bit);
 					else
@@ -392,33 +405,9 @@ void ProcessDOWNbutton() {
 					timer.limit_mode_timeout_ms = 0;
 				}
 
-				// Accelerated decrement logic
-				if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
-				{
-					if (Display_Info.butt_states & BUTTON_DOWN_STILL_HELD_BIT)
-					{
-						if (timeDelta > BTN_DELTA_100_MS)
-							Delta_Voltages = Delta_very_long_press_Voltages;	// 10.0f
-						else if (timeDelta > BTN_DELTA_10_MS)
-							Delta_Voltages = Delta_long_press_Voltages;			// IK20251111 increase decrement to 1.0f Volts
-						else
-							Delta_Voltages = Delta_short_press_Voltages;		// 0.1f
-					}
-					else
-					{
-						Delta_Voltages = Delta_short_press_Voltages;
-					}
-				}
-
-				//else if (display_mode == CAL_V_BAT)											// bump down volts
-				//{
-				//	setBit(Display_Info.Status, DISP_STATE_ButtonDOWN_BIT);		// Display_Info.Status |= 0x04;	//Set down button
-				//	clearBit(Display_Info.Status, DISP_STATE_ButtonUP_BIT);		// Display_Info.Status &= 0xF7;	//clear up button
-				//}
-
 				else if (display_mode == PHASE_STATE_SET)
 				{
-					clearBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);	// Down button changes phase 3 -> 1, Single_Phase_Setting
+					clearBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);
 				}
 				else if (display_mode == PULSE_STATE_SET)
 				{
@@ -430,30 +419,28 @@ void ProcessDOWNbutton() {
 				}
 				else if (display_mode == LATCHED_STATE_SET)
 				{
-					clearBit(SysData.NV_UI.SavedStatusWord, Latch_ON_eq1_Bit);			// clear latched (persistent) alarms
+					clearBit(SysData.NV_UI.SavedStatusWord, Latch_ON_eq1_Bit);
 				}
 				if (display_mode == AUTO_MAN_MODE)
 				{
-					Is_in_auto_mode = FALSE;											// changes from Auto to manual
-					//manual_mode = TRUE;
+					Is_in_auto_mode = FALSE;
 					limit_mode = FALSE;
 				}
-				timer.limit_mode_timeout_ms = 0;										// keeps it going for another ten minutes
-			} // end of long press
-			else
-				Delta_Voltages = Delta_short_press_Voltages;							// IK20251111 decrease increment to 0.1V Volts
+				timer.limit_mode_timeout_ms = 0;
+			}
 
+			// Now all decrement operations use the correctly set Delta_Voltages
 			if (display_mode == HI_BAT_THRESHOLD)
 			{
-				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_HI_BAT, &SysData.NV_UI.high_bat_threshold_V_f, Delta_Voltages, DECREMENT);	// decrement if in range
+				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_HI_BAT, &SysData.NV_UI.high_bat_threshold_V_f, Delta_Voltages, DECREMENT);
 			}
 			else if (display_mode == LOW_BAT_THRESHOLD)
 			{
-				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_LOW_BAT, &SysData.NV_UI.low_bat_threshold_V_f, Delta_Voltages, DECREMENT);	// decrement if in range
+				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_LOW_BAT, &SysData.NV_UI.low_bat_threshold_V_f, Delta_Voltages, DECREMENT);
 			}
 			else if (display_mode == PLUS_GF_THRESHOLD)
 			{
-				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_PLUS_GF, &SysData.NV_UI.plus_gf_threshold_V_f, Delta_Voltages, DECREMENT);	// decrement if in range
+				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_PLUS_GF, &SysData.NV_UI.plus_gf_threshold_V_f, Delta_Voltages, DECREMENT);
 			}
 			else if (display_mode == MINUS_GF_THRESHOLD)
 			{
@@ -682,6 +669,7 @@ void Operation(void)
 	printf("| ShowMode %s ", (Is_in_auto_mode == FALSE? "Manual":" Auto "));
 	printf("| DispMode %d, %s ", display_mode, mode_strings[display_mode]);
 	printf("| SetupMode %s ", (In_setup_alarm_limits_mode == TRUE? "Setup":" Work "));
+
 #endif
 	// change "Auto - manual" mode
 	if (Display_Info.butt_states & BUTTON_AUTO_SHORT_PRESS_BIT)			// short press
@@ -777,7 +765,7 @@ void Operation(void)
 		{
 			limit_mode = FALSE;							// go back to last mode
 			timer.limit_mode_timeout_ms = 0;
-			In_calibr_menu_mode = last_mode;				//-!- IK20251014 was Is_in_auto_mode = last_mode, but last_mode was set to In_calibr_menu_mode above ??
+			In_calibr_menu_mode = last_mode;				//-!- IK20251014 was Is_in_auto_mode = last_mode, but last_mode was set to In_calibr_menu_mode above ???
 			rt.InfoLED_blink_eq1 = FALSE;				// info display NOT blinking indicating normal mode
 
 			display_mode = VOLTS;
@@ -813,30 +801,34 @@ void Operation(void)
 	}//end of long press of limit button
 
 	//Check Up Button
+	if (Display_Info.buttons_hits & BUTTON_UP_INSTANT_PRESS_BIT)    // up button is pressed
+		ProcessUPbutton(); // IK20250804 moved to a separate function
 	if (Display_Info.butt_states & BUTTON_UP_SHORT_PRESS_BIT)    //Short press AND RELEASE of up button
 	{
-		ProcessUPbutton(); // IK20250804 moved to a separate function
+		// ProcessUPbutton(); // sets Bit (Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT)
 		clearBit(Display_Info.butt_states, BUTTON_UP_SHORT_PRESS_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
 	}//end short press of up button
 
 	if (Display_Info.butt_states & BUTTON_UP_LONG_PRESS_BIT)			// happen after 3 sec hold
 	{
-		ProcessUPbutton(); // sets Bit (Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT)
+		// ProcessUPbutton(); // sets Bit (Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT)
 		clearBit(Display_Info.butt_states, BUTTON_UP_LONG_PRESS_BIT); // Display_Info.butt_states &= 0xFFDF;  //clear long press of UP
 	}//end long press of up
 	
 	//Check Down Button
-	if (Display_Info.butt_states & BUTTON_DOWN_SHORT_PRESS_BIT)    //Short press of Down button
-	{
+	if (Display_Info.buttons_hits & BUTTON_DOWN_INSTANT_PRESS_BIT)    // down button is pressed
 		ProcessDOWNbutton(); // IK20250804 moved to a separate function
+	if (Display_Info.butt_states & BUTTON_DOWN_SHORT_PRESS_BIT)    //Short press and RELEASE of Down button
+	{
+		//ProcessDOWNbutton(); // IK20250804 moved to a separate function
 		//clearBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
 		//clearBit(Display_Info.butt_states, BUTTON_DOWN_SHORT_PRESS_BIT); // Display_Info.butt_states &= 0xFFBF;  //clear short down press
 		clearBit(Display_Info.butt_states, BUTTON_DOWN_SHORT_PRESS_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
 	}//end short press of down button
 
-	if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)			// Long press of down button
+	if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)			// Long press and RELEASE of down button
 	{
-		ProcessDOWNbutton(); // IK20250804 moved to a separate function
+		//ProcessDOWNbutton(); // IK20250804 moved to a separate function
 		clearBit(Display_Info.butt_states, BUTTON_DOWN_LONG_PRESS_BIT);	//  Display_Info.butt_states &= 0xFF7F;  //clear long press of down
 	}//end long press of down
 
