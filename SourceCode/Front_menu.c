@@ -385,7 +385,29 @@ void ProcessDOWNbutton() {
 				if (display_mode == ALARM_HI_Z)	setBit(SysData.NV_UI.disabled_alarms, Alarm_High_Impedance_Bit);
 			}
 
-			// ============ MOVE ACCELERATED LOGIC HERE (BEFORE LONG_PRESS BLOCK) ============
+			// Immediate DOWN actions (do not require long-press)
+			if (display_mode == PULSE_STATE_SET)
+			{
+				rt.pulse = OFF;
+			}
+			else if (display_mode == BUZZER_STATE_SET)
+			{
+				clearBit(SysData.NV_UI.SavedStatusWord, Buzzer_ON_eq1_Bit);
+			}
+			else if (display_mode == LATCHED_STATE_SET)
+			{
+				clearBit(SysData.NV_UI.SavedStatusWord, Latch_ON_eq1_Bit);
+			}
+			else if (display_mode == PHASE_STATE_SET)
+			{
+				clearBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);
+			}
+			else if (display_mode == AUTO_MAN_MODE)
+			{
+				Is_in_auto_mode = FALSE;
+				limit_mode = FALSE;
+			}
+
 			// Accelerated decrement logic - same structure as UP button
 			if ((display_mode >= HI_BAT_THRESHOLD) && (display_mode <= MINUS_GF_THRESHOLD))
 			{
@@ -399,7 +421,7 @@ void ProcessDOWNbutton() {
 				}
 			}
 
-			// ************   LONG PRESS DOWN    **************
+			// LONG PRESS DOWN (keep for calibration direction selection etc.)
 			if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)
 			{
 				if ((display_mode == CAL2_4mA) || (display_mode == CAL3_20mA) ||
@@ -438,7 +460,7 @@ void ProcessDOWNbutton() {
 				timer.limit_mode_timeout_ms = 0;
 			}
 
-			// Now all decrement operations use the correctly set Delta_Voltages
+			// Existing numeric decrement handling continues below...
 			if (display_mode == HI_BAT_THRESHOLD)
 			{
 				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_HI_BAT, &SysData.NV_UI.high_bat_threshold_V_f, Delta_Voltages, DECREMENT);
@@ -523,10 +545,13 @@ void ProcessDOWNbutton() {
 
 			else if (display_mode == COMM_BAUD)
 			{
+				long t_long; // ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
 				if (BaudRateIndex > (Last_Baud_Index - 1))
 					BaudRateIndex = Last_Baud_Index - 1;						// Ensure BaudRateIndex does not exceed the maximum index
 				if (BaudRateIndex > Baud_300_i)
 					BaudRateIndex--;											// Decrement baud rate index
+				t_long = Baud_Rates[BaudRateIndex];							// keep Existing mirror consistent for DisplayPrepare()
+				Existing.baud_rate = t_long << 2;								// IK20250826 Baud_Rates are stored divided by 4
 
 				Set_and_Save_New_BaudRateIndex(BaudRateIndex);
 			}
@@ -575,9 +600,8 @@ typedef struct   {
 
 NextMenuItem next_LIMIT_display_mode[] =
 {	// this mode        next mode
-//	HI_BAT_THRESHOLD,	PRE_LIMIT_START,
-//	LOW_BAT_THRESHOLD,	PRE_LIMIT_START,
-	LIMIT_START,		HI_BAT_THRESHOLD,
+	LIMIT_START,		VOLTS,
+	VOLTS,				HI_BAT_THRESHOLD, // IK20260202 added to the beginning of the menu as in old firmware
 	HI_BAT_THRESHOLD,	LOW_BAT_THRESHOLD,
 	LOW_BAT_THRESHOLD,	PLUS_GF_THRESHOLD,
 	PLUS_GF_THRESHOLD,	MINUS_GF_THRESHOLD,
@@ -726,7 +750,7 @@ void Operation(void)
 			{
 				display_mode = SelectNextMode(display_mode, next_LIMIT_display_mode);
 				if ((display_mode > CAL1_SET_4_20_MODE)
-				//    || (display_mode < LIMIT_START) // enum LIMIT_MODE is zero
+				    && (display_mode != VOLTS) // enum LIMIT_MODE is zero
 					) // below 0 < display_mode > above 11
 					display_mode = LIMIT_START; // = 0
 			}
@@ -832,9 +856,8 @@ void Operation(void)
 	if (Display_Info.butt_states & BUTTON_DOWN_SHORT_PRESS_BIT)    //Short press and RELEASE of Down button
 	{
 		//ProcessDOWNbutton(); // IK20250804 moved to a separate function
-		//clearBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
-		//clearBit(Display_Info.butt_states, BUTTON_DOWN_SHORT_PRESS_BIT); // Display_Info.butt_states &= 0xFFBF;  //clear short down press
-		clearBit(Display_Info.butt_states, BUTTON_DOWN_SHORT_PRESS_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
+		//clearBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);	// IK20251111 allow to set accelerated decrement delta. resets on release of button
+		clearBit(Display_Info.butt_states, BUTTON_DOWN_SHORT_PRESS_BIT); // Display_Info.butt_states &= 0xFFBF;  //clear short down press
 	}//end short press of down button
 
 	if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)			// Long press and RELEASE of down button
