@@ -1,3 +1,9 @@
+20260202 
+with Copilot help:
+fixed auto delta increment with long press of UP / DOWN buttons.
+Fixed baud rate update on hit 'DOWN'
+fixed menu set but not reset for pulse, latch, etc.
+
 20251231a_501A_BM_dnw_Grok.zip
 Code deviates more and more from the almost working ChatGPT code. 
 In this version buttons cannot change anything, no matter long or short hit
