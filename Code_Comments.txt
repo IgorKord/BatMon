@@ -1,3 +1,10 @@
+20260203 IK
+Tried "soft landing" of auto decrement when value becomes less than delta which might be 10 or 100.
+In such case delta is decreased to smaller vaalue 100->10->1->0.1
+Code complexity does not add a value to UX.
+Set original auto increment clip to max, min, without changing delta,
+ checking / refactoring serial commands and protocol set up.
+ 
 20260202 
 with Copilot help:
 fixed auto delta increment with long press of UP / DOWN buttons.
