@@ -1500,10 +1500,8 @@ CONTROLLER PUSH BUTTONS:
 /*************************/
 extern void USART0_RX_interrupt(void);
 
-	void CheckAndAddRxDataToBuffer(void)
-{
+//void CheckAndAddRxDataToBuffer(void) {}
 
-}
 // NO KEYBOARD ACTIVITY: returns 0 and puts in &key 0
 // REGULAR KEYBOARD BUTTON PRESSED: returns 0 and puts in &key = ASCII of key button pressed
 // PUSHBUTTON SWITCH EMULATION KEY PRESSED ON KEYBOARD (Home, End, PgUp, PgDwn, F12): returns switch code and puts in &key = 0

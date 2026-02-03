@@ -58,38 +58,18 @@ uint16 latched_alarm_status;				// remebers alarms if latch is enabled. persiste
 #define Delta_very_long_press_Voltages	10.0f	// IK20251230 used in manual mode to increment/decrement voltages
 float Delta_Voltages = Delta_short_press_Voltages; // IK20251111 used in manual mode to increment/decrement voltages
 
-static float AdjustDeltaToAvoidClamp(float currentValue, float minValue, float maxValue, float delta, signed char direction)
-{
-	float newValue;
-
-	if (delta <= 0.0f)
-		return delta;
-
-	while (delta > 0.0f)
-	{
-		newValue = currentValue + (delta * direction);
-		if ((newValue >= minValue) && (newValue <= maxValue))
-			return delta;
-
-		if (delta > 10.0f) // i.e., =100
-			delta = 10.0f;
-		else if (delta > 1.0f) // i.e., =10.0
-			delta = 1.0f;
-		else if (delta > 0.1f)
-			delta = 0.1f;
-		else
-			return 0.0f;
-	}
-
-	return 0.0f;
-}
+//static float CalculateAndClampNewValue(float currentValue, float minValue, float maxValue, float delta, signed char direction)
+//{
+//	float newValue = currentValue + (delta * direction);
+//	// clamp
+//	if (newValue < minValue) newValue = minValue;
+//	if (newValue > minValue) newValue = maxValue;
+//	return newValue;
+//}
 
 
 //#define INC_DEC_BY_10_HOLD_TIME_ms		10000	// 10 sec
 //#define DEC_INC_BY_100_HOLD_TIME_ms		20000	// 20 sec
-
-#define MAX_Vrip_LIMIT		2000
-#define MAX_DNP3_ADDRESS	((uint16)65519)
 
 //extern void cputs(char* );
 
@@ -304,12 +284,12 @@ void ProcessUPbutton() {
 			}
 			else if (display_mode == RippleVOLT_TR_HOLD)
 			{
-				if ((SysData.NV_UI.ripple_V_threshold_mV_f >= 5) && (SysData.NV_UI.ripple_V_threshold_mV_f < MAX_Vrip_LIMIT))
+				if ((SysData.NV_UI.ripple_V_threshold_mV_f >= 5) && (SysData.NV_UI.ripple_V_threshold_mV_f < MAX_V_I_rip_LIMIT))
 					SysData.NV_UI.ripple_V_threshold_mV_f++;
 			}
 			else if (display_mode == RippleCURR_TR_HOLD)
 			{
-				if ((SysData.NV_UI.ripple_I_threshold_mA_f >= 5) && (SysData.NV_UI.ripple_I_threshold_mA_f < MAX_Vrip_LIMIT))
+				if ((SysData.NV_UI.ripple_I_threshold_mA_f >= 5) && (SysData.NV_UI.ripple_I_threshold_mA_f < MAX_V_I_rip_LIMIT))
 					SysData.NV_UI.ripple_I_threshold_mA_f++;
 			}
 			else if (display_mode == TIME_DELAY_SET)
@@ -349,10 +329,8 @@ void ProcessUPbutton() {
 
 			else if (display_mode == COMM_ADDR) //-!- IK20251111 extend to ModBus, range 0 to 255
 			{
-				float addrMin = 1.0f;
-				float addrMax = (float)MAX_DNP3_ADDRESS;
-				float addrDelta = 1.0f;
-
+				float addrDelta;
+				float tmpAdr;
 				if (comm_value_change == FALSE)
 					Existing.meter_address = SysData.NV_UI.meter_address;	//Do once upon 1st change
 				comm_value_change = TRUE;
@@ -363,10 +341,12 @@ void ProcessUPbutton() {
 				else
 					addrDelta = 100.0f;
 
-				addrDelta = AdjustDeltaToAvoidClamp(Existing.meter_address, addrMin, addrMax, addrDelta, INCREMENT);
-				if (addrDelta > 0.0f)
-					Existing.meter_address += addrDelta;
- 			}
+				tmpAdr = Existing.meter_address;
+				tmpAdr += addrDelta;
+				if (tmpAdr > MAX_DNP3_ADDRESS) 
+					tmpAdr = MAX_DNP3_ADDRESS;
+				Existing.meter_address = tmpAdr;
+			}
 			else if (display_mode == COMM_BAUD)
 			{
 				long t_long; // ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
@@ -495,38 +475,18 @@ void ProcessDOWNbutton() {
 			// Existing numeric decrement handling continues below...
 			if (display_mode == HI_BAT_THRESHOLD)
 			{
-				{
-					float min = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_HI_BAT][MinSet];
-					float max = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_HI_BAT][MaxSet];
-					Delta_Voltages = AdjustDeltaToAvoidClamp(SysData.NV_UI.high_bat_threshold_V_f, min, max, Delta_Voltages, DECREMENT);
-				}
 				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_HI_BAT, &SysData.NV_UI.high_bat_threshold_V_f, Delta_Voltages, DECREMENT);
 			}
 			else if (display_mode == LOW_BAT_THRESHOLD)
 			{
-				{
-					float min = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_LOW_BAT][MinSet];
-					float max = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_LOW_BAT][MaxSet];
-					Delta_Voltages = AdjustDeltaToAvoidClamp(SysData.NV_UI.low_bat_threshold_V_f, min, max, Delta_Voltages, DECREMENT);
-				}
 				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_LOW_BAT, &SysData.NV_UI.low_bat_threshold_V_f, Delta_Voltages, DECREMENT);
 			}
 			else if (display_mode == PLUS_GF_THRESHOLD)
 			{
-				{
-					float min = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_PLUS_GF][MinSet];
-					float max = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_PLUS_GF][MaxSet];
-					Delta_Voltages = AdjustDeltaToAvoidClamp(SysData.NV_UI.plus_gf_threshold_V_f, min, max, Delta_Voltages, DECREMENT);
-				}
 				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_PLUS_GF, &SysData.NV_UI.plus_gf_threshold_V_f, Delta_Voltages, DECREMENT);
 			}
 			else if (display_mode == MINUS_GF_THRESHOLD)
 			{
-				{
-					float min = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_MINUS_GF][MinSet];
-					float max = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_MINUS_GF][MaxSet];
-					Delta_Voltages = AdjustDeltaToAvoidClamp(SysData.NV_UI.minus_gf_threshold_V_f, min, max, Delta_Voltages, DECREMENT);
-				}
 				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_MINUS_GF, &SysData.NV_UI.minus_gf_threshold_V_f, Delta_Voltages, DECREMENT);// decrement if in range
 			}
 			else if (display_mode == RippleVOLT_TR_HOLD)
@@ -581,10 +541,8 @@ void ProcessDOWNbutton() {
 
 			else if (display_mode == COMM_ADDR)
 			{
-				float addrMin = 1.0f;
-				float addrMax = (float)MAX_DNP3_ADDRESS;
-				float addrDelta = 1.0f;
-
+				float addrDelta;
+				float tmpAdr;
 				if (comm_value_change == FALSE)
 					Existing.meter_address = SysData.NV_UI.meter_address;		// Do once upon 1st change
 				comm_value_change = TRUE;
@@ -594,13 +552,14 @@ void ProcessDOWNbutton() {
 					addrDelta = 10.0f;
 				else
 					addrDelta = 100.0f;
+				tmpAdr = Existing.meter_address;
+				tmpAdr -= addrDelta;
+				if (tmpAdr < 1)
+					tmpAdr = 1;
+				Existing.meter_address = tmpAdr;
+			}
 
-				addrDelta = AdjustDeltaToAvoidClamp(Existing.meter_address, addrMin, addrMax, addrDelta, DECREMENT);
-				if (addrDelta > 0.0f)
-					Existing.meter_address -= addrDelta;
- 			}
-
- 			else if (display_mode == COMM_BAUD)
+			else if (display_mode == COMM_BAUD)
 			{
 				long t_long; // ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
 				if (BaudRateIndex > (Last_Baud_Index - 1))
@@ -807,7 +766,7 @@ void Operation(void)
 			{
 				display_mode = SelectNextMode(display_mode, next_LIMIT_display_mode);
 				if ((display_mode > CAL1_SET_4_20_MODE)
-				    && (display_mode != VOLTS) // enum LIMIT_MODE is zero
+					&& (display_mode != VOLTS) // enum LIMIT_MODE is zero
 					) // below 0 < display_mode > above 11
 					display_mode = LIMIT_START; // = 0
 			}
@@ -850,7 +809,7 @@ void Operation(void)
 			rt.InfoLED_blink_eq1 = TRUE;				// info display blinking indicating limit mode
 			display_mode = LIMIT_START;					// = 0, display shows 'LMIT'
 			memcpy(&Existing, &SysData.NV_UI, sizeof(SysData.NV_UI)); //remember current values in the Existing structure to see the changes. To extend life of EEPROM, do not write to it if nothing changed
-			
+
 			clearBit(Display_Info.butt_states, BUTTON_LIMIT_SHORT_PRESS_BIT); // - prevent release from advancing menu
 		}
 		else //if (limit_mode == TRUE)					// if is ALREADY in the limit mode - exit from it
@@ -906,7 +865,7 @@ void Operation(void)
 		// ProcessUPbutton(); // sets Bit (Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT)
 		clearBit(Display_Info.butt_states, BUTTON_UP_LONG_PRESS_BIT); // Display_Info.butt_states &= 0xFFDF;  //clear long press of UP
 	}//end long press of up
-	
+
 	//Check Down Button
 	if (Display_Info.buttons_hits & BUTTON_DOWN_INSTANT_PRESS_BIT)    // down button is pressed
 		ProcessDOWNbutton(); // IK20250804 moved to a separate function
@@ -1337,7 +1296,7 @@ void DisplayPrepare(void)
 		}
 		if (rt.operating_protocol != SysData.NV_UI.StartUpProtocol) {
 #ifdef PC
-			PutStr(p_InfoStr); SendCrLf();		// output to serial port
+			PutStr(p_InfoStr); SendCrLf();		// output to console == 'serial port' to see the string which is going to Info display
 #endif
 			rt.operating_protocol = SysData.NV_UI.StartUpProtocol;// IK20251217 in main(), the difference will be detected and applied
 			// IK20251210 check if baud rate need to be changed - then do it; this happens in main loop.

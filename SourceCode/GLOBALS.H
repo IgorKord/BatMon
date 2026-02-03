@@ -24,6 +24,9 @@ extern float SOFTWARE_VERSION;     //Version 3.0
 #define DEF_HOST_ADDR			3			// default host address/Modbus first reg
 #define DEF_BAUD_RATE			Baud_19200	// default baud rate
 
+#define MAX_V_I_rip_LIMIT		2000
+#define MAX_DNP3_ADDRESS	((uint16)65519)
+
 // default timeouts
 #define LIMIT_SAFETY_INACTIVITY_TIMEOUT 150000 // after ten minute of no button press revert to manual mode
 
@@ -37,9 +40,9 @@ extern float SOFTWARE_VERSION;     //Version 3.0
 
 // default values
 #define V_to_mV                             1000  // milli voltage scale: voltage 125V = 125000 mV, use 32 bit int to store
-#define V_to_centiV                          100  // voltage scale: save voltage in 10 mV increments into Uint16, i.e. 125V = 12500 counts fits in the range [0...65535]
-#define V_to_deciV                           10   // voltage scale: save voltage in 100 mV increments into Uint16, i.e. 125V = 1250 counts fits in the range [0...65535]
-#define CentiV_to_Volt                    (0.01)  // how many counts in 1 Volt, use to convert stored int16 voltage to float volts
+//#define V_to_centiV                          100  // voltage scale: save voltage in 10 mV increments into Uint16, i.e. 125V = 12500 counts fits in the range [0...65535]
+//#define V_to_deciV                           10   // voltage scale: save voltage in 100 mV increments into Uint16, i.e. 125V = 1250 counts fits in the range [0...65535]
+//#define CentiV_to_Volt                    (0.01)  // how many counts in 1 Volt, use to convert stored int16 voltage to float volts
 
 #define DEF_UnitType                    UNIT_125V  // default unit type 125 V
 // voltage definitions in 10th of Volts

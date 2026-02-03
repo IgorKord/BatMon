@@ -50,6 +50,20 @@
 //IK20251030 instead of defining as 30, defined here as float so display would show 3.0
 // #define SOFTWARE_VERSION   30     //Version 3.0
 float SOFTWARE_VERSION = 3.0f;     //Version 3.0
+#ifdef LAST_GASP
+char FW_PartNumber[] = "826-509-A";   // IK20230706 must be in RAM and not the char* for printf
+#else
+char FW_PartNumber[] = "826-501-A";   // IK20230706 must be in RAM and not the char* for printf
+#endif //#ifdef LAST_GASP
+
+char FW_Date[] = "03-Feb-2026";     // IK20230706 must be in RAM for printf
+#define FW_VERSION   (uint8)30 // increment with new release
+#define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
+#ifdef INCLUDE_DAY_TIME_INTO_FW // this includes "comp @ __DATE__ __TIME__" but in Vsual Studio just-in-time compile will not work
+// IK20230706 char FL* CompileDate = __DATE__; // this places pointer and the __TIME__ string in FLASH but printf_P requires string pointers and arg list to point into RAM
+char CompileDate[] = __DATE__; // this places pointer and the __TIME__ string in RAM
+char CompileTime[] = __TIME__;
+#endif // INCLUDE_DAY_TIME_INTO_FW
 
 /*----------------------  Compiler Pragma's ------------------------*/
 // enable use of extended keywords
@@ -233,20 +247,6 @@ const union uAlarm_criteria Alarm_Limits[] = {
 const char FL* FiveSpaces = "     "; // used in display blinking
 DisplayInfo Display_Info;
 
-#ifdef LAST_GASP
-char FW_PartNumber[] = "826-509-A";   // IK20230706 must be in RAM and not the char* for printf
-#else
-char FW_PartNumber[] = "826-501-A";   // IK20230706 must be in RAM and not the char* for printf
-#endif //#ifdef LAST_GASP
-
-char FW_Date[] = "21-Jan-2025";     // IK20230706 must be in RAM for printf
-#define FW_VERSION   (uint8)30 // increment with new release
-#define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
-#ifdef INCLUDE_DAY_TIME_INTO_FW // this includes "comp @ __DATE__ __TIME__" but in Vsual Studio just-in-time compile will not work
-// IK20230706 char FL* CompileDate = __DATE__; // this places pointer and the __TIME__ string in FLASH but printf_P requires string pointers and arg list to point into RAM
-char CompileDate[] = __DATE__; // this places pointer and the __TIME__ string in RAM
-char CompileTime[] = __TIME__;
-#endif // INCLUDE_DAY_TIME_INTO_FW
 /*-------------------------- variables  ----------------------------*/
 //---- General System variables
 char printf_buff[0x40];						// [64] to copy flash strings into RAM
@@ -2343,12 +2343,8 @@ void Send_Setup_Msg (uint8 type)
 		wrk_str[0] = 0x1B;							// ESC
 		wrk_str[1] = 'R';
 		wrk_str[2] = 'D';							// character indicating SysData.NV_UI.StartUpProtocol
-		if (SysData.NV_UI.StartUpProtocol == DNP3)				// if SysData.NV_UI.StartUpProtocol is DNP3 then
-			wrk_str[3] = '1';						// return 1
-		else if (SysData.NV_UI.StartUpProtocol == MODBUS)		// if SysData.NV_UI.StartUpProtocol is Modbus then
-			wrk_str[3] = '2';						// return 2
-		else if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS)	// if SysData.NV_UI.StartUpProtocol is ASCII then
-			wrk_str[3] = '3';						// return 3
+		if (SysData.NV_UI.StartUpProtocol <= ASCII_CMDS)
+			wrk_str[3] = SysData.NV_UI.StartUpProtocol;
 		else // error, should not be here
 			wrk_str[3] = '0';						// return 0
 		wrk_str[4] = 0x0D;							// CR
@@ -2441,11 +2437,11 @@ int Add_ModBus_BinaryLongToWorkString(int start_pos,long value)
 void Send_Modbus_Msg(uint8 type)
 {
 	uint8 i, bytes;
-	Int32 battery_milliVolts = (Int32)(rt.OutData.measured.battery_voltage_f * V_to_mV);		// for DNP and Modbus transmission, 1 mV = 1 count
+	Int32 battery_milliVolts = (Int32)(rt.OutData.measured.battery_voltage_f * V_to_mV);	// for DNP and Modbus transmission, 1 mV = 1 count
 	Int32 fault_millivolts = (Int32)(rt.OutData.measured.G_fault_voltage_f * V_to_mV);		// convert float to int for fault milli voltage
 	Int32 minus_gnd_millivolts = (Int32)(rt.OutData.measured.minus_gnd_volts_f * V_to_mV);	// convert float to int for minus gnd milli voltage
-	Int32 ripple_milliAmpers = (Int32)(rt.OutData.measured.ripple_mA_f);		// convert float to int for ripple current
-	Int32 ripple_milliVolts = (Int32)(rt.OutData.measured.ripple_mV_f);		// convert float to int for ripple voltage
+	Int32 ripple_milliAmpers = (Int32)(rt.OutData.measured.ripple_mA_f);					// convert float to int for ripple current
+	Int32 ripple_milliVolts = (Int32)(rt.OutData.measured.ripple_mV_f);						// convert float to int for ripple voltage
 	uint16 address = (uint16) SysData.NV_UI.meter_address;
 	switch (type)
 	{
@@ -4031,7 +4027,7 @@ DNP_App(void)
 						// at this moment, cal_timer = 0;
 						timer.Calibration = DEF_CALIBRATION_DELAY;					// give it 1.5s to get an ADC reading
 					}
-					if ((calibr_step == NOT_A_CALIBRATION) || (rt.operating_protocol != DNP3))
+					if ((calibr_step == NOT_A_CALIBRATION)) // IK20260203 allow calibration in ASCII mode || (rt.operating_protocol != DNP3))
 					{
 						calibr_step = NOT_A_CALIBRATION;
 						cal_status = 0;
@@ -5931,9 +5927,9 @@ Read_EE:
 	else
 	{
 		setBit(rt.OperStatusWord, EE_DATA_0_NO_DATA_1_Bit);			// data not valid - set bit
-		EEPROM_Write_Mem_Block( (uint8*)&SysData, EE_SYS_DATA_OFFSET, sizeof(SysData));
+		EEPROM_Write_Mem_Block( (uint8*)&SysData, EE_SYS_DATA_OFFSET, sizeof(SysData)); // save content of SysData into EEPROM - at the beginning, it was set with default data.
 		EE_reads ++;
-		if (EE_reads < 2) goto Read_EE;
+		if (EE_reads < 2) goto Read_EE;			// attempt to read again
 		// else something wrong with EEPROM, bit EE_DATA_0_NO_DATA_1_Bit stays set
 	}
 	// update after loading flash data
@@ -6089,6 +6085,54 @@ void Init_Parameters(void)
 
 	Get_EEPROM_params(); // IK20240104 than, GET SYSTEM PARAMETERS FROM FLASH if data is valid
 
+	// IK20250808 check validity of EEPROM data copied to SysData 
+
+	// *** Now check 4-20 ma calibration *****
+	// ***  check duty cycle for low mA voltage point (DC4)    ****
+	if ((isnan(SysData.CurrentOut_I420.Y1_lowCalibrVal)) || (SysData.CurrentOut_I420.Y1_lowCalibrVal < 0.2f) || (SysData.CurrentOut_I420.Y1_lowCalibrVal > 1.1f)) // the "FF FF FF FF"" accessed as a float gives -NAN
+		SysData.CurrentOut_I420.Y1_lowCalibrVal = 0.86666f;			// default 4-20ma if new unit
+
+	// ***  check duty cycle for high mA voltage point (DC20)    ****
+	if ((isnan(SysData.CurrentOut_I420.Y2_highCalibrVal)) || (SysData.CurrentOut_I420.Y2_highCalibrVal < 0.1f) || (SysData.CurrentOut_I420.Y2_highCalibrVal > 1.1f)) // the "FF FF FF FF"" accessed as a float gives -NAN
+		SysData.CurrentOut_I420.Y2_highCalibrVal = 0.3333f;			// default if out of range
+
+	// ***  check bat offset    ****/
+	LoadFromEE(SysData.Bat_Cal_Offset_Volts_f); // EEPROM_Read_float(adr_v_cal_f);		// EEPROM[140] = 0.0
+
+	if (isnan(SysData.Bat_Cal_Offset_Volts_f)) // IK20231218 empty EEPROM? the "FF FF FF FF"" accessed as a float gives -NAN
+		SysData.Bat_Cal_Offset_Volts_f = 0;								// make it zero
+	__disable_interrupt();							// store three copies
+
+	// ***      check Battery voltage correction factor info    ***
+
+	display_mode = INIT;							// set to start off with init screen
+
+	if (SysData.NV_UI.unit_type == 24)
+	{
+		SysData.NV_UI.V20 = 36;
+		SysData.NV_UI.V4 = 18;
+	}
+	else if (SysData.NV_UI.unit_type == 48)
+	{
+		SysData.NV_UI.V20 = 72;
+		SysData.NV_UI.V4 = 36;
+	}
+	else if (SysData.NV_UI.unit_type == 250)
+	{
+		SysData.NV_UI.V20 = 360;
+		SysData.NV_UI.V4 = 180;
+	}
+	else
+	{
+		SysData.NV_UI.unit_type = 125;
+		SysData.NV_UI.V4 = 90;										// default
+		SysData.NV_UI.V20 = 180;									// default
+	}
+
+	iien1 = 0x80;                              // set restart
+	iien2 = 0;                                 // clr iin2
+
+	Init_UART();
 	__enable_interrupt();												// enable global interrupts
 }
 
@@ -6149,20 +6193,26 @@ void WDT_set_2sec_interrupt(void)
 }
 
 void Init_UART() {
+	int c;
 	UCSR0C = 0x06;									// no UART_parity, async, 1 stop
 	UCSR0A = 0x20;									// redundant because it is set a reset anyway
 	UCSR0B = 0x98;									// enable rcv & xmt,
+/*-------- Set up COMMS for setup SysData.NV_UI.StartUpProtocol ----*/
 #ifdef ASCII_TESTING
 	rt.operating_protocol = ASCII_CMDS;		//-!- IK20241222 overwrite for test
 	Existing.baud_rate = Baud_115200;
 	BaudRateIndex = Baud_115200_i;			// IK20250826 set to 115200 baud, for quicker screen update
 #else
-//	rt.operating_protocol = SETUP;                 //initial SysData.NV_UI.StartUpProtocol
-//	Existing.baud_rate = Baud_9600;	// =9600
+	// Now change baud back to 9600 for initial 5 seconds to Setup
+	rt.operating_protocol = SETUP;                 //initial SysData.NV_UI.StartUpProtocol
+	Existing.baud_rate = Baud_9600;	// =9600
 	BaudRateIndex = Baud_9600_i;	// IK20250724 set to 9600 baud, index to 7
-	Existing.baud_rate = SysData.NV_UI.baud_rate;	// on init, take a value saved into SysData
 #endif
 	Set_USART_UBBRregister((Uint32)Existing.baud_rate);	// 9600 baud
+	for (c = 0; c < 16; c++) //IK20260203 some delay to settle UART
+	{
+		_NOP();
+	}
 }
 
 /*********************************************************************/
@@ -6197,6 +6247,8 @@ void init(void)
 #else
 	WDT_set_2sec_interrupt(); //IK2020509015
 #endif
+
+	CLKPR = 0x80; // IK20260203 Clock Prescale Register, set to 1:1 vs. input clock signal
 
 	/*------- Set Up Timers -----*/
 	/***     Timing based on a 16 MHz crystal(0.0000000625 Second tick ****/
@@ -6292,84 +6344,15 @@ TIMSK2 = 0x02
 
 	TCNT1 = 64535;			// Set Timer 1 for 1 ms intervals.
 
-	__disable_interrupt();							// store three copies
-
-	// ***      check Battery voltage correction factor info    ***
-
-	display_mode = INIT;							// set to start off with init screen
-
-	// IK20250808 check validity of EEPROM data copied to SysData (above, Init_Parameters();)
-
-	if (SysData.NV_UI.unit_type == 24)
-	{
-		SysData.NV_UI.V20 = 36;
-		SysData.NV_UI.V4 = 18;
-	}
-	else if (SysData.NV_UI.unit_type == 48)
-	{
-		SysData.NV_UI.V20 = 72;
-		SysData.NV_UI.V4 = 36;
-	}
-	else if (SysData.NV_UI.unit_type == 250)
-	{
-		SysData.NV_UI.V20 = 360;
-		SysData.NV_UI.V4 = 180;
-	}
-	else
-	{
-		SysData.NV_UI.unit_type = 125;
-		SysData.NV_UI.V4 = 90;										// default
-		SysData.NV_UI.V20 = 180;										// default
-	}
-
-	// *** Now check 4-20 ma calibration *****
-
-	// ***  check duty cycle for low mA voltage point (DC4)    ****
-	if ((isnan(SysData.CurrentOut_I420.Y1_lowCalibrVal)) || (SysData.CurrentOut_I420.Y1_lowCalibrVal < 0.2f) || (SysData.CurrentOut_I420.Y1_lowCalibrVal > 1.1f) ) // the "FF FF FF FF"" accessed as a float gives -NAN
-		SysData.CurrentOut_I420.Y1_lowCalibrVal = 0.86666f;			// default 4-20ma if new unit
-
-	// ***  check duty cycle for high mA voltage point (DC20)    ****
-	if ((isnan(SysData.CurrentOut_I420.Y2_highCalibrVal)) || (SysData.CurrentOut_I420.Y2_highCalibrVal < 0.1f) || (SysData.CurrentOut_I420.Y2_highCalibrVal > 1.1f) ) // the "FF FF FF FF"" accessed as a float gives -NAN
-		SysData.CurrentOut_I420.Y2_highCalibrVal = 0.3333f;			// default if out of range
-
-	// ***  check bat offset    ****/
-	LoadFromEE(SysData.Bat_Cal_Offset_Volts_f); // EEPROM_Read_float(adr_v_cal_f);		// EEPROM[140] = 0.0
-
-	if (isnan(SysData.Bat_Cal_Offset_Volts_f)) // IK20231218 empty EEPROM? the "FF FF FF FF"" accessed as a float gives -NAN
-		SysData.Bat_Cal_Offset_Volts_f = 0;								// make it zero
-
-	//IK20250808 now used, no overwrite SysData.NV_UI.true_1mA_false_20mA = 0;						// default to  4-20 mA not used so fixed
-
-	iien1 = 0x80;                              //set restart
-	iien2 = 0;                                 //clr iin2
 
 	clearBit(XMT_ENABLE, XMT_ON); //IK20250523 set recieve mode
 	send_setup = SEND_NOTHING;
 	send_modbus = SEND_NOTHING;
 	send_dnp = SEND_NOTHING;
-
-	// IK20231214 not checked //twi_status = REPLY_RCVD;
-	// IK20231214 not checked //first_measurement = true;
-	// IK20231214 not checked //twi_reply_status = STATUS_RCVD;
 	__enable_interrupt();
 	restart_op = false;
 	/*   get device parameters */
 	WATCHDOG_RESET();
-
-	// Now change baud back to 9600 for initial 5 seconds to Setup
-	/*-------- Set up COMMS for setup SysData.NV_UI.StartUpProtocol ----*/
-#ifdef ASCII_TESTING
-	rt.operating_protocol = ASCII_CMDS;		//-!- IK20241222 overwrite for test
-	Existing.baud_rate = Baud_115200;
-	BaudRateIndex = Baud_115200_i;			// IK20250826 set to 115200 baud, for quicker screen update
-#else
-	rt.operating_protocol = SETUP;                 //initial SysData.NV_UI.StartUpProtocol
-	Existing.baud_rate = Baud_9600;	// =9600
-	BaudRateIndex = Baud_9600_i;	// IK20250724 set to 9600 baud, index to 7
-#endif
-
-	Init_UART();
-	CLKPR = 0x80;
 
 	/*   get initial status   */
 	timer.Generic = 5;
@@ -7421,10 +7404,10 @@ void SetGetHostAddress(void)
 {
 	float MaxAddress=255.0f;
 	float temp_N = SysData.NV_UI.host_address;
-	if (SysData.NV_UI.StartUpProtocol == DNP3) MaxAddress = 65000.0f;
+	if (SysData.NV_UI.StartUpProtocol == DNP3) MaxAddress = 65000.0f; // MAX_DNP3_ADDRESS = ((uint16)65519)
 	else if (SysData.NV_UI.StartUpProtocol == MODBUS) MaxAddress = 255.0f;
 
-	sprintf(RCI_message, "Host Address, dflt=3, range 1 to %d", (uint16)MaxAddress); // DNP3 or ModBus address
+	sprintf(RCI_message, "Host Address, dflt=%d, range 1 to %d", 3, (uint16)MaxAddress); // DNP3 or ModBus address
 	SetGet_param(2 + SHOW_LONG, 0.0f, MaxAddress, &temp_N, RCI_message);
 	SysData.NV_UI.host_address = (uint16)(temp_N);
 }
@@ -7434,10 +7417,10 @@ void SetGetMeterAddress(void)
 {
 	float MaxAddress = 255.0f;
 	float temp_N = SysData.NV_UI.meter_address;
-	if (SysData.NV_UI.StartUpProtocol == DNP3) MaxAddress = 65000.0f;
+	if (SysData.NV_UI.StartUpProtocol == DNP3) MaxAddress = 65000.0f; // MAX_DNP3_ADDRESS = ((uint16)65519)
 	else if (SysData.NV_UI.StartUpProtocol == MODBUS) MaxAddress = 255.0f;
 
-	sprintf(RCI_message, "Meter Address, dflt=2, range 1 to %d", (Uint32)MaxAddress); // DNP3 or ModBus address
+	sprintf(RCI_message, "Meter Address, dflt=%d, range 1 to %d", 2,(Uint32)MaxAddress); // DNP3 or ModBus address
 	SetGet_param(2 + SHOW_LONG, 0.0f, MaxAddress, &temp_N, RCI_message);
 	SysData.NV_UI.meter_address = (uint16)(temp_N);
 }
@@ -7446,36 +7429,37 @@ void SetGetMeterAddress(void)
 // Get 'hbat[?]' returns Set command syntax 'hbat=XXX'. Setting in flash is updated after 'save' command.
 void SetGetHighBatThreshold(void)
 {
-	float temp_N = CentiV_to_Volt * SysData.NV_UI.high_bat_threshold_V_f; // saved in 100th mVolts, convert to volts
+	float temp_N = SysData.NV_UI.high_bat_threshold_V_f; // saved as float, volts
 	char tmp1[6] = "High";
 
 	sprintf(RCI_message, "%s Bat Threshold, range 20 to 300 V", tmp1);
 	SetGet_param(0 + SHOW_LONG, 20.0f, 300.0f, &temp_N, RCI_message);
-	SysData.NV_UI.high_bat_threshold_V_f = (uint16)(temp_N) *V_to_centiV; // save in 100th mVolts
+	SysData.NV_UI.high_bat_threshold_V_f = temp_N; // save in Volts as float
 }
 
 /*************************************************************/
 // Get 'lbat[?]' returns Set command syntax 'lbat=XXX'. Setting in flash is updated after 'save' command.
 void SetGet_LowBatThreshold(void)
 {
-	float temp_N = CentiV_to_Volt * SysData.NV_UI.low_bat_threshold_V_f; // saved in 100th mVolts, convert to volts
+	float temp_N = SysData.NV_UI.low_bat_threshold_V_f; // saved as float, volts
 	char tmp1[6] = "Low";
 
 	sprintf(RCI_message, "%s Bat Threshold, range 20 to 300 V", tmp1);
 	SetGet_param(0 + SHOW_LONG, 20.0f, 300.0f, &temp_N, RCI_message);
-	SysData.NV_UI.low_bat_threshold_V_f = (uint16)(temp_N) *V_to_centiV; // save in 100th mVolts
+	SysData.NV_UI.low_bat_threshold_V_f = temp_N; // save in Volts as float
 }
 
 /*************************************************************/
 // Get 'gflt[?]' returns Set command syntax 'gflt=XXX'. Setting in flash is updated after 'save' command.
 void SetGet_NegGroundFaultThreshold(void)
 {
-	float temp_N = CentiV_to_Volt * SysData.NV_UI.minus_gf_threshold_V_f; // saved in 10th mVolts, convert to volts
+	float temp_N = SysData.NV_UI.minus_gf_threshold_V_f; // // saved as float, volts
 
 	sprintf(RCI_message, "+/- GndFlt Threshold, range 1 to 30 V");
 	SetGet_param(0 + SHOW_LONG, 1.0f, 30.0f, &temp_N, RCI_message);
-	SysData.NV_UI.minus_gf_threshold_V_f = (uint16)(temp_N)*V_to_centiV; // save in 10th mVolts
-	SysData.NV_UI.plus_gf_threshold_V_f = SysData.NV_UI.minus_gf_threshold_V_f; // save in 10th mVolts
+	SysData.NV_UI.minus_gf_threshold_V_f = temp_N; // saved in Volts as float
+	SysData.NV_UI.plus_gf_threshold_V_f = temp_N; // saved in Volts as float
+	; // saved in Volts as float
 }
 
 /*************************************************************/
@@ -7488,8 +7472,8 @@ void SetGetRipVoltThreshold(void)
 	char tmp2[3] = "mV";
 	//CopyConstString("Rip V", tmp1);
 	//CopyConstString("mV", tmp2);
-	sprintf(RCI_message, "%s Threshold, range 1 to 2000 %s", tmp1, tmp2);
-	SetGet_param(2 + SHOW_LONG, 1.0f, 2000.0f, &temp_N, RCI_message);
+	sprintf(RCI_message, "%s Threshold, range 1 to %d %s", tmp1, MAX_V_I_rip_LIMIT, tmp2);
+	SetGet_param(2 + SHOW_LONG, 1.0f, (float)MAX_V_I_rip_LIMIT, &temp_N, RCI_message);
 	SysData.NV_UI.ripple_V_threshold_mV_f = (uint16)temp_N; // save in mVolts
 }
 
@@ -7500,9 +7484,9 @@ void SetGetRipCURRthreshold(void)
 	float temp_N = SysData.NV_UI.ripple_I_threshold_mA_f; // saved in mAmps
 	char tmp1[6] = "Rip I";
 	char tmp2[3] = "mA";
-	sprintf(RCI_message, "%s Threshold, range 1 to 2000 %s", tmp1, tmp2); //
-	SetGet_param(2 + SHOW_LONG, 1.0f, 2000.0f, &temp_N, RCI_message);
-	SysData.NV_UI.ripple_I_threshold_mA_f = (uint16)temp_N; // save in mVolts
+	sprintf(RCI_message, "%s Threshold, range 1 to %d %s", tmp1, MAX_V_I_rip_LIMIT, tmp2);
+	SetGet_param(2 + SHOW_LONG, 1.0f, (float)MAX_V_I_rip_LIMIT, &temp_N, RCI_message);
+	SysData.NV_UI.ripple_I_threshold_mA_f = (uint16)temp_N; // save in mAmps
 }
 
 /*************************************************************/
@@ -7514,21 +7498,22 @@ void SetGetProtocol(void)
 	if (temp_Inp_str[CMD_LEN] == '>')
 	{
 		//SETUP = 0x00,
-		//DNP3 = 0x11,
-		//MODBUS = 0x22,
-		//ASCII_CMDS = 0x33,
-		//ASCII_MENU = 0x44
+		//DNP3 = 0x01,
+		//MODBUS = 0x02,
+		//ASCII_CMDS = 0x03,
+		//ASCII_MENU = 0x04
+		//-!- IK20260203 exclude 'setup' from SAVED startup protocol. FW always starts in 'Setup' protocol. Here it is for test
 		if (param == (('s' + 256 * 'e') + ('t' + 256 * 'u') * 65536)) // 'setup'
 			SysData.NV_UI.StartUpProtocol = SETUP; // set to 0x00
 		else if (param == (('d' + 256 * 'n') + ('p' + 256 * '3') * 65536))
-			SysData.NV_UI.StartUpProtocol = DNP3; // set to 0x11
+			SysData.NV_UI.StartUpProtocol = DNP3; // set to 0x01
 		else if (param == (('m' + 256 * 'o') + ('d' + 256 * 'b') * 65536))
-			SysData.NV_UI.StartUpProtocol = MODBUS; // set to 0x22
+			SysData.NV_UI.StartUpProtocol = MODBUS; // set to 0x02
 		else if (param == (('a' + 256 * 's') + ('c' + 256 * 'i') * 65536))
-			SysData.NV_UI.StartUpProtocol = ASCII_CMDS; // set to 0x33
+			SysData.NV_UI.StartUpProtocol = ASCII_CMDS; // set to 0x03
 		// the 'menu' protocol is not implemented
 		//else if (param == (('m' + 256 * 'e') + ('n' + 256 * 'u') * 65536))
-		//	SysData.NV_UI.StartUpProtocol = ASCII_MENU; // set to 0x44
+		//	SysData.NV_UI.StartUpProtocol = ASCII_MENU; // set to 0x04
 		else  Send_RCI_Param_Error_as_FlashConst("Setup DNP3 ModBus ASCII");
 	}
 	else // ? -- get command
@@ -8001,7 +7986,7 @@ void main(void)
 						UCSR0C = 0x36;									// make it odd
 					rt.first_register = SysData.NV_UI.host_address;		// same location
 				}
-				else if (rt.operating_protocol == DNP3) 		// init incoming buffer
+				else if (rt.operating_protocol == DNP3) 				// init incoming buffer
 				{
 					UCSR0C = 0x06;										// no UART_parity, async, 1 stop
 					memset(rt.HostRxBuff, 0xFF, HOST_RX_BUFF_LEN);		// so clear out the buffer with nonsense
@@ -8012,8 +7997,8 @@ void main(void)
 					Print_FW_Version();
 					PrintNewLine();
 				}
-			} // end of if ((timer.start_up == 0) && (rt.operating_protocol == SETUP)) //start up timed out
-		}
+			}	// end of if ((timer.start_up == 0) 
+		}		// && (rt.operating_protocol == SETUP)) //start up timed out
 
 		else if (rt.operating_protocol == ASCII_CMDS)				// New IK20241030
 		{

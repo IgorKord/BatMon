@@ -402,7 +402,7 @@ extern void initEEsimulator(void);
 long UBRR0;		// 12-bits register in ATMEL
 #endif
 
-#ifndef CLKPR // = 0x80;                                //??
+#ifndef CLKPR // = 0x80;                                // Clock Prescale Register
 long CLKPR;
   #endif
 
