@@ -58,6 +58,33 @@ uint16 latched_alarm_status;				// remebers alarms if latch is enabled. persiste
 #define Delta_very_long_press_Voltages	10.0f	// IK20251230 used in manual mode to increment/decrement voltages
 float Delta_Voltages = Delta_short_press_Voltages; // IK20251111 used in manual mode to increment/decrement voltages
 
+static float AdjustDeltaToAvoidClamp(float currentValue, float minValue, float maxValue, float delta, signed char direction)
+{
+	float newValue;
+
+	if (delta <= 0.0f)
+		return delta;
+
+	while (delta > 0.0f)
+	{
+		newValue = currentValue + (delta * direction);
+		if ((newValue >= minValue) && (newValue <= maxValue))
+			return delta;
+
+		if (delta > 10.0f) // i.e., =100
+			delta = 10.0f;
+		else if (delta > 1.0f) // i.e., =10.0
+			delta = 1.0f;
+		else if (delta > 0.1f)
+			delta = 0.1f;
+		else
+			return 0.0f;
+	}
+
+	return 0.0f;
+}
+
+
 //#define INC_DEC_BY_10_HOLD_TIME_ms		10000	// 10 sec
 //#define DEC_INC_BY_100_HOLD_TIME_ms		20000	// 20 sec
 
@@ -322,19 +349,24 @@ void ProcessUPbutton() {
 
 			else if (display_mode == COMM_ADDR) //-!- IK20251111 extend to ModBus, range 0 to 255
 			{
+				float addrMin = 1.0f;
+				float addrMax = (float)MAX_DNP3_ADDRESS;
+				float addrDelta = 1.0f;
+
 				if (comm_value_change == FALSE)
 					Existing.meter_address = SysData.NV_UI.meter_address;	//Do once upon 1st change
 				comm_value_change = TRUE;
-				if (timeDelta <= INC_DEC_BY_10_HOLD_TIME_ms)				// timer increments from zero, holding button less than 10 sec - increment by 1
-					if (Existing.meter_address <= MAX_DNP3_ADDRESS) // <= 65519 	// Less than end of valid addresses?
-						Existing.meter_address += 1;		// plus 1
-				if ((timeDelta > INC_DEC_BY_10_HOLD_TIME_ms) && (timeDelta < DEC_INC_BY_100_HOLD_TIME_ms))	// holding button 10 to 20 sec - increment by 10
-					if (Existing.meter_address <= ((MAX_DNP3_ADDRESS/100)*100)) // (65519/100) *100 = 65500)	// Less than end of valid addresses?
-						Existing.meter_address += 10;		// plus 10
-				if ((timeDelta > DEC_INC_BY_100_HOLD_TIME_ms) && (timeDelta < 65000))	// holding button 20 to 65 sec - increment by 100
-					if (Existing.meter_address <= (MAX_DNP3_ADDRESS/100-1)*100) // 65400)	// Less than end of valid addresses?
-						Existing.meter_address += 100;		// plus 100
-			}
+				if (timeDelta <= INC_DEC_BY_10_HOLD_TIME_ms)
+					addrDelta = 1.0f;
+				else if (timeDelta < DEC_INC_BY_100_HOLD_TIME_ms)
+					addrDelta = 10.0f;
+				else
+					addrDelta = 100.0f;
+
+				addrDelta = AdjustDeltaToAvoidClamp(Existing.meter_address, addrMin, addrMax, addrDelta, INCREMENT);
+				if (addrDelta > 0.0f)
+					Existing.meter_address += addrDelta;
+ 			}
 			else if (display_mode == COMM_BAUD)
 			{
 				long t_long; // ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
@@ -463,18 +495,38 @@ void ProcessDOWNbutton() {
 			// Existing numeric decrement handling continues below...
 			if (display_mode == HI_BAT_THRESHOLD)
 			{
+				{
+					float min = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_HI_BAT][MinSet];
+					float max = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_HI_BAT][MaxSet];
+					Delta_Voltages = AdjustDeltaToAvoidClamp(SysData.NV_UI.high_bat_threshold_V_f, min, max, Delta_Voltages, DECREMENT);
+				}
 				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_HI_BAT, &SysData.NV_UI.high_bat_threshold_V_f, Delta_Voltages, DECREMENT);
 			}
 			else if (display_mode == LOW_BAT_THRESHOLD)
 			{
+				{
+					float min = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_LOW_BAT][MinSet];
+					float max = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_LOW_BAT][MaxSet];
+					Delta_Voltages = AdjustDeltaToAvoidClamp(SysData.NV_UI.low_bat_threshold_V_f, min, max, Delta_Voltages, DECREMENT);
+				}
 				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_LOW_BAT, &SysData.NV_UI.low_bat_threshold_V_f, Delta_Voltages, DECREMENT);
 			}
 			else if (display_mode == PLUS_GF_THRESHOLD)
 			{
+				{
+					float min = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_PLUS_GF][MinSet];
+					float max = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_PLUS_GF][MaxSet];
+					Delta_Voltages = AdjustDeltaToAvoidClamp(SysData.NV_UI.plus_gf_threshold_V_f, min, max, Delta_Voltages, DECREMENT);
+				}
 				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_PLUS_GF, &SysData.NV_UI.plus_gf_threshold_V_f, Delta_Voltages, DECREMENT);
 			}
 			else if (display_mode == MINUS_GF_THRESHOLD)
 			{
+				{
+					float min = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_MINUS_GF][MinSet];
+					float max = Alarm_Limits[SysData.NV_UI.unit_index].AlarmCriteria[index_MINUS_GF][MaxSet];
+					Delta_Voltages = AdjustDeltaToAvoidClamp(SysData.NV_UI.minus_gf_threshold_V_f, min, max, Delta_Voltages, DECREMENT);
+				}
 				CheckVariableRangeAndChange(SysData.NV_UI.unit_index, index_MINUS_GF, &SysData.NV_UI.minus_gf_threshold_V_f, Delta_Voltages, DECREMENT);// decrement if in range
 			}
 			else if (display_mode == RippleVOLT_TR_HOLD)
@@ -529,21 +581,26 @@ void ProcessDOWNbutton() {
 
 			else if (display_mode == COMM_ADDR)
 			{
+				float addrMin = 1.0f;
+				float addrMax = (float)MAX_DNP3_ADDRESS;
+				float addrDelta = 1.0f;
+
 				if (comm_value_change == FALSE)
 					Existing.meter_address = SysData.NV_UI.meter_address;		// Do once upon 1st change
 				comm_value_change = TRUE;
 				if (timeDelta <= INC_DEC_BY_10_HOLD_TIME_ms)
-					if (Existing.meter_address > 0)								// valid addresses?
-						Existing.meter_address -= 1;							// decrement 1
-				if ((timeDelta > INC_DEC_BY_10_HOLD_TIME_ms) && (timeDelta < DEC_INC_BY_100_HOLD_TIME_ms))
-					if (Existing.meter_address > 10)							// valid addresses?
-						Existing.meter_address -= 10;							// decrement 10
-				if ((timeDelta > DEC_INC_BY_100_HOLD_TIME_ms) && (timeDelta < 65000))
-					if (Existing.meter_address > 100)							// valid addresses?
-						Existing.meter_address -= 100;							// decrement 100
-			}
+					addrDelta = 1.0f;
+				else if (timeDelta < DEC_INC_BY_100_HOLD_TIME_ms)
+					addrDelta = 10.0f;
+				else
+					addrDelta = 100.0f;
 
-			else if (display_mode == COMM_BAUD)
+				addrDelta = AdjustDeltaToAvoidClamp(Existing.meter_address, addrMin, addrMax, addrDelta, DECREMENT);
+				if (addrDelta > 0.0f)
+					Existing.meter_address -= addrDelta;
+ 			}
+
+ 			else if (display_mode == COMM_BAUD)
 			{
 				long t_long; // ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
 				if (BaudRateIndex > (Last_Baud_Index - 1))
