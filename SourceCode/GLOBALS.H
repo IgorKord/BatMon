@@ -773,7 +773,7 @@ enum Baud_Rate_Setting
 };
 enum Baud_Rate_index
 {
-	INVALID_BR_INDEX = -1, // -1
+	INVALID_BR_INDEX = -1, // -1 = 0xFF
 	Baud_300_i = 0,    // 0
 	Baud_600_i,        // 1
 	Baud_1200_i,       // 2
@@ -791,7 +791,7 @@ enum Baud_Rate_index
 extern uint16 const Baud_Rates[Last_Baud_Index];	// IK20250724 to simplify baud rate selection
 
 /*--------- Protocols ------------------------*/
-enum Protocols	//-!- IK CHANGE to regular number
+enum Protocols	// IK20251230 CHANGED to regular number
 {
    SETUP = 0x00,
    DNP3 =  0x01,		// 17d
@@ -1106,7 +1106,8 @@ uint16 CopyConstString(const char FL* str_f_ptr, char* dest);
 void Set_USART_UBBRregister(Uint32 BaudRate); // IK20250206
 uint16 Calculate_USART_UBRRregister(Uint32 BaudRate) ;
 void Set_and_Save_New_BaudRate(uint8 BR_index);
-void Init_UART();
+void Init_UART(void);
+void SetASCIIandSignMsg(void);
 /* without redefining sprintf IAR gives warning
 	Warning[w6]: Type conflict for external/entry "SPRINT_F", in module "Front_menu" against external/entry in module "main" ; prototyped function vs K&R function   // In module Front_menu: //
 	  // K&R Function, args 0, attr 0 //

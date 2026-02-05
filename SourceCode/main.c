@@ -50,15 +50,20 @@
 //IK20251030 instead of defining as 30, defined here as float so display would show 3.0
 // #define SOFTWARE_VERSION   30     //Version 3.0
 float SOFTWARE_VERSION = 3.0f;     //Version 3.0
+
+//#define LAST_GASP
 #ifdef LAST_GASP
-char FW_PartNumber[] = "826-509-A";   // IK20230706 must be in RAM and not the char* for printf
+  #define EXTRA_DNP_BYTE  1
+char FW_PartNumber[] = "826-509-A";	// IK20230706 must be in RAM and not the char* for printf
 #else
-char FW_PartNumber[] = "826-501-A";   // IK20230706 must be in RAM and not the char* for printf
+  #define EXTRA_DNP_BYTE  0
+char FW_PartNumber[] = "826-501-A";	// IK20230706 must be in RAM and not the char* for printf
 #endif //#ifdef LAST_GASP
 
-char FW_Date[] = "03-Feb-2026";     // IK20230706 must be in RAM for printf
+char FW_Date[] = "05-Feb-2026";		// IK20230706 must be in RAM for printf
 #define FW_VERSION   (uint8)30 // increment with new release
 #define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
+
 #ifdef INCLUDE_DAY_TIME_INTO_FW // this includes "comp @ __DATE__ __TIME__" but in Vsual Studio just-in-time compile will not work
 // IK20230706 char FL* CompileDate = __DATE__; // this places pointer and the __TIME__ string in FLASH but printf_P requires string pointers and arg list to point into RAM
 char CompileDate[] = __DATE__; // this places pointer and the __TIME__ string in RAM
@@ -84,15 +89,9 @@ char CompileTime[] = __TIME__;
 #define ClearTestPin44   clearBit(PORTB, Bit_4);    // IK20250523 set test pin #44 (easy to solder to)
 
 #ifdef PC
-  #define ASCII_TESTING // define for direct overwrite  and booting into ASCII mode
+//  #define ASCII_TESTING // define for direct overwrite and booting into ASCII mode
 #endif
 
-//#define LAST_GASP
-#ifdef LAST_GASP
-  #define EXTRA_DNP_BYTE  1
-#else
-  #define EXTRA_DNP_BYTE  0
-#endif //#ifdef LAST_GASP
 
 //#define TEST_MODE // IK20240327 to disable watchdog timer and prevent reset after break point is hit
 #ifdef TEST_MODE
@@ -145,7 +144,6 @@ extern int new_thread();
 
 extern void PC_emulator(void);
 
-
 #define EEsimulator
   extern void D_PutChar(unsigned char c);
   extern void  D_CleanLCD_line(int line); // line is only 1 or 2
@@ -162,8 +160,8 @@ struct twi_variables twi_send;
 #define DEF_HOST_ADDR			3			// default host address/Modbus first reg
 #define DEF_INTER_CHAR			1041		// default inter char gap in micro s // ms
 #define DEF_DLL_TIMEOUT			1000		// default dll timeout in milli S // ms
-#define DEF_NUM_OF_POINTS		0x55		//-!- IK CHANGE to regular 0x05  default number of input/analog points // 55 is coding for 5 channels
-#define DEF_PROTOCOL			DNP3		//-!- IK CHANGE to regular number  default SysData.NV_UI.StartUpProtocol
+#define DEF_NUM_OF_POINTS		5			// IK20260205 CHANGED from 0x55 to regular 0x05  default number of input/analog points // 55 is coding for 5 channels
+#define DEF_PROTOCOL			DNP3		// IK20251230 CHANGED to regular number  default SysData.NV_UI.StartUpProtocol
 #define DEF_DLL_NUM_OF_RETRIES	10			// default number of dnp DLL retries
 #define DEF_DLL_CONFIRM			0			// default status of DLL layer confirms
 #define DEF_APP_STATUS			0			// default status of APP layer confirms and UART_parity (shared data)
@@ -246,10 +244,10 @@ const union uAlarm_criteria Alarm_Limits[] = {
 #endif // PC
 
 const char FL* FiveSpaces = "     "; // used in display blinking
-DisplayInfo Display_Info;
 
 /*-------------------------- variables  ----------------------------*/
 //---- General System variables
+DisplayInfo Display_Info;
 char printf_buff[0x40];						// [64] to copy flash strings into RAM
 uint8  tmp_byte;							// general working register
 uint8  ADC_Status;							// what operation is the ADC in
@@ -507,7 +505,7 @@ void Save_BaudRate_To_EEPROM(uint8 BR_index)
 
 	SysData.NV_UI.baud_rate = BaudRate;
 	SaveToEE(SysData.NV_UI.baud_rate);				// Store the new baud rate in EEPROM
-	SysData.NV_UI.BRate_index = BR_index;
+	SysData.NV_UI.BRate_index = BR_index;			// 
 	SaveToEE(SysData.NV_UI.BRate_index);			// Store the new baud rate index in EEPROM
 }
 
@@ -3952,7 +3950,7 @@ DNP_App(void)
 						calibr_step = ADC_FAULT_VOLTS;
 					if (DNP_point_CmdCode == CmdCalibrateMinusGround)		// 0x29 = 41D
 						calibr_step = ADC_MINUS_GND_VOLTS;
-					if (DNP_point_CmdCode == CmdCalibrateRipleCurrent)	// 0x2A = 42D
+					if (DNP_point_CmdCode == CmdCalibrateRipleCurrent)		// 0x2A = 42D
 						calibr_step = ADC_RIPPLE_CURRENT;
 					if (DNP_point_CmdCode == CmdCalibrateRippleVolt)		// 0x2B = 43D
 						calibr_step = ADC_RIPPLE_VOLTAGE;
@@ -4645,7 +4643,7 @@ void Parse_Setup_Msg(void)
 			}
 			break;
 #endif // UNIPOLAR_INPUTS
-		case 'C':											// number of analog points
+		case 'C':								// "WC###"	// number of analog points
 			send_setup = SEND_NUM_OF_POINTS;				// send number of analog points
 			if (rt.HostRxBuff[3] == 'W')					// is it a write?
 			{
@@ -4654,23 +4652,22 @@ void Parse_Setup_Msg(void)
 				// IK20250718 this is just gimmick to convert 1,2,3,4,5 points to special values 0x11, 0x22, 0x33, 0x44, 0x55 !
 				tmpByte = (tmpByte << 4) | (tmpByte & 0x0F);// store as special value,
 				SysData.analog_points = tmpByte;			// store number of analog points
-
 				SaveToEE(SysData.analog_points);			// EEPROM_Write_byte(adr_NUM_OF_POINTS, tmpByte);      // EEPROM[165) num of channels
 			}
 			break;
-		case 'D':											// SysData.NV_UI.StartUpProtocol
+		case 'D':								// "WD###"	// SysData.NV_UI.StartUpProtocol
 			tmpByte = rt.HostRxBuff[5];
 			send_setup = SEND_PROTOCOL;						// send SysData.NV_UI.StartUpProtocol
 			if (rt.HostRxBuff[3] == 'W')					// is it a write?
 			{
-				if (tmpByte == '1')							// get SysData.NV_UI.StartUpProtocol and convert to duplicate
+				if (tmpByte == '1')							// get SysData.NV_UI.StartUpProtocol and convert to int
 					SysData.NV_UI.StartUpProtocol = DNP3;				// set to dnp
 				else if (tmpByte == '2')
 					SysData.NV_UI.StartUpProtocol = MODBUS;				// set to modbus
 				else
 					SysData.NV_UI.StartUpProtocol = ASCII_CMDS;			// set to ASCII commands
 				SaveToEE(SysData.NV_UI.StartUpProtocol);
-				rt.operating_protocol = SysData.NV_UI.StartUpProtocol;
+				// rt.operating_protocol = SysData.NV_UI.StartUpProtocol; // IK20260205 commented out because this would kick out of setup
 			}
 			break;
 		case 'E':								// "WE###" DLL number of retries, IK20250805, Battery Monitor Setup never sets it, just reads from BM and sends it back
@@ -5964,6 +5961,7 @@ void Get_EEPROM_params(void)
 Read_EE:
 	IsDataValid = EEPROM_Read_two_bytes(DATA_VALID_OFFSET + EE_SYS_DATA_OFFSET);
 	DataFWversion = EEPROM_Read_two_bytes(FW_VERSION_OFFSET + EE_SYS_DATA_OFFSET);
+	//EEPROM_Save(&SysData.NV_UI.BRate_index, 1);
 	if ((IsDataValid != 0xFFFF) && (DataFWversion == FW_VERSION))	// valid data
 	{
 		//EEPROM_Read_Mem_Block(EE_source,*destination, size);
@@ -6002,6 +6000,7 @@ void SetSysDataDefaultsInRAM(void)
 	Sp->NV_UI.ripple_I_threshold_mA_f = DEF_ripple_current_threshold;	// ripple current threshold 10 mA
 	Sp->NV_UI.alarm_delay_sec_f = INIT_time_delay;							// grace period delay after alarm condition is detected, before setting alarm
 
+	Sp->NV_UI.BRate_index = DEF_BAUD_RATE_INDEX;						// baud rate, index of default Baud_19200 ==9
 	Sp->NV_UI.baud_rate = DEF_BAUD_RATE;								// baud rate, default Baud_19200
 	Sp->NV_UI.meter_address = DEF_BAT_MONITOR_ADDR;						// battery monitor address
 	Sp->NV_UI.host_address = DEF_HOST_ADDR;								// Modbus first register / DNP host address. NOT user selectable from the menu, but from the serial interface on Comm boards
@@ -7523,10 +7522,11 @@ void SetGetProtocol(void)
 		//MODBUS = 0x02,
 		//ASCII_CMDS = 0x03,
 		//ASCII_MENU = 0x04
-		//-!- IK20260203 exclude 'setup' from SAVED startup protocol. FW always starts in 'Setup' protocol. Here it is for test
-		if (param == (('s' + 256 * 'e') + ('t' + 256 * 'u') * 65536)) // 'setup'
-			SysData.NV_UI.StartUpProtocol = SETUP; // set to 0x00
-		else if (param == (('d' + 256 * 'n') + ('p' + 256 * '3') * 65536))
+		// IK20260205 excluded // IK20260203 exclude 'setup' from SAVED startup protocol. FW always starts in 'Setup' protocol. Here it is for test
+		//if (param == (('s' + 256 * 'e') + ('t' + 256 * 'u') * 65536)) // 'setup'
+		//	SysData.NV_UI.StartUpProtocol = SETUP; // set to 0x00
+		//else 
+			if (param == (('d' + 256 * 'n') + ('p' + 256 * '3') * 65536))
 			SysData.NV_UI.StartUpProtocol = DNP3; // set to 0x01
 		else if (param == (('m' + 256 * 'o') + ('d' + 256 * 'b') * 65536))
 			SysData.NV_UI.StartUpProtocol = MODBUS; // set to 0x02
@@ -7535,7 +7535,9 @@ void SetGetProtocol(void)
 		// the 'menu' protocol is not implemented
 		//else if (param == (('m' + 256 * 'e') + ('n' + 256 * 'u') * 65536))
 		//	SysData.NV_UI.StartUpProtocol = ASCII_MENU; // set to 0x04
-		else  Send_RCI_Param_Error_as_FlashConst("Setup DNP3 ModBus ASCII");
+		else  
+			Send_RCI_Param_Error_as_FlashConst("DNP3 ModBus ASCII");
+			// Send_RCI_Param_Error_as_FlashConst("Setup DNP3 ModBus ASCII"); // IK20260205 excluded setup
 	}
 	else // ? -- get command
 	{
@@ -7803,6 +7805,14 @@ void Export_settings(void)
 		clearBit(rt.Host, (CmdVerboseResponse));
 }
 
+void SetASCIIandSignMsg(void)
+{
+	Existing.BRate_index = ASCII_BR_INDX;	// override settings from SysData.NV_UI.BRate_index with ASCII baudreate
+	Init_UART();							// call from main() after SETUP protocol timeout Set Baud and comm parameters
+	UCSR0C = 0x06;							// no UART_parity, async, 1 stop
+	Print_FW_Version();
+	PrintNewLine();
+}
 
 /********************************/
 #include "ASCII_commands.h" // IK20250609 moved commands to a separate file for easier search
@@ -7990,9 +8000,11 @@ void main(void)
 				rt.operating_protocol = SysData.NV_UI.StartUpProtocol;
 				Existing.BRate_index = SysData.NV_UI.BRate_index;	 // call from main() after SETUP protocol timeout
 				Init_UART();						// call from main() after SETUP protocol timeout Set Baud and comm parameters
+				display_mode = VOLTS;				// IK20260205 after 6 sec of SETUP and shoving "ARGA", switch to show "BAT" voltage
 
 				if (rt.operating_protocol == MODBUS)					// @ 9600 baud
 				{
+					rt.protocol_parity = SysData.app_confirm;			// IK20260205 update realtime copy of MODBUS parity
 					if (rt.protocol_parity == EVEN)						// ==1? is rt.UART_parity even?
 						UCSR0C = 0x26;									// make it even
 					if (rt.protocol_parity == ODD)						// ==2? is SysData.UART_parity odd?
@@ -8006,12 +8018,7 @@ void main(void)
 				}
 				else // (rt.operating_protocol == ASCII)
 				{
-					// override settings from SysData.NV_UI.BRate_index with ASCII baudreate
-					Existing.BRate_index = ASCII_BR_INDX;
-					Init_UART();						// call from main() after SETUP protocol timeout Set Baud and comm parameters
-					UCSR0C = 0x06;										// no UART_parity, async, 1 stop
-					Print_FW_Version();
-					PrintNewLine();
+					SetASCIIandSignMsg();
 				}
 			}	// end of if ((timer.start_up == 0) 
 		}		// && (rt.operating_protocol == SETUP)) //start up timed out

@@ -312,7 +312,7 @@ void ProcessUPbutton() {
 
 			else if (display_mode == CAL_V_BAT)
 			{
-				if (SysData.Bat_Cal_Offset_Volts_f < SysData.NV_UI.plus_gf_threshold_V_f)			// IK20251110 limit the adjustable range
+				if (SysData.Bat_Cal_Offset_Volts_f < SysData.NV_UI.plus_gf_threshold_V_f)	// IK20251110 limit the adjustable range
 				{
 					SysData.Bat_Cal_Offset_Volts_f += 0.1f;
 					SaveToEE(SysData.Bat_Cal_Offset_Volts_f);								// Store the bat offset in EEPROM
@@ -528,7 +528,7 @@ void ProcessDOWNbutton() {
 
 			else if (display_mode == SELECT_PROTOCOL)
 			{
-				if (SysData.NV_UI.StartUpProtocol > SETUP)			// IK20251110 limit the adjustable range
+				if (SysData.NV_UI.StartUpProtocol > DNP3)									// IK20260205 limit the adjustable range, exclude setup
 				{
 					SysData.NV_UI.StartUpProtocol -= PROTOCOL_SELECTION_INC_DEC;
 					SaveToEE(SysData.NV_UI.StartUpProtocol);								// Store the protocol in EEPROM
@@ -559,7 +559,7 @@ void ProcessDOWNbutton() {
 			{
 				if (Existing.BRate_index > (Last_Baud_Index - 1))
 					Existing.BRate_index = Last_Baud_Index - 1;						// Ensure Existing.BRate_index does not exceed the maximum index
-				if (Existing.BRate_index > Baud_300_i)
+				if (Existing.BRate_index > Baud_300_i) //IK202060205 BRate_index > 0
 					Existing.BRate_index--;											// Decrement baud rate index
 				Init_UART();
 			}
@@ -1084,16 +1084,6 @@ void DisplayPrepare(void)
 	}
 	else if (display_mode == SELECT_PROTOCOL) {
 		CopyConstString("PrtCL", Display_Info.DigitalStr);
-		//if (SysData.NV_UI.StartUpProtocol == SETUP)
-		//	CopyConstString("SEtuP", Display_Info.DigitalStr);
-		//else if (SysData.NV_UI.StartUpProtocol == DNP3)
-		//	CopyConstString("DnP-3", Display_Info.DigitalStr);
-		//else if (SysData.NV_UI.StartUpProtocol == MODBUS)
-		//	CopyConstString("Modbu", Display_Info.DigitalStr);
-		//else if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS)
-		//	CopyConstString("ASCII", Display_Info.DigitalStr);
-		//else
-		//	CopyConstString("SELCT", Display_Info.DigitalStr);
 	}
 	else if (display_value > NoShow) // "do not show" value is -999.9f, if greater - show value on numeral display
 	{
@@ -1225,7 +1215,6 @@ void DisplayPrepare(void)
 	}
 	else if (display_mode == SELECT_PROTOCOL) // -!- IK20260204 it overrides the normal protocol display to show current protocol and temporary changes baudrate
 	{
-
 		if (SysData.NV_UI.StartUpProtocol == DNP3) {
 			p_InfoStr = ("DNP3");
 			Existing.BRate_index = Baud_19200_i;
@@ -1241,13 +1230,15 @@ void DisplayPrepare(void)
 		else // default to SETUP
 		// if (SysData.NV_UI.StartUpProtocol == SETUP)
 		{
-			SysData.NV_UI.StartUpProtocol = SETUP;
 			p_InfoStr = ("INIT");
-			timer.TWI_lockup = 13000;						// set twi lockup tmr to 13 sec
-			timer.start_up_ms = 6000;						// setup SysData.NV_UI.StartUpProtocol for 6 seconds
-			Existing.BRate_index = Baud_9600_i;
+			rt.operating_protocol = SETUP;
+			if (timer.start_up_ms == 0)		// IK20260205 means after 6 sec of setup protocol
+			{
+				timer.TWI_lockup = 13000;						// set twi lockup tmr to 13 sec
+				timer.start_up_ms = 6000;						// setup SysData.NV_UI.StartUpProtocol for 6 seconds
+				Existing.BRate_index = Baud_9600_i;
+			}
 		}
-		Init_UART(); // IK20251210 set baud rate according to selected protocol
 
 		if (rt.operating_protocol != SysData.NV_UI.StartUpProtocol) {
 #ifdef PC
@@ -1259,6 +1250,7 @@ void DisplayPrepare(void)
 			rt.UBRR0_setting = Calculate_USART_UBRRregister((Uint32)Existing.baud_rate); // IK20251217 in main(), the difference will be detected and applied
 			rt.HostRxBuffPtr = rt.EchoRxBuffPtr = 0;	//IK20251219 reset buffer pointer
 			msg_status = MSG_DONE;	// and status of message -> anew
+			Init_UART(); // IK20251210 set baud rate according to selected protocol
 		}
 	}
 	else

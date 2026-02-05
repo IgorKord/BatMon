@@ -1,3 +1,7 @@
+20260205 IK
+continued testing and fixing firmware
+now protocol change happen rather quick, from DNP3 to ASCII. appears as changing on press and on release
+
 20260203 IK
 Tried "soft landing" of auto decrement when value becomes less than delta which might be 10 or 100.
 In such case delta is decreased to smaller vaalue 100->10->1->0.1

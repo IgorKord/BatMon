@@ -85,10 +85,10 @@ typedef struct                      // this structure must be initialized, DO NO
 	float ripple_V_threshold_mV_f;	// 0x010 ripple voltage in mVolts, , menu changes value by 1 mV increments/decrements
 	float ripple_I_threshold_mA_f;	// 0x014 ripple current in mAmperes, menu changes value by 1 mA increments/decrements
 	float alarm_delay_sec_f;		// 0x018 grace period delay from event is triggered until alarm is set, menu changes value by 1 sec increments/decrements
-	float baud_rate;				// 0x01C baud rate, default is Baud_19200. //IK20250826 included 115200, thus, need Uint32, menu changes value based on a list of possible baud rates
 	float meter_address;			// 0x020 battery monitor address, menu changes value by 1 increment/decrement. If hold longer, changes by 10, even longer - by 100
+	float baud_rate;				// 0x01C baud rate, default is Baud_19200. //IK20250826 included 115200, thus, need Uint32, menu changes value based on a list of possible baud rates
+	Schar  BRate_index;				// IK202601714 index of baud rate in Baud_Rates[] array, used to set SysData.NV_UI.baud_rate and Existing.baud_rate. if -1, (negative), it is 0xFF -unprogrammed EEPROM
 	uint8  StartUpProtocol;			// 0x024 only valid values:    SETUP = 0x00,	DNP3 = 0x01,	MODBUS = 0x02,	ASCII_CMDS = 0x03,	ASCII_MENU = 0x04
-	uint8  BRate_index;				// IK202601714 index of baud rate in Baud_Rates[] array, used to set SysData.NV_UI.baud_rate and Existing.baud_rate
 	//uint8  UART_parity;				// 0x025 only valid values 0 = NONE; 1 = EVEN; 2 = ODD
 	uint8  unit_type;				// 0x026 only valid values 24, 48, 125, 250
 	uint8  unit_index;				// 0x027 corresponds to unit_type, range (0...3), used to access array Alarm_Limits[]
