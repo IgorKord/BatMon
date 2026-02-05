@@ -39,20 +39,20 @@ converted to float first, then multiplied by 4.0.
 this code with float multiplication takes extra 8 bits vs using long, below
 
 		//long t_long; // ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
-		if (BaudRateIndex < (Last_Baud_Index - 1))
-			BaudRateIndex++;													// Increment baud rate index
+		if (Existing.BRate_index < (Last_Baud_Index - 1))
+			Existing.BRate_index++;													// Increment baud rate index
 		else
-			BaudRateIndex = (Last_Baud_Index - 1);								// Ensure BaudRateIndex does not exceed the maximum index
-		//t_long = Baud_Rates[BaudRateIndex]; // IK20251224 ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
-		Existing.baud_rate = Baud_Rates[BaudRateIndex] * 4.0f;					// IK20250826  Baud_Rates are saved divided by 4 to keep values inside uint16 range
+			Existing.BRate_index = (Last_Baud_Index - 1);								// Ensure Existing.BRate_index does not exceed the maximum index
+		//t_long = Baud_Rates[Existing.BRate_index]; // IK20251224 ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
+		Existing.baud_rate = Baud_Rates[Existing.BRate_index] * 4.0f;					// IK20250826  Baud_Rates are saved divided by 4 to keep values inside uint16 range
 
 // using long
 		long t_long; // ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
-		if (BaudRateIndex < (Last_Baud_Index - 1))
-			BaudRateIndex++;													// Increment baud rate index
+		if (Existing.BRate_index < (Last_Baud_Index - 1))
+			Existing.BRate_index++;													// Increment baud rate index
 		else
-			BaudRateIndex = (Last_Baud_Index - 1);								// Ensure BaudRateIndex does not exceed the maximum index
-		t_long = Baud_Rates[BaudRateIndex]; // IK20251224 ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
+			Existing.BRate_index = (Last_Baud_Index - 1);								// Ensure Existing.BRate_index does not exceed the maximum index
+		t_long = Baud_Rates[Existing.BRate_index]; // IK20251224 ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
 		Existing.baud_rate = t_long<<2;					// IK20250826  Baud_Rates are saved divided by 4 to keep values inside uint16 range
 
 

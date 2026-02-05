@@ -39,99 +39,10 @@
 
 //#define HOST_RX_BUFF_LEN				32		// Host Rx & LCD buff length
 //#define HOST_TX_BUFF_LEN			128		// Host Tx buff length should be capable to output one terminal line 80 chars
-#define HOST_RX_BUFF_LEN    256 // IK20241224 was 292	// Host Rx buff length
-#define HOST_XMT_BUFF_LEN   256 // IK20241224 was 250	// Host Tx buff length should be capable to output one terminal line 80 chars
+#define HOST_RX_BUFF_LEN		256 // IK20241224 was 292	// Host Rx buff length
+#define HOST_XMT_BUFF_LEN		256 // IK20241224 was 250	// Host Tx buff length should be capable to output one terminal line 80 chars
 
-
-// EEPROM            byte address   // var type size
 #define EE_SYS_DATA_OFFSET		256	// 0x100
-#define adr_cal1_low_meas		60	// float    4    // Battery Voltage calibration
-#define adr_cal3_calptlow		64	// float    4
-#define adr_cal2_high_meas		68	// float    4
-#define adr_cal4_calpthigh		72	// float    4
-
-#define adr_cal5_low_meas		76	// float    4    // Fault voltage correction factor info
-#define adr_cal7_calptlow		80	// float    4
-#define adr_cal6_high_meas		84	// float    4
-#define adr_cal8_calpthigh		88	// float    4
-
-#define adr_cal9_low_meas		92	// float    4     // Minus Grnd voltage correction factor info
-#define adr_cal11_calptlow		96 	// float    4
-#define adr_cal10_high_meas		100	// float    4
-#define adr_cal12_calpthigh		104	// float    4
-
-#define D_adr_high_bat_thresholdHi			16	// uint16   2
-#define D_adr_high_bat_thresholdLo			17	//-!- address is not adjacent!
-
-#define D_adr_low_bat_thresholdHi			18	// uint16   2
-#define D_adr_low_bat_thresholdLo			19
-
-#define D_adr_plus_GF_thresholdHi			20	// uint16   2
-#define D_adr_plus_GF_thresholdLo			21
-
-#define D_adr_minusGFthresholdHi 			22	// uint16   2
-#define D_adr_minusGFthresholdLo 			23
-
-#define D_adr_ripple_voltage_threshold_Hi	24	// uint16   2
-#define D_adr_ripple_voltage_threshold_Lo	25
-
-#define D_adr_ripple_current_threshold_Hi	26	// uint16   2
-#define D_adr_ripple_current_threshold_Lo	27
-
-#define D_adr_time_delay_Hi					28	// uint16   2
-#define D_adr_time_delay_Lo					29
-
-#define D_adr_phase							32	// uint8   1
-#define D_adr_pulse							33	// uint8   1
-#define D_adr_buzzer						34	// uint8   1
-#define D_adr_latch_state					35	// uint8   1
-#define D_adr_disabled_alarms				36	// uint8   1
-
-#define adr_calrv1_low_meas		108	// float    4     // single phase ripple voltage calibration
-#define adr_calrv3_calptlow		112	// float    4
-#define adr_calrv2_high_meas	116	// float    4
-#define adr_calrv4_calpthigh	120	// float    4
-
-#define adr_calri1_low_meas		124	// float    4     // single phase ripple current calibration
-#define adr_calri3_calptlow		128	// float    4
-#define adr_calri2_high_meas	132	// float    4
-#define adr_calri4_calpthigh	136	// float    4
-
-#define adr_v_cal_f				140	// float    4     // battery offset
-#define adr_V4					144	// uint8    1     // 4mA voltage point (V4)
-#define adr_V20L				145	// uint16   1     //-!- FIX! 20 ma voltage point (V20) Low byte
-#define adr_cal14_dc4_cal		146	// float    4     // duty cycle for low mA voltage point (DC4)
-
-#define adr_cal15_dc20_cal		150	// float    4     // duty cycle for high mA voltage point (DC20)
-#define adr_METER_ADDR			154	// uint16   2     // battery monitor address
-#define adr_HOST_ADDR			156	// uint16   2     // Modbus first register
-#define adr_DLL_TIMEOUT			158	// uint16   2     // dll timeout
-#define adr_XMT_DELAY			160	// uint16   2     // xmt delay
-#define adr_INTER_CHAR			162	// uint16   2     // inter-char gap
-#define D_adr_unit_type			163	// uint8   1 <<< address is the same for Comm board and for Display board
-#define adr_PROTOCOL			164	// uint8    1     // protocol byte
-#define adr_NUM_OF_POINTS		165	// uint8    1     // num of channels
-#define adr_CHANNEL_ONE			166	// uint8    1     // channel 1 EEPROM address, channel one type i.e. bipolar or unipolar
-#define adr_CHANNEL_TWO			167	// uint8    1     // channel 2 EEPROM address, channel one type i.e. bipolar or unipolar
-#define adr_CHANNEL_THREE		168	// uint8    1     // channel 3 EEPROM address, channel one type i.e. bipolar or unipolar
-#define adr_CHANNEL_FOUR		169	// uint8    1     // channel 4 EEPROM address, channel one type i.e. bipolar or unipolar
-#define adr_CHANNEL_FIVE		170	// uint8    1     // channel 5 EEPROM address, channel one type i.e. bipolar or unipolar
-#define adr_DLL_CONFIRM			171	// uint8    1     // dll confirm status
-#define adr_BAUD_RATE			172	// uint16   2     // baud rate
-#define adr_APP_STATUS			174	// uint8    1     // Modbus UART_parity
-#define adr_DLL_NUM_OF_RETRIES	175	// uint8    1     // dll retries
-#define adr_MONITOR_V_RANGE		176	// uint8    1     // BM Voltage Range (hardware - defined): if ((SysData.NV_UI.unit_type != 24) && (SysData.NV_UI.unit_type != 48) && (SysData.NV_UI.unit_type != 125) && (SysData.NV_UI.unit_type != 250)) SysData.NV_UI.unit_type = 125;
-#define adr_V20H				177	//-!- FIX! 20 ma voltage point (V20) High byte
-#define adr_true_1mA_false_20mA	191 // uint8    1     // NOT USED
-
-#define adr_calrv5_low_meas		208	// float    4     three phase ripple voltage calibration
-#define adr_calrv7_calptlow		212	// float    4
-#define adr_calrv6_high_meas	216	// float    4
-#define adr_calrv8_calpthigh	220	// float    4
-#define adr_calri5_low_meas		224	// float    4     3 phase ripple current calibration
-#define adr_calri7_calptlow		228	// float    4
-#define adr_calri6_high_meas	232	// float    4
-#define adr_calri8_calpthigh	236	// float    4
 
 #define MAX_ADC_CHANNELS		8
 

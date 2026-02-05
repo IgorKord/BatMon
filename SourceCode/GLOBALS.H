@@ -773,22 +773,22 @@ enum Baud_Rate_Setting
 };
 enum Baud_Rate_index
 {
-   Baud_300_i = 0,    // 0
-   Baud_600_i,        // 1
-   Baud_1200_i,       // 2
-   Baud_1800_i,       // 3
-   Baud_2400_i,       // 4
-   Baud_3600_i,       // 5
-   Baud_4800_i,       // 6
-   Baud_9600_i,       // 7
-   Baud_14400_i,      // 8
-   Baud_19200_i,      // 9
-   Baud_115200_i,     // 10
-   Last_Baud_Index    // 11 - not a baud rate, just number of items in array
+	INVALID_BR_INDEX = -1, // -1
+	Baud_300_i = 0,    // 0
+	Baud_600_i,        // 1
+	Baud_1200_i,       // 2
+	Baud_1800_i,       // 3
+	Baud_2400_i,       // 4
+	Baud_3600_i,       // 5
+	Baud_4800_i,       // 6
+	Baud_9600_i,       // 7
+	Baud_14400_i,      // 8
+	Baud_19200_i,      // 9
+	Baud_115200_i,     // 10
+	Last_Baud_Index    // 11 - not a baud rate, just number of items in array
 };
-
+#define ASCII_BR_INDX	Baud_115200_i   // default baud rate for ASCII commands
 extern uint16 const Baud_Rates[Last_Baud_Index];	// IK20250724 to simplify baud rate selection
-extern uint8   BaudRateIndex; 					// IK20250724 index of baud rate in Baud_Rates[] array, used to set SysData.NV_UI.baud_rate
 
 /*--------- Protocols ------------------------*/
 enum Protocols	//-!- IK CHANGE to regular number
@@ -1105,8 +1105,8 @@ uint16 PutStr(const char* Str);
 uint16 CopyConstString(const char FL* str_f_ptr, char* dest);
 void Set_USART_UBBRregister(Uint32 BaudRate); // IK20250206
 uint16 Calculate_USART_UBRRregister(Uint32 BaudRate) ;
-void Set_and_Save_New_BaudRateIndex(uint8 BR_index);
-void Init_UART(void);
+void Set_and_Save_New_BaudRate(uint8 BR_index);
+void Init_UART();
 /* without redefining sprintf IAR gives warning
 	Warning[w6]: Type conflict for external/entry "SPRINT_F", in module "Front_menu" against external/entry in module "main" ; prototyped function vs K&R function   // In module Front_menu: //
 	  // K&R Function, args 0, attr 0 //

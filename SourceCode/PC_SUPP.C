@@ -1526,7 +1526,6 @@ int get_PC_key(char* key)
 				else if (ch == MENU_RETURN)   setBit(s, BUTTON_BIT_LEFT);  /* G, 0x47, 71D, "home" BACK or LEFT*/
 				else if (ch == CURSOR_PLUS)   setBit(s, BUTTON_BIT_UP);    /* I, 0x49, 73D, "page up" */
 				else if (ch == CURSOR_MINUS)  setBit(s, BUTTON_BIT_DOWN);  /* Q, 0x51, 81D, "page down" */
-				// else if (((int)ch & 0x00FF) == 0x0086)	 clearBit(s, KEY_SECRET_COMBINATION); //VC does not like char's upper bit=1, considering it is negative char
 				else return(0); //no button recognized
 
 				//s = s & 0xFF; //mask to have byte

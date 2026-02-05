@@ -182,6 +182,7 @@ struct twi_variables twi_send;
 
 #define DEF_XMT_DELAY			30			// default xmt delay(response delay)  // ms
 #define DEF_BAUD_RATE			Baud_19200	// default baud rate
+#define DEF_BAUD_RATE_INDEX		Baud_19200_i	// default baud rate
 
 // IK20250623 default values moved to Globals.h
 //
@@ -354,7 +355,6 @@ enum ECHO_STATE {
 uint8  EchoStatus;                         // true - send echo back to COM port, false (default) - no echo
 
 /*----------- word definitions -----------*/
-uint8 BaudRateIndex; // IK20250724 index of baud rate in Baud_Rates[] array, used to set SysData.NV_UI.baud_rate and Existing.baud_rate
 
 //---- Event variables
 uint8  event_type;
@@ -472,19 +472,58 @@ double AddNoise(double InVal, double NSR)
 }
 
 #endif // PC
-// IK20260114 function to set and save in the SysData and EEPROM a new baud rate based on index in Baud_Rates[] array
-void Set_and_Save_New_BaudRateIndex(uint8 BR_index)
+
+/// <summary>
+/// Intend to set baud rate for USART communication temporary while changing protocols, or directly by a command.
+/// if protocol get changed, the baud rate is set from SysData.NV_UI settings.
+/// Sets the baud rate for USART communication based on the provided baud rate index.
+/// Updates UART baud rate register, save the settings in the Existing structure,
+/// but DOES NOT save the settings in the SysData.NV_UI structure.
+/// </summary>
+/// <param name="BR_index">The index into the baud rate table. If the index is out of range, defaults to 19200 baud (Baud_19200_i).</param>
+/// <returns>The actual baud rate value that was set, calculated by shifting the table value left by 2 bits.</returns>
+Uint32 Set_BaudRate(uint8 BR_index)
 {
 	Uint32 BaudRate;
 	if (BR_index >= Last_Baud_Index) {
 		BR_index = Baud_19200_i; // default
 	}
-	BaudRate = (Uint32)Baud_Rates[BR_index] << 2; // IK20250724 restore full baud rate value by shifting left 2
-	//Existing.baud_rate = BaudRate;
+	BaudRate = (Uint32)Baud_Rates[BR_index] << 2;	// IK20250724 restore full baud rate value by shifting left 2
+	Existing.baud_rate = BaudRate;
 	Existing.BRate_index = BR_index;
+	Set_USART_UBBRregister(BaudRate);
+	return BaudRate;
+}
+
+/// <summary>
+/// IK20260114 function saves in the SysData.NV_UI and in EEPROM 
+/// a new BR_index and baud rate based on Baud_Rates[BR_index] array
+/// if index is outside the range, it is set to default Baud_19200_i
+/// </summary>
+/// <param name="BR_index">index = enum of Baud_Rate_index, between 0 and Last_Baud_Index</param>
+void Save_BaudRate_To_EEPROM(uint8 BR_index)
+{
+	Uint32 BaudRate = (Uint32)Baud_Rates[BR_index] << 2;	// IK20250724 restore full baud rate value by shifting left 2
+
+	SysData.NV_UI.baud_rate = BaudRate;
+	SaveToEE(SysData.NV_UI.baud_rate);				// Store the new baud rate in EEPROM
 	SysData.NV_UI.BRate_index = BR_index;
 	SaveToEE(SysData.NV_UI.BRate_index);			// Store the new baud rate index in EEPROM
-	rt.UBRR0_setting = Calculate_USART_UBRRregister((Uint32)SysData.NV_UI.baud_rate); // IK20251217 in main(), the difference will be detected and applied
+}
+
+/// <summary>
+/// Finds the index of a baud rate value in the baud rate lookup table.
+/// </summary>
+/// <param name="BaudRateVal">The baud rate value to search for (expected to be left-shifted by 2 positions).</param>
+/// <returns>The index of the matching baud rate in the Baud_Rates[] array, or -1 if not found.</returns>
+signed char Find_BR_index(Uint32 BaudRateVal) {
+	uint8 i;
+	for (i = 0; i < Last_Baud_Index; i++)
+	{
+		if (((Uint32)Baud_Rates[i] << 2) == BaudRateVal)
+			return i;
+	}
+	return (signed char)-1;
 }
 
 uint16 Calculate_USART_UBRRregister(Uint32 BaudRate) // IK20250206
@@ -1869,6 +1908,31 @@ void Write_LEDs_OnDisplayBoard (uint8 LED_Buzz_bits)
 		}
 	}
 #endif //PC
+}
+
+void SetCurrentLoopVoltagePoints()
+{
+	if (SysData.NV_UI.unit_type == UNIT_24V)
+	{
+		SysData.NV_UI.V20 = 36;								// = 24 * 1.5
+		SysData.NV_UI.V4 = 18;								// = 24 * 0.75
+	}
+	else if (SysData.NV_UI.unit_type == UNIT_48V)
+	{
+		SysData.NV_UI.V20 = 72;								// = 48 * 1.5
+		SysData.NV_UI.V4 = 36;								// = 48 * 0.75
+	}
+	else if (SysData.NV_UI.unit_type == UNIT_250V)
+	{
+		SysData.NV_UI.V20 = 360;							// = 250 * 1.44
+		SysData.NV_UI.V4 = 180;								// = 250 * 0.72
+	}
+	else // it ought to be 125V
+	{
+		SysData.NV_UI.unit_type = UNIT_125V;				// Just in case, set default value UNIT_125V)
+		SysData.NV_UI.V20 = 180;							// = 125 * 1.44
+		SysData.NV_UI.V4 = 90;								// = 125 * 0.72
+	}
 }
 
 /***************************************************************************
@@ -3902,38 +3966,12 @@ DNP_App(void)
 					{
 						calibr_step = NOT_A_CALIBRATION;
 						SysData.NV_UI.unit_type = (uint8)tmp_cal;			// value determines hi calibration pt
-						//SysData.NV_UI.V20 = 180;								// default for 125 volt unit
-						//SysData.NV_UI.V4 = 90;
-						if (SysData.NV_UI.unit_type == 24)
-						{
-							SysData.NV_UI.V20 = 36;								// = 24 * 1.5
-							SysData.NV_UI.V4 = 18;								// = 24 * 0.75
-						}
-						else if (SysData.NV_UI.unit_type == 48)
-						{
-							SysData.NV_UI.V20 = 72;								// = 48 * 1.5
-							SysData.NV_UI.V4 = 36;								// = 48 * 0.75
-						}
-						else if (SysData.NV_UI.unit_type == 250)
-						{
-							SysData.NV_UI.V20 = 360;								// = 250 * 1.44
-							SysData.NV_UI.V4 = 180;								// = 250 * 0.72
-						}
-						else// (SysData.NV_UI.unit_type == 125)
-						{
-							SysData.NV_UI.V20 = 180;								// = 125 * 1.44
-							SysData.NV_UI.V4 = 90;								// = 125 * 0.72
-						}
-
+						SetCurrentLoopVoltagePoints();
 						__disable_interrupt();
 
-						SaveToEE(SysData.NV_UI.V4);	// EEPROM_Write_byte(adr_V4, SysData.NV_UI.V4);       //-!- FIX IK20231210 EEPROM[144] SysData.NV_UI.V4 only lower byte
-						SaveToEE(SysData.NV_UI.V20);	// EEPROM_Write_byte(adr_V20L, SysData.NV_UI.V20);    //-!- FIX IK20231210 EEPROM[145] V20L only lower byte, upper byte at (177)
-						//EEPROM_Write_byte(adr_V20H, SysData.NV_UI.V20>>8); //-!- FIX IK20231210 EEPROM[177] V20H high byte, not adjasent to lower byte at (145)
-						SaveToEE(SysData.NV_UI.unit_type);	// EEPROM_Write_byte(adr_MONITOR_V_RANGE, SysData.NV_UI.unit_type);    // EEPROM[176] store at EEPROM high cal
-#ifndef USE_SysData
-#else
-#endif
+						SaveToEE(SysData.NV_UI.V4);
+						SaveToEE(SysData.NV_UI.V20);
+						SaveToEE(SysData.NV_UI.unit_type);
 						__enable_interrupt();								// enable global interrupts
 					}
 					if (DNP_point_CmdCode == CmdSetPwmControl)			// 0x2D = 45D //PWM Command Instruction
@@ -3999,9 +4037,9 @@ DNP_App(void)
 								SysData.RippleVolts3ph.Y2_highCalibrVal = (float)tmp_cal * 0.001f;
 						}
 						cal_status |= RECEIVED_EXT_HI_VALUE;						// = setBit(cal_status, Bit_1);
-						timer.Calibration = DEF_CALIBRATION_DELAY;					//-!- give it ? 15s ? to get an ADC reading IK20250812 should be enough 1.5 sec.
+						timer.Calibration = DEF_CALIBRATION_DELAY;					// give it 1.5s to get an ADC reading IK20250812 should be enough 1.5 sec.
 					}
-					else															// is low cal
+					else	/////////////////////////////////////////////////////// // is low cal
 					{
 						if (calibr_step == ADC_BATT_VOLTS)
 							SysData.BatteryVolts.Y1_lowCalibrVal = (float)tmp_cal;
@@ -4642,7 +4680,7 @@ void Parse_Setup_Msg(void)
 				if (Is_Numeric(&rt.HostRxBuff[5]) == true)	// can be converted into numeric
 				{
 					int tmp_int = atol(&rt.HostRxBuff[5]);
-					if ((tmp_int < 0) || (tmp_int > 255))	//-!- IK20250811 what is the ma number of retries?
+					if ((tmp_int < 0) || (tmp_int > 255))	//-!- IK20250811 what is the max number of retries?
 						break;
 					else
 						SysData.dll_retries = tmp_int;
@@ -4802,11 +4840,16 @@ void Parse_Setup_Msg(void)
 				if (Is_Numeric(&rt.HostRxBuff[5]) == true)	// can be converted into numeric
 				{
 					Uint32 tmp_int = atol(&rt.HostRxBuff[5]);
-					if ((tmp_int < Baud_300) || (tmp_int > Baud_115200))  //-!- IK20260114 NEED TO SAVE BaudRateIndex
+					if ((tmp_int < Baud_300) || (tmp_int > Baud_115200))  //-!- IK20260114 NEED TO SAVE Existing.BRate_index
 						break;
 					else
-						SysData.NV_UI.baud_rate = tmp_int;
-						Existing.baud_rate = tmp_int;
+					{
+						int result = Find_BR_index (tmp_int); // IK20260114 find index corresponding to baud rate
+						if (result == INVALID_BR_INDEX)
+							break;
+
+						Save_BaudRate_To_EEPROM(result); // -!- IK20260204 permanently saves nex BR_index and new baudrate into SysData.NV_UI
+					}
 				}
 
 				// Set operating baud and inter char gap to match
@@ -5738,7 +5781,7 @@ void EEPROM_Save(void* StartAdr, uint16 BitSize)
 }
 
 /// <summary>
-/// Function loads variables from EEPROM, struct EEPROM_SysData to RAM-located SysData, calculates offset of start address vs &SysData
+/// Function loads variables from EEPROM, from struct EEPROM_SysData to RAM-located SysData, calculates offset of start address vs &SysData
 /// The read addreess is automatically calculated from &EEPROM_SysData.
 /// </summary>
 /// <param name="StartAdr"> start address, must be in RAM-located SysData</param>
@@ -5906,8 +5949,13 @@ void EEPROM_Write_byte(uint16 EEaddress, uint8 value) // IK20231214
 	EECR |= 0x04;									// enable master write
 	EECR |= 0x02;									// write data
 }
-//IK20250825 call this function ONLY AFTER the default parameters in SysData are set
-// in case of empty EEPROM, function saves default parameters to EEPROM
+
+/// <summary>
+/// IK20250825 Checks if EEPROM has valid data, then retrieves system parameters from EEPROM into SysData struct in RAM
+/// call this function ONLY AFTER the default parameters in SysData are set
+/// because in case of empty EEPROM, function saves default parameters to EEPROM.
+/// </summary>
+/// <param name=""></param>
 void Get_EEPROM_params(void)
 {
 	uint8 EE_reads = 0;
@@ -5957,10 +6005,10 @@ void SetSysDataDefaultsInRAM(void)
 	Sp->NV_UI.baud_rate = DEF_BAUD_RATE;								// baud rate, default Baud_19200
 	Sp->NV_UI.meter_address = DEF_BAT_MONITOR_ADDR;						// battery monitor address
 	Sp->NV_UI.host_address = DEF_HOST_ADDR;								// Modbus first register / DNP host address. NOT user selectable from the menu, but from the serial interface on Comm boards
-	Sp->NV_UI.unit_type = 125;											//-!- BatMon_V_range type of unit (hardware - defined): if ((SysData.NV_UI.unit_type != 24) && (SysData.NV_UI.unit_type != 48) && (SysData.NV_UI.unit_type != 125) && (SysData.NV_UI.unit_type != 250)) SysData.NV_UI.unit_type = 125;
-	Sp->NV_UI.unit_index = index125;
-	Sp->NV_UI.V4 = 90;										// 0x028  2  // 4mA voltage point (SysData.NV_UI.V4)
-	Sp->NV_UI.V20 = 180;										// 0x02A  2  // 20 ma voltage point (SysData.NV_UI.V20) Low byte
+	Sp->NV_UI.unit_type = UNIT_125V;									//-!- BatMon_V_range type of unit (hardware - defined): if ((SysData.NV_UI.unit_type != 24) && (SysData.NV_UI.unit_type != 48) && (SysData.NV_UI.unit_type != 125) && (SysData.NV_UI.unit_type != 250)) SysData.NV_UI.unit_type = 125;
+	Sp->NV_UI.unit_index = index125;									// corresponds to unit_type, range (0...3), used to access array Alarm_Limits[]
+	Sp->NV_UI.V4 = 90;													// 0x028  2  // 4mA voltage point (SysData.NV_UI.V4)
+	Sp->NV_UI.V20 = 180;												// 0x02A  2  // 20 ma voltage point (SysData.NV_UI.V20) Low byte
 	setBit(Sp->NV_UI.disabled_alarms, DIS_ALARM_ALL_BITS) ;				// DisAllow alarms by setting all "disable" bits
 	clearBit(SysData.NV_UI.SavedStatusWord, (Buzzer_ON_eq1_Bit | Latch_ON_eq1_Bit | SinglePhase_eq0_3ph_eq1_Bit | CurOut_I420_eq0_I01_eq1_Bit));	// no buzzer or latch alarms, 1-phase, 4-20 mA output
 
@@ -6085,7 +6133,7 @@ void Init_Parameters(void)
 
 	Get_EEPROM_params(); // IK20240104 than, GET SYSTEM PARAMETERS FROM FLASH if data is valid
 
-	// IK20250808 check validity of EEPROM data copied to SysData 
+	SetCurrentLoopVoltagePoints();
 
 	// *** Now check 4-20 ma calibration *****
 	// ***  check duty cycle for low mA voltage point (DC4)    ****
@@ -6096,42 +6144,17 @@ void Init_Parameters(void)
 	if ((isnan(SysData.CurrentOut_I420.Y2_highCalibrVal)) || (SysData.CurrentOut_I420.Y2_highCalibrVal < 0.1f) || (SysData.CurrentOut_I420.Y2_highCalibrVal > 1.1f)) // the "FF FF FF FF"" accessed as a float gives -NAN
 		SysData.CurrentOut_I420.Y2_highCalibrVal = 0.3333f;			// default if out of range
 
-	// ***  check bat offset    ****/
-	LoadFromEE(SysData.Bat_Cal_Offset_Volts_f); // EEPROM_Read_float(adr_v_cal_f);		// EEPROM[140] = 0.0
-
+	// ***      check Battery voltage correction factor info    ***
 	if (isnan(SysData.Bat_Cal_Offset_Volts_f)) // IK20231218 empty EEPROM? the "FF FF FF FF"" accessed as a float gives -NAN
 		SysData.Bat_Cal_Offset_Volts_f = 0;								// make it zero
 	__disable_interrupt();							// store three copies
 
-	// ***      check Battery voltage correction factor info    ***
-
-	display_mode = INIT;							// set to start off with init screen
-
-	if (SysData.NV_UI.unit_type == 24)
-	{
-		SysData.NV_UI.V20 = 36;
-		SysData.NV_UI.V4 = 18;
-	}
-	else if (SysData.NV_UI.unit_type == 48)
-	{
-		SysData.NV_UI.V20 = 72;
-		SysData.NV_UI.V4 = 36;
-	}
-	else if (SysData.NV_UI.unit_type == 250)
-	{
-		SysData.NV_UI.V20 = 360;
-		SysData.NV_UI.V4 = 180;
-	}
-	else
-	{
-		SysData.NV_UI.unit_type = 125;
-		SysData.NV_UI.V4 = 90;										// default
-		SysData.NV_UI.V20 = 180;									// default
-	}
+	display_mode = INIT;							// set to start off with init screen, shows "ARGA"
 
 	iien1 = 0x80;                              // set restart
 	iien2 = 0;                                 // clr iin2
 
+	Existing.BRate_index = SysData.NV_UI.BRate_index; // call from Init_Parameters() after Get_EEPROM_params()
 	Init_UART();
 	__enable_interrupt();												// enable global interrupts
 }
@@ -6192,23 +6215,21 @@ void WDT_set_2sec_interrupt(void)
 	__enable_interrupt();
 }
 
+/// <summary>
+/// function checks and initializes UART baud rate then saves in the SysData.NV_UI and in EEPROM 
+/// if index is outside the range, it is set to default Baud_19200_i
+/// a new BR_index and baud rate based on Baud_Rates[BR_index] array
+/// Then it intialyzes UART baudrate register
+/// </summary>
+/// <param name="BR_index"> index to address Baud_Rates[BR_index]</param>
 void Init_UART() {
-	int c;
+	uint8 c;
+	Uint32 t_long;
 	UCSR0C = 0x06;									// no UART_parity, async, 1 stop
 	UCSR0A = 0x20;									// redundant because it is set a reset anyway
-	UCSR0B = 0x98;									// enable rcv & xmt,
-/*-------- Set up COMMS for setup SysData.NV_UI.StartUpProtocol ----*/
-#ifdef ASCII_TESTING
-	rt.operating_protocol = ASCII_CMDS;		//-!- IK20241222 overwrite for test
-	Existing.baud_rate = Baud_115200;
-	BaudRateIndex = Baud_115200_i;			// IK20250826 set to 115200 baud, for quicker screen update
-#else
-	// Now change baud back to 9600 for initial 5 seconds to Setup
-	rt.operating_protocol = SETUP;                 //initial SysData.NV_UI.StartUpProtocol
-	Existing.baud_rate = Baud_9600;	// =9600
-	BaudRateIndex = Baud_9600_i;	// IK20250724 set to 9600 baud, index to 7
-#endif
-	Set_USART_UBBRregister((Uint32)Existing.baud_rate);	// 9600 baud
+	UCSR0B = 0x98;									// enable rcv & xmt
+
+	Set_BaudRate(Existing.BRate_index);
 	for (c = 0; c < 16; c++) //IK20260203 some delay to settle UART
 	{
 		_NOP();
@@ -7573,15 +7594,6 @@ void SetGetPhase(void)
 	}
 }
 
-signed char Find_BR_index(Uint32 BaudRateVal) {
-	uint8 i;
-	for (i = 0; i < Last_Baud_Index; i++)
-	{
-		if (((Uint32)Baud_Rates[i] << 2) == BaudRateVal)
-			return i;
-	}
-	return (signed char)-1;
-}
 /*************************************************************/
 // Get 'baud[?]' returns Set command syntax 'baud>XXXXX', reading from SysData which is the copy of EEPROM_SysData created at startup.
 // Command accepts only std rates. Setting in EEPROM is updated after 'save' command.
@@ -7963,7 +7975,7 @@ void main(void)
 			}
 			// Just in case recovery
 			Existing.baud_rate = Baud_9600;
-			BaudRateIndex = Baud_9600_i;
+			Existing.BRate_index = Baud_9600_i;
 
 			//timer.TWI_lockup = 13000;							// keep this board from timing out, 13 sec
 			TWI_Write(ALARM_WRITE, TWI_MSG_ALARMS, 0, 0);		// Also, Send TWI stuff
@@ -7974,9 +7986,10 @@ void main(void)
 			//---------> this executes ONCE after initial 6 seconds in SETUP protocol if there is no commands arrive <-------------------------------------------
 			if (timer.start_up_ms == 0)
 			{
-				Get_EEPROM_params();									// Get all the stored parameters
+				Get_EEPROM_params();									// Get all the stored parameters into SysData
 				rt.operating_protocol = SysData.NV_UI.StartUpProtocol;
-				Init_UART();											// Set Baud and comm parameters
+				Existing.BRate_index = SysData.NV_UI.BRate_index;	 // call from main() after SETUP protocol timeout
+				Init_UART();						// call from main() after SETUP protocol timeout Set Baud and comm parameters
 
 				if (rt.operating_protocol == MODBUS)					// @ 9600 baud
 				{
@@ -7993,6 +8006,9 @@ void main(void)
 				}
 				else // (rt.operating_protocol == ASCII)
 				{
+					// override settings from SysData.NV_UI.BRate_index with ASCII baudreate
+					Existing.BRate_index = ASCII_BR_INDX;
+					Init_UART();						// call from main() after SETUP protocol timeout Set Baud and comm parameters
 					UCSR0C = 0x06;										// no UART_parity, async, 1 stop
 					Print_FW_Version();
 					PrintNewLine();

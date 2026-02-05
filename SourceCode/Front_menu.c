@@ -349,15 +349,11 @@ void ProcessUPbutton() {
 			}
 			else if (display_mode == COMM_BAUD)
 			{
-				long t_long; // ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
-				if (BaudRateIndex < (Last_Baud_Index - 1))
-					BaudRateIndex++;													// Increment baud rate index
+				if (Existing.BRate_index < (Last_Baud_Index - 1))
+					Existing.BRate_index++;												// Increment baud rate index
 				else
-					BaudRateIndex = (Last_Baud_Index - 1);								// Ensure BaudRateIndex does not exceed the maximum index
-				t_long = Baud_Rates[BaudRateIndex]; // IK20251224 ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
-				Existing.baud_rate = t_long << 2;										// IK20250826  Baud_Rates are saved divided by 4 to keep values inside uint16 range
-				//Existing.baud_rate = Baud_Rates[BaudRateIndex] * 4.0f;				// IK20251224  using float math, it takes extra 8 bytes of flash
-				Set_and_Save_New_BaudRateIndex(BaudRateIndex);
+					Existing.BRate_index = (Last_Baud_Index - 1);						// Ensure Existing.BRate_index does not exceed the maximum index
+				Init_UART();
 			}
 
 			else if (display_mode == PHASE_STATE_SET)
@@ -561,15 +557,11 @@ void ProcessDOWNbutton() {
 
 			else if (display_mode == COMM_BAUD)
 			{
-				long t_long; // ATMEL could not correctly shift left uint16 if it gets into uint32 and later converted to float
-				if (BaudRateIndex > (Last_Baud_Index - 1))
-					BaudRateIndex = Last_Baud_Index - 1;						// Ensure BaudRateIndex does not exceed the maximum index
-				if (BaudRateIndex > Baud_300_i)
-					BaudRateIndex--;											// Decrement baud rate index
-				t_long = Baud_Rates[BaudRateIndex];							// keep Existing mirror consistent for DisplayPrepare()
-				Existing.baud_rate = t_long << 2;								// IK20250826 Baud_Rates are stored divided by 4
-
-				Set_and_Save_New_BaudRateIndex(BaudRateIndex);
+				if (Existing.BRate_index > (Last_Baud_Index - 1))
+					Existing.BRate_index = Last_Baud_Index - 1;						// Ensure Existing.BRate_index does not exceed the maximum index
+				if (Existing.BRate_index > Baud_300_i)
+					Existing.BRate_index--;											// Decrement baud rate index
+				Init_UART();
 			}
 		} // end of timer 100 ms
 	}//end limit mode
@@ -1221,79 +1213,42 @@ void DisplayPrepare(void)
 		rt.InfoLED_blink_eq1 = TRUE;
 		p_InfoStr = mode_strings[CAL1_SET_4_20_MODE]; // ("CAL ");
 	}
-	//else if (display_mode == CAL2_4mA)
-	//{
-	//	// set above rt.InfoLED_blink_eq1 = FALSE;
-	//	p_InfoStr = mode_strings[CAL2_4mA]; // ("ILO ");
-	//}
-	//else if (display_mode == CAL3_20mA)
-	//{
-	//	// set above rt.InfoLED_blink_eq1 = FALSE;
-	//	p_InfoStr = mode_strings[CAL3_20mA]; // ("IHI ");
-	//}
 	else if (display_mode == CAL5_SET_0_1_MODE)
 	{
 		rt.InfoLED_blink_eq1 = TRUE;
 		p_InfoStr = mode_strings[CAL5_SET_0_1_MODE]; // ("CAL2");
 	}
-	//else if (display_mode == CAL6_0mA)				// No longer used remove for more memory; instead, uses "I LO"
-	//{
-	//	// set above rt.InfoLED_blink_eq1 = FALSE;
-	//	p_InfoStr = mode_strings[CAL6_0mA]; // ("0 MA");
-	//}
-	//else if (display_mode == CAL7_1mA)				// No longer used remove for more memory; instead, uses "I HI"
-	//{
-	//	// set above rt.InfoLED_blink_eq1 = FALSE;
-	//	p_InfoStr = mode_strings[CAL7_1mA]; // ("1 MA");
-	//}
-	//else if (display_mode == CAL_V_BAT)
-	//{
-	//	// set above rt.InfoLED_blink_eq1 = FALSE;
-	//	p_InfoStr = mode_strings[CAL_V_BAT]; // ("VCAL");
-	//}
 	else if (display_mode == SHOW_FW_VER)			// system setup
 	{
 		rt.InfoLED_blink_eq1 = TRUE;
 		p_InfoStr = mode_strings[SHOW_FW_VER]; // ("SYS ");
 	}
-	//else if (display_mode == COMM_ADDR)
-	//{
-	//	// set above rt.InfoLED_blink_eq1 = FALSE;
-	//	p_InfoStr = mode_strings[COMM_ADDR]; // ("ADDR");
-	//}
-	//else if (display_mode == COMM_BAUD)
-	//{
-	//	// set above rt.InfoLED_blink_eq1 = FALSE;
-	//	p_InfoStr = mode_strings[COMM_BAUD]; // ("BAUD");
-	//}
-	else if (display_mode == SELECT_PROTOCOL) {
-		{
-			if (SysData.NV_UI.StartUpProtocol == DNP3) {
-				p_InfoStr = ("DNP3");
-				Existing.baud_rate = Baud_19200;
-				BaudRateIndex = Baud_19200_i;
-			}
-			else if (SysData.NV_UI.StartUpProtocol == MODBUS) {
-				p_InfoStr = ("MBUS");
-				Existing.baud_rate = Baud_19200;
-				BaudRateIndex = Baud_19200_i;
-			}
-			else if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS) {
-				p_InfoStr = ("ASC`");
-				Existing.baud_rate = Baud_115200;
-				BaudRateIndex = Baud_115200_i;			// IK20250826 set to 115200 baud, for quicker screen update
-			}
-			else // default to SETUP
-			// if (SysData.NV_UI.StartUpProtocol == SETUP)
-			{
-				SysData.NV_UI.StartUpProtocol = SETUP;
-				p_InfoStr = ("INIT");
-				timer.TWI_lockup = 13000;						// set twi lockup tmr to 13 sec
-				timer.start_up_ms = 6000;						// setup SysData.NV_UI.StartUpProtocol for 6 seconds
-				Existing.baud_rate = Baud_9600;
-				BaudRateIndex = Baud_9600_i;
-			}
+	else if (display_mode == SELECT_PROTOCOL) // -!- IK20260204 it overrides the normal protocol display to show current protocol and temporary changes baudrate
+	{
+
+		if (SysData.NV_UI.StartUpProtocol == DNP3) {
+			p_InfoStr = ("DNP3");
+			Existing.BRate_index = Baud_19200_i;
 		}
+		else if (SysData.NV_UI.StartUpProtocol == MODBUS) {
+			p_InfoStr = ("MBUS");
+			Existing.BRate_index = Baud_19200_i;
+		}
+		else if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS) {
+			p_InfoStr = ("ASC`");
+			Existing.BRate_index = ASCII_BR_INDX;			// IK20250826 set to 115200 baud, for quicker screen update
+		}
+		else // default to SETUP
+		// if (SysData.NV_UI.StartUpProtocol == SETUP)
+		{
+			SysData.NV_UI.StartUpProtocol = SETUP;
+			p_InfoStr = ("INIT");
+			timer.TWI_lockup = 13000;						// set twi lockup tmr to 13 sec
+			timer.start_up_ms = 6000;						// setup SysData.NV_UI.StartUpProtocol for 6 seconds
+			Existing.BRate_index = Baud_9600_i;
+		}
+		Init_UART(); // IK20251210 set baud rate according to selected protocol
+
 		if (rt.operating_protocol != SysData.NV_UI.StartUpProtocol) {
 #ifdef PC
 			PutStr(p_InfoStr); SendCrLf();		// output to console == 'serial port' to see the string which is going to Info display
