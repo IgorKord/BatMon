@@ -17,7 +17,7 @@
 #ifndef GLOBALS
 #define GLOBALS
 
-extern float SOFTWARE_VERSION;     //Version 3.0
+extern float FirmwareVersion;     //Version 3.0
 #define STRINGS_IN_FLASH // FOR IAR compiler; TO WORK, THIS OPTION MUST BE DEFINED in project options->compiler->extra options! --string_literals_in_flash   to place strings in flash
 
 #define DEF_BAT_MONITOR_ADDR	2			// default Battery Monitor RS-485 address

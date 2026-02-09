@@ -47,9 +47,7 @@
 /*              XMT/RCV_LED_1  -- PD7                               */
 /********************************************************************/
 
-//IK20251030 instead of defining as 30, defined here as float so display would show 3.0
-// #define SOFTWARE_VERSION   30     //Version 3.0
-float SOFTWARE_VERSION = 3.0f;     //Version 3.0
+#define FW_VERSION   (uint8)30		// increment with new release
 
 //#define LAST_GASP
 #ifdef LAST_GASP
@@ -60,9 +58,9 @@ char FW_PartNumber[] = "826-509-A";	// IK20230706 must be in RAM and not the cha
 char FW_PartNumber[] = "826-501-A";	// IK20230706 must be in RAM and not the char* for printf
 #endif //#ifdef LAST_GASP
 
-char FW_Date[] = "05-Feb-2026";		// IK20230706 must be in RAM for printf
-#define FW_VERSION   (uint8)30 // increment with new release
+char FW_Date[] = "09-Feb-2026";		// IK20230706 must be in RAM for printf
 #define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
+float FirmwareVersion;				// to be shown as float on LED, "3.0", initialization to 'FW_ver_float' in init()
 
 #ifdef INCLUDE_DAY_TIME_INTO_FW // this includes "comp @ __DATE__ __TIME__" but in Vsual Studio just-in-time compile will not work
 // IK20230706 char FL* CompileDate = __DATE__; // this places pointer and the __TIME__ string in FLASH but printf_P requires string pointers and arg list to point into RAM
@@ -494,7 +492,7 @@ Uint32 Set_BaudRate(uint8 BR_index)
 }
 
 /// <summary>
-/// IK20260114 function saves in the SysData.NV_UI and in EEPROM 
+/// IK20260114 function saves in the SysData.NV_UI and in EEPROM
 /// a new BR_index and baud rate based on Baud_Rates[BR_index] array
 /// if index is outside the range, it is set to default Baud_19200_i
 /// </summary>
@@ -505,7 +503,7 @@ void Save_BaudRate_To_EEPROM(uint8 BR_index)
 
 	SysData.NV_UI.baud_rate = BaudRate;
 	SaveToEE(SysData.NV_UI.baud_rate);				// Store the new baud rate in EEPROM
-	SysData.NV_UI.BRate_index = BR_index;			// 
+	SysData.NV_UI.BRate_index = BR_index;			//
 	SaveToEE(SysData.NV_UI.BRate_index);			// Store the new baud rate index in EEPROM
 }
 
@@ -821,9 +819,9 @@ void Print_FW_Version(void)
 {
 //  float tf = ((float)(FW_VERSION) + 0.01f)/10.0f;
 #ifdef INCLUDE_DAY_TIME_INTO_FW // this includes "comp @ __DATE__ __TIME__" but in Vsual Studio just-in-time compile will not work
-	printf("Battery Monitor SW %s Ver %3.1f, comp %s %s", FW_PartNumber, FW_ver_float, FW_Date, CompileDate, CompileTime);
+	printf("Battery Monitor SW %s Ver %3.1f, comp %s %s", FW_PartNumber, FirmwareVersion, FW_Date, CompileDate, CompileTime);
 #else
-	printf("Battery Monitor SW %s Ver %3.1f @ %s", FW_PartNumber, FW_ver_float, FW_Date);
+	printf("Battery Monitor SW %s Ver %3.1f @ %s", FW_PartNumber, FirmwareVersion, FW_Date);
 #endif
 }
 
@@ -1056,11 +1054,11 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 		timer.extender = 0;								// reset extender
 		timer.FreeRunningCounter++;						// Grok20251231
 
-		if ((rt.operating_protocol == ASCII_CMDS) && (rt.OperStatusWord & SendRealTimeData_eq1_Bit)) 
+		if ((rt.operating_protocol == ASCII_CMDS) && (rt.OperStatusWord & SendRealTimeData_eq1_Bit))
 		{
 			if (timer.RealTimeUpdate > 0)
 				timer.RealTimeUpdate++;
-			if ((timer.RealTimeUpdate > 200)) 
+			if ((timer.RealTimeUpdate > 200))
 			{
 				setBit(rt.OperStatusWord, RealTimeDataReady_eq1_Bit); // IK20250820 it will clear in main loop when sending brief info
 				timer.RealTimeUpdate = 0;
@@ -6114,12 +6112,12 @@ void SetDefaultsInRAM(void)
 /*********************************************************************/
 /*                      I N I T   P A R A M E T E R S                */
 /*********************************************************************/
-/*  Description:  This routine initializes all device paramters and
-				  stores them.These are factory defaults.
+/*  Description:  Firmware first loads default data into SysData, then checks EEPROM signature byte 
+	(example: saved by FW version 0x30) and if starting firmware (after upgrade) has FW version 0x31 - 
+	the EEPROM is not read - instead the default SysData structure is saved into EEPROM. 
+	If signatures match - the contents of the EEPROM copy of SysData are replacing default settings.
 	Inputs:       None.
-	Outputs:      meter_address, host_address, SysData.inter_char_gap, SysData.dll_timeout,
-				  num_of_points, SysData.NV_UI.StartUpProtocol, dnp_dll_retries, SysData.dll_confirm,
-				  SysData.app_confirm, input1,2,3,4 type, SysData.xmt_delay, baud_rate
+	Outputs:      SysData gets either default or customized data
 	Notes:        None
 	Revisions:    05/26/15     REC     Created
 					20240103   IK      Refactored
@@ -6215,7 +6213,7 @@ void WDT_set_2sec_interrupt(void)
 }
 
 /// <summary>
-/// function checks and initializes UART baud rate then saves in the SysData.NV_UI and in EEPROM 
+/// function checks and initializes UART baud rate then saves in the SysData.NV_UI and in EEPROM
 /// if index is outside the range, it is set to default Baud_19200_i
 /// a new BR_index and baud rate based on Baud_Rates[BR_index] array
 /// Then it intialyzes UART baudrate register
@@ -6249,6 +6247,7 @@ void init(void)
 {
 	uint16 i;
 	EchoStatus = ECHO_ENABLED;						// AT20230615 enable echo by default
+	FirmwareVersion = FW_ver_float;					// initialization of global variable with firmware version number
 #ifdef PC
 	initEEsimulator();
 #endif
@@ -7525,7 +7524,7 @@ void SetGetProtocol(void)
 		// IK20260205 excluded // IK20260203 exclude 'setup' from SAVED startup protocol. FW always starts in 'Setup' protocol. Here it is for test
 		//if (param == (('s' + 256 * 'e') + ('t' + 256 * 'u') * 65536)) // 'setup'
 		//	SysData.NV_UI.StartUpProtocol = SETUP; // set to 0x00
-		//else 
+		//else
 			if (param == (('d' + 256 * 'n') + ('p' + 256 * '3') * 65536))
 			SysData.NV_UI.StartUpProtocol = DNP3; // set to 0x01
 		else if (param == (('m' + 256 * 'o') + ('d' + 256 * 'b') * 65536))
@@ -7535,7 +7534,7 @@ void SetGetProtocol(void)
 		// the 'menu' protocol is not implemented
 		//else if (param == (('m' + 256 * 'e') + ('n' + 256 * 'u') * 65536))
 		//	SysData.NV_UI.StartUpProtocol = ASCII_MENU; // set to 0x04
-		else  
+		else
 			Send_RCI_Param_Error_as_FlashConst("DNP3 ModBus ASCII");
 			// Send_RCI_Param_Error_as_FlashConst("Setup DNP3 ModBus ASCII"); // IK20260205 excluded setup
 	}
@@ -8020,7 +8019,7 @@ void main(void)
 				{
 					SetASCIIandSignMsg();
 				}
-			}	// end of if ((timer.start_up == 0) 
+			}	// end of if ((timer.start_up == 0)
 		}		// && (rt.operating_protocol == SETUP)) //start up timed out
 
 		else if (rt.operating_protocol == ASCII_CMDS)				// New IK20241030

@@ -975,7 +975,7 @@ float* NumLED_Display_Var[] =
 	&NoShow,								// 9 0x09 */    PULSE_STATE_SET,	 // "PULS"
 	&NoShow,								//10 0x0A */    BUZZER_STATE_SET,	 // "BUZZ"
 	&NoShow,								//11 0x0B */    LATCHED_STATE_SET,	 // "LTCH"
-	&SOFTWARE_VERSION,						//12 0x0C */    SHOW_FW_VER,		 // "SYS "
+	&FirmwareVersion,						//12 0x0C */    SHOW_FW_VER,		 // "SYS "
 
 	// CAL menu, used in CURRENT CALIBRATION mode
 	&NoShow,								//13 0x0D */    CAL1_SET_4_20_MODE,	 // "CAL1"
@@ -1008,7 +1008,7 @@ float* NumLED_Display_Var[] =
 	&NoShow,								//35 0x23 */    PHASE_SHOW,			 // "PH  "
 
 	// IK20250724 do not change order of items, they are used in front menu to change next value in manual mode
-	&SOFTWARE_VERSION,						//36 0x24 */    INIT,				 // "ARGA"
+	&FirmwareVersion,						//36 0x24 */    INIT,				 // "ARGA"
 	&NoShow,								//37 0x25 */    OUTPUT_UPPER_STRING, // "OUTU"
 	&NoShow,								//38 0x26 */    OUTPUT_LOWER_STRING, // "OUTL"
 
@@ -1107,9 +1107,9 @@ void DisplayPrepare(void)
 #else
 				char BriefProtocolNames[4][2] = {
 					'I','n',
-					'D','n',
-					'M','b',
-					'A','S',
+					'd','n', // DNP
+					'b','u', // ModBus. cannot show 'M' in "Mb", showing 'bus'
+					'A','S', // ASCII
 				};
 				char ch1 = BriefProtocolNames[ProtocolIndex][0];
 				char ch2 = BriefProtocolNames[ProtocolIndex][1];
