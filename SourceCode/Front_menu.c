@@ -44,7 +44,6 @@ uint8  Is_in_auto_mode;						// IK20251007 combined auto and manual mode in one 
 //uint8  manual_mode;							// indicates whether manual mode is active
 uint8  limit_mode;							// indicates whether limit mode is active. Activates after pressing LIMIT button for 3+ sec
 uint8  display_mode;						// indicates what is being displayed and the actions available to user. The pointer 'p_InfoStr' holds what is shown on the bottom 14-segmets 4 indicators Info display
-
 //---- Display Board variables
 extern SettingsStruct Existing;				// keep current setting to detect change vs SysData.NV_UI
 extern const char FL* ProtocolNames;
@@ -180,6 +179,9 @@ void RecognizeButtonState(uint8 Btn_Index, volatile uint16 *p_timer)
 	}
 	else // button released
 	{
+		// clear hold state on release
+		clearBit(Display_Info.butt_states, (BUTTON_AUTO_STILL_HELD_BIT << Btn_Index));
+
 		// if released between short and long thresholds -> short press event
 		// Check bitmap instead of array
 		if (!(Display_Info.long_press_fired & (1 << Btn_Index)) &&
@@ -343,7 +345,7 @@ void ProcessUPbutton() {
 
 				tmpAdr = Existing.meter_address;
 				tmpAdr += addrDelta;
-				if (tmpAdr > MAX_DNP3_ADDRESS) 
+				if (tmpAdr > MAX_DNP3_ADDRESS)
 					tmpAdr = MAX_DNP3_ADDRESS;
 				Existing.meter_address = tmpAdr;
 			}
@@ -695,7 +697,7 @@ Schar SelectNextMode(Schar this_mode, NextMenuItem * acting_menu) {
 #ifdef DISPLAY_MENU
 void Operation(void)
 {   //Check Display_Info.butt_states
-	//Check Manual/Auto button
+	static uint8 prev_buttons_hits = 0;
 //#ifdef PC // menu diagnostic -> console
 #if (0) // menu diagnostic -> console
 	uint8 ch;
@@ -712,6 +714,7 @@ void Operation(void)
 	printf("| SetupMode %s ", (In_setup_alarm_limits_mode == TRUE? "Setup":" Work "));
 
 #endif
+	//Check Manual/Auto button
 	// change "Auto - manual" mode
 	if (Display_Info.butt_states & BUTTON_AUTO_SHORT_PRESS_BIT)			// short press
 	{
@@ -843,7 +846,105 @@ void Operation(void)
 		clearBit(Display_Info.butt_states, BUTTON_LIMIT_LONG_PRESS_BIT); // Display_Info.butt_states&= 0xFFF7;//clear long press of limit
 	}//end of long press of limit button
 
-	//Check Up Button
+	/*	//Check Up Button
+	{
+		const uint8 upMask = BUTTON_UP_INSTANT_PRESS_BIT;
+		const uint8 upWasPressed = (uint8)(prev_buttons_hits & upMask);
+		const uint8 upIsPressed = (uint8)(Display_Info.buttons_hits & upMask);
+
+		if ((upIsPressed != 0) && (upWasPressed == 0)) // rising edge: pressed now
+		{
+			// One step immediately on press.
+			// Also arm the repeat timer so a short hold can't create a second step.
+			timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;
+			ProcessUPbutton();
+		}
+		else if (upIsPressed != 0)
+		{
+			// While held: only allow updates in long-press (auto-repeat) mode.
+			if ((Display_Info.long_press_fired & (1 << BTN_INDEX_UP)) != 0)
+			{
+				ProcessUPbutton();
+			}
+		}
+
+		if (Display_Info.butt_states & BUTTON_UP_SHORT_PRESS_BIT)
+		{
+			clearBit(Display_Info.butt_states, BUTTON_UP_SHORT_PRESS_BIT);
+		}
+
+		if (Display_Info.butt_states & BUTTON_UP_LONG_PRESS_BIT)
+		{
+			clearBit(Display_Info.butt_states, BUTTON_UP_LONG_PRESS_BIT);
+		}
+	}
+
+	//Check Down Button
+	{
+		const uint8 downMask = BUTTON_DOWN_INSTANT_PRESS_BIT;
+		const uint8 downWasPressed = (uint8)(prev_buttons_hits & downMask);
+		const uint8 downIsPressed = (uint8)(Display_Info.buttons_hits & downMask);
+
+		if ((downIsPressed != 0) && (downWasPressed == 0)) // rising edge: pressed now
+		{
+			timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;
+			ProcessDOWNbutton();
+		}
+		else if (downIsPressed != 0)
+		{
+			if ((Display_Info.long_press_fired & (1 << BTN_INDEX_DOWN)) != 0)
+			{
+				ProcessDOWNbutton();
+			}
+		}
+
+		if (Display_Info.butt_states & BUTTON_DOWN_SHORT_PRESS_BIT)
+		{
+			clearBit(Display_Info.butt_states, BUTTON_DOWN_SHORT_PRESS_BIT);
+		}
+
+		if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)
+		{
+			clearBit(Display_Info.butt_states, BUTTON_DOWN_LONG_PRESS_BIT);
+		}
+	}
+	*/
+	// Check Up Button (event-driven)
+	if (Display_Info.butt_states & BUTTON_UP_SHORT_PRESS_BIT)    // short press on release
+	{
+		ProcessUPbutton();
+		clearBit(Display_Info.butt_states, BUTTON_UP_SHORT_PRESS_BIT);
+	}
+
+	// Long-press event bit is only used as a marker; clear it after recognized.
+	if (Display_Info.butt_states & BUTTON_UP_LONG_PRESS_BIT)
+	{
+		clearBit(Display_Info.butt_states, BUTTON_UP_LONG_PRESS_BIT);
+	}
+
+	// Auto-repeat while held after long-press threshold.
+	if (Display_Info.butt_states & BUTTON_UP_STILL_HELD_BIT)
+	{
+		ProcessUPbutton();
+	}
+
+	// Check Down Button (event-driven)
+	if (Display_Info.butt_states & BUTTON_DOWN_SHORT_PRESS_BIT)    // short press on release
+	{
+		ProcessDOWNbutton();
+		clearBit(Display_Info.butt_states, BUTTON_DOWN_SHORT_PRESS_BIT);
+	}
+
+	if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)
+	{
+		clearBit(Display_Info.butt_states, BUTTON_DOWN_LONG_PRESS_BIT);
+	}
+
+	if (Display_Info.butt_states & BUTTON_DOWN_STILL_HELD_BIT)
+	{
+		ProcessDOWNbutton();
+	}
+/* Check Up Button
 	if (Display_Info.buttons_hits & BUTTON_UP_INSTANT_PRESS_BIT)    // up button is pressed
 		ProcessUPbutton(); // IK20250804 moved to a separate function
 	if (Display_Info.butt_states & BUTTON_UP_SHORT_PRESS_BIT)    //Short press AND RELEASE of up button
@@ -873,7 +974,7 @@ void Operation(void)
 		//ProcessDOWNbutton(); // IK20250804 moved to a separate function
 		clearBit(Display_Info.butt_states, BUTTON_DOWN_LONG_PRESS_BIT);	//  Display_Info.butt_states &= 0xFF7F;  //clear long press of down
 	}//end long press of down
-
+*/
 	//Display_Info.Status housekeeping, handle pulse LED
 	if (rt.pulse == FALSE) {											// set/clr bit in display status
 		Display_PulseLED_OFF;	// clearBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT); // Bit_2
@@ -944,7 +1045,10 @@ void Operation(void)
 		timer.limit_mode_timeout_ms = 0;
 	}
 	if (limit_mode == FALSE)
+	{
 		timer.limit_mode_timeout_ms = 0;
+	}
+	prev_buttons_hits = Display_Info.buttons_hits;
 }//END of Operation
 
 
@@ -1108,7 +1212,7 @@ void DisplayPrepare(void)
 				char BriefProtocolNames[4][2] = {
 					'I','n',
 					'd','n', // DNP
-					'b','u', // ModBus. cannot show 'M' in "Mb", showing 'bus'
+					'b','u', // ModBus. cannot show 'M' in "Mb", showing 'bus', Alternatively, show "bS" but this might have bad associations ;-)
 					'A','S', // ASCII
 				};
 				char ch1 = BriefProtocolNames[ProtocolIndex][0];
@@ -1255,69 +1359,6 @@ void DisplayPrepare(void)
 	}
 	else
 		p_InfoStr = mode_strings[display_mode];
-	/*
-	else if (display_mode == INIT)
-	{
-		p_InfoStr = mode_strings[INIT]; // ("ARGA");
-	}
-	if (display_mode == VOLTS)
-	{
-		p_InfoStr = mode_strings[VOLTS]; // ("BAT ");
-	}
-	if (display_mode == PLUS_GND_VOLTS)
-	{
-		p_InfoStr = mode_strings[PLUS_GND_VOLTS]; // ("+BUS");
-	}
-	if (display_mode == MINUS_GND_VOLTS)
-	{
-		p_InfoStr = mode_strings[MINUS_GND_VOLTS]; // ("-BUS");
-	}
-	if (display_mode == GND_FAULT_VOLTS)
-	{
-		p_InfoStr = mode_strings[GND_FAULT_VOLTS]; // ("GFV ");
-	}
-	if (display_mode == RIPPLE_VOLTS)
-	{
-		p_InfoStr = mode_strings[RIPPLE_VOLTS]; // ("RVV ");
-	}
-	if (display_mode == RIPPLE_CURRENT)
-	{
-		p_InfoStr = mode_strings[RIPPLE_CURRENT]; // ("RIV ");
-	}
-	if ((display_mode == TIME_DELAY_SET) || (display_mode == TIME_DELAY_SHOW))
-	{
-		p_InfoStr = mode_strings[TIME_DELAY_SET]; // ("TD  ");
-	}
-
-	if ((display_mode == LIMIT_START) || (display_mode == PRE_LIMIT_START))
-	{
-		p_InfoStr = mode_strings[LIMIT_START]; // ("LMIT");
-	}
-	if (display_mode == HI_BAT_THRESHOLD)
-	{
-		p_InfoStr = mode_strings[HI_BAT_THRESHOLD]; // ("HBAT");
-	}
-	if (display_mode == LOW_BAT_THRESHOLD)
-	{
-		p_InfoStr = mode_strings[LOW_BAT_THRESHOLD]; // ("LBAT");
-	}
-	if (display_mode == PLUS_GF_THRESHOLD)
-	{
-		p_InfoStr = mode_strings[PLUS_GF_THRESHOLD]; // ("+GND");
-	}
-	if (display_mode == MINUS_GF_THRESHOLD)
-	{
-		p_InfoStr = mode_strings[MINUS_GF_THRESHOLD]; // ("-GND");
-	}
-	if (display_mode == RippleVOLT_TR_HOLD)
-	{
-		p_InfoStr = mode_strings[RippleVOLT_TR_HOLD]; // ("RVV ");
-	}
-	if (display_mode == RippleCURR_TR_HOLD)
-	{
-		p_InfoStr = mode_strings[RippleCURR_TR_HOLD]; // ("RIV ");
-	}
-*/
 if (limit_mode != TRUE) // not in limit mode, normal operation
 	{
 		//Set Alarm displays if any
