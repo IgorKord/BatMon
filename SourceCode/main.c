@@ -6112,9 +6112,9 @@ void SetDefaultsInRAM(void)
 /*********************************************************************/
 /*                      I N I T   P A R A M E T E R S                */
 /*********************************************************************/
-/*  Description:  Firmware first loads default data into SysData, then checks EEPROM signature byte 
-	(example: saved by FW version 0x30) and if starting firmware (after upgrade) has FW version 0x31 - 
-	the EEPROM is not read - instead the default SysData structure is saved into EEPROM. 
+/*  Description:  Firmware first loads default data into SysData, then checks EEPROM signature byte
+	(example: saved by FW version 0x30) and if starting firmware (after upgrade) has FW version 0x31 -
+	the EEPROM is not read - instead the default SysData structure is saved into EEPROM.
 	If signatures match - the contents of the EEPROM copy of SysData are replacing default settings.
 	Inputs:       None.
 	Outputs:      SysData gets either default or customized data
@@ -6877,18 +6877,11 @@ uint8 ReadButtons() {
 		if( twi.buffer[BYTE_2] != 0) // IK20250924 for test, remeber last pressed button (it is not cleared to 0 if button is released)
 		  Display_Info.last_butt_pressed = twi.buffer[BYTE_2];
 	}
-#else // for PC
-	Get_Button_Press();
 #endif // #ifndef PC
-	//if (timer.up_button >= LONG_PRESS_DELAY)
-	//	setBit(Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
-	//if (timer.down_button >= LONG_PRESS_DELAY)
-	//	setBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
-
+	momentaryButtonsState = (uint8)Display_Info.buttons_hits;
 //#ifdef TIME_TESTING
 //	ClearTestPin44;										// IK20250523 reset test pin #44 (easy to solder to)
 //#endif // #ifdef TIME_TESTING
-	momentaryButtonsState = (uint8)Display_Info.buttons_hits;
 	return momentaryButtonsState;
 }
 
@@ -8521,11 +8514,7 @@ extern void Do_Front_menu(void);
 void CheckExecuteFrontPanelCmd(void) //in firmware, it is called from main loop. Only when waiting char input in simulation, is called from int get_ch(void)
 {
 	ReadButtons();	 // read momentary states via TWI
-#ifndef PC // ATMEL
 	Get_Button_Press();//	CHECK IF BUTTONS HAVE BEEN PUSHED in firmware
-#else // for PC //*********** Simulation *************************
-	// button states are set in the CALLBACK ButtonSubclassProc(.....)
-#endif //PC
 	if ((Display_Info.ButtonStateChanged != CLR) && (Display_Info.DisplayNeedsUpdateFlag == CLR))		// Button pushed? actual button states are reflected in "Butt_states"
 	{
 		if (Display_Info.butt_states) // avoid too short button presses when no bits are set

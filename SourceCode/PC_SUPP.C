@@ -494,55 +494,47 @@ LRESULT CALLBACK ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		setBit(Display_Info.buttons_hits, (BUTTON_AUTO_INSTANT_PRESS_BIT << btnIndex));  // Or down based on button ID
 		win_btn_pressed = SET;
 		InvalidateRect(hWnd, NULL, TRUE); // force repainting
-	  break;
+		break;
 
 	case WM_LBUTTONUP:
-	  {
+	{
 		if (ignoreNextButtonUp[btnIndex]) {
 			ignoreNextButtonUp[btnIndex] = false;
 			return 0; // skip processing
 		}
+
 		ULONGLONG duration = GetTickCount64() - btnPressStartTime[btnIndex];
 		btnPressStartTime[btnIndex] = 0;
 		btnPressedState[btnIndex] = FALSE;
+
 		clearBit(win_btn_lines, (BUTTON_AUTO_INSTANT_PRESS_BIT << btnIndex)); // (Bit_0<<btnIndex)
+		clearBit(Display_Info.buttons_hits, (BUTTON_AUTO_INSTANT_PRESS_BIT << btnIndex));
+
 		win_btn_pressed = CLR;
 		Display_Info.ButtonStateChanged = BTN_RELEASED; // event flag rised - will be cleared in main thread after processing via menu
 		InvalidateRect(hWnd, NULL, TRUE);  // RedrawAvg with normal color
 
 		sprintf(msg_str, "Button %d held for %llu ms\n", btnIndex, duration);
 		SetDlgItemText(g_hToolbar, IDC_BUT_HELD_TIME, (LPCSTR)msg_str);
-		// 20250710 here is simulation of Get_Button_Press() function
-		// Clear any previous state for this button
-		clearBit(Display_Info.butt_states, ((BUTTON_AUTO_SHORT_PRESS_BIT | BUTTON_AUTO_LONG_PRESS_BIT) << btnIndex));
-		clearBit(Display_Info.buttons_hits,((BUTTON_AUTO_INSTANT_PRESS_BIT) << btnIndex));
-		if (btnIndex == BTN_INDEX_UP)
-			timer.up_button = 0;  // stop counting
-		else if (btnIndex == BTN_INDEX_DOWN)
-			timer.down_button = 0;  // stop counting
-		if (duration >= SHORT_PRESS_DELAY)
-		{
-			if (duration >= LONG_PRESS_DELAY)
-				setBit(Display_Info.butt_states, (BUTTON_AUTO_LONG_PRESS_BIT << btnIndex));
-			else
-				setBit(Display_Info.butt_states, (BUTTON_AUTO_SHORT_PRESS_BIT << btnIndex));
-		}
+
+		// NOTE:
+		// Do not synthesize Display_Info.butt_states here.
+		// On PC, Get_Button_Press()/RecognizeButtonState() must generate short/long/still-held exactly like firmware.
 
 		// Optionally send message to parent dialog
 		HWND hParent = GetParent(hWnd);
 		if (hParent)
 			PostMessage(hParent, WM_APP + 1, (WPARAM)btnIndex, (LPARAM)duration);
-	  }
-	  break;
+	}
+	break;
 	case WM_LBUTTONDBLCLK:
 	  {
 		// Treat double-click as a SHORT PRESS
 		btnPressedState[btnIndex] = FALSE;
 		btnPressStartTime[btnIndex] = 0;
 
-		clearBit(Display_Info.butt_states,
-			((BUTTON_AUTO_SHORT_PRESS_BIT | BUTTON_AUTO_LONG_PRESS_BIT) << btnIndex));
-		setBit(Display_Info.butt_states, (BUTTON_AUTO_SHORT_PRESS_BIT << btnIndex));
+		//clearBit(Display_Info.butt_states,((BUTTON_AUTO_SHORT_PRESS_BIT | BUTTON_AUTO_LONG_PRESS_BIT) << btnIndex));
+		//setBit(Display_Info.butt_states, (BUTTON_AUTO_SHORT_PRESS_BIT << btnIndex));
 
 		Display_Info.ButtonStateChanged = BTN_RELEASED;
 		win_btn_pressed = CLR;
@@ -562,7 +554,8 @@ LRESULT CALLBACK ButtonSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 	  }
 	}
 
-	Sleep(3); //delay_us(3000); // give time to update window
+	// Do not sleep in a window proc; it blocks the UI thread and breaks mouse/paint responsiveness.
+	//Sleep(3); //delay_us(3000); // give time to update window
 	return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 

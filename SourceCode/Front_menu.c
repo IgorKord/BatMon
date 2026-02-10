@@ -846,69 +846,6 @@ void Operation(void)
 		clearBit(Display_Info.butt_states, BUTTON_LIMIT_LONG_PRESS_BIT); // Display_Info.butt_states&= 0xFFF7;//clear long press of limit
 	}//end of long press of limit button
 
-	/*	//Check Up Button
-	{
-		const uint8 upMask = BUTTON_UP_INSTANT_PRESS_BIT;
-		const uint8 upWasPressed = (uint8)(prev_buttons_hits & upMask);
-		const uint8 upIsPressed = (uint8)(Display_Info.buttons_hits & upMask);
-
-		if ((upIsPressed != 0) && (upWasPressed == 0)) // rising edge: pressed now
-		{
-			// One step immediately on press.
-			// Also arm the repeat timer so a short hold can't create a second step.
-			timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;
-			ProcessUPbutton();
-		}
-		else if (upIsPressed != 0)
-		{
-			// While held: only allow updates in long-press (auto-repeat) mode.
-			if ((Display_Info.long_press_fired & (1 << BTN_INDEX_UP)) != 0)
-			{
-				ProcessUPbutton();
-			}
-		}
-
-		if (Display_Info.butt_states & BUTTON_UP_SHORT_PRESS_BIT)
-		{
-			clearBit(Display_Info.butt_states, BUTTON_UP_SHORT_PRESS_BIT);
-		}
-
-		if (Display_Info.butt_states & BUTTON_UP_LONG_PRESS_BIT)
-		{
-			clearBit(Display_Info.butt_states, BUTTON_UP_LONG_PRESS_BIT);
-		}
-	}
-
-	//Check Down Button
-	{
-		const uint8 downMask = BUTTON_DOWN_INSTANT_PRESS_BIT;
-		const uint8 downWasPressed = (uint8)(prev_buttons_hits & downMask);
-		const uint8 downIsPressed = (uint8)(Display_Info.buttons_hits & downMask);
-
-		if ((downIsPressed != 0) && (downWasPressed == 0)) // rising edge: pressed now
-		{
-			timer.UpDownChange_rate_ms = BTN_AUTOINC_PERIOD;
-			ProcessDOWNbutton();
-		}
-		else if (downIsPressed != 0)
-		{
-			if ((Display_Info.long_press_fired & (1 << BTN_INDEX_DOWN)) != 0)
-			{
-				ProcessDOWNbutton();
-			}
-		}
-
-		if (Display_Info.butt_states & BUTTON_DOWN_SHORT_PRESS_BIT)
-		{
-			clearBit(Display_Info.butt_states, BUTTON_DOWN_SHORT_PRESS_BIT);
-		}
-
-		if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)
-		{
-			clearBit(Display_Info.butt_states, BUTTON_DOWN_LONG_PRESS_BIT);
-		}
-	}
-	*/
 	// Check Up Button (event-driven)
 	if (Display_Info.butt_states & BUTTON_UP_SHORT_PRESS_BIT)    // short press on release
 	{
