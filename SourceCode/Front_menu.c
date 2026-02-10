@@ -138,61 +138,71 @@ char FL * mode_strings[] = {				// used in Front_menu.c, strings for display mod
 //uint16 timer_ms; //IK202050929 global variable for test
 void RecognizeButtonState(uint8 Btn_Index, volatile uint16 *p_timer)
 {
-	// if a timer was already running (>0) it means the button was pressed;
-	// if running interval = timer.auto_button = (button released - button pressed) is between 0.1 & 3.0 sec
-	// set "Short Press" event
 #ifdef DISPLAY_MENU
 	uint16 timer_ms;
+	uint16 instantMask;
+	uint16 shortBit;
+	uint16 longBit;
+	uint16 heldBit;
+
 	if (Btn_Index > BTN_MAX_INDEX) return; // safety exit if index is wrong
-	timer_ms = (uint16)(*p_timer); // read a timer once; this is a quick function for button capture, timer would not change more than a ms, not important for menu operation
 
-	// start from debouncing, clear both bits
-	clearBit(Display_Info.butt_states, ((BUTTON_AUTO_SHORT_PRESS_BIT | BUTTON_AUTO_LONG_PRESS_BIT) << Btn_Index));
+	timer_ms = (uint16)(*p_timer);
 
-	//check state of a button, it arrives via TWI from Front board as a bit in byte
+	instantMask = (uint16)(BUTTON_AUTO_INSTANT_PRESS_BIT << Btn_Index);
+	shortBit = (uint16)(BUTTON_AUTO_SHORT_PRESS_BIT << Btn_Index);
+	longBit = (uint16)(BUTTON_AUTO_LONG_PRESS_BIT << Btn_Index);
+	heldBit = (uint16)(BUTTON_AUTO_STILL_HELD_BIT << Btn_Index);
+
 	// button currently pressed? (buttons_hits is sampled via TWI once in 20 ms)
-	if ((Display_Info.buttons_hits & (BUTTON_AUTO_INSTANT_PRESS_BIT << Btn_Index)) != 0)
+	if ((Display_Info.buttons_hits & instantMask) != 0)
 	{
-		if (timer_ms == 0) {
-			// start counting (1 means enabled and ~1 ms elapsed after next ISR tick)
+		if (timer_ms == 0)
+		{
+			// new press
 			*p_timer = 1;
-			Display_Info.PressTimeStamp[Btn_Index] = timer.FreeRunningCounter; // remember time of pressing the button
-			// On new press:
+			Display_Info.PressTimeStamp[Btn_Index] = timer.FreeRunningCounter;
 			clearBit(Display_Info.long_press_fired, (1 << Btn_Index));
-		}
-		else if (timer_ms >= LONG_PRESS_DELAY) {
-			// On long-press trigger:
-			setBit(Display_Info.long_press_fired, (1 << Btn_Index));
-			// reached a long-hold block: issue one long event and restart timer for next block
-			setBit(Display_Info.butt_states, ((BUTTON_AUTO_LONG_PRESS_BIT | BUTTON_AUTO_STILL_HELD_BIT) << Btn_Index)); // set "still_holding" for auto increment/decrement
-			// Prevent short-press from firing on release
-			clearBit(Display_Info.butt_states, (BUTTON_AUTO_SHORT_PRESS_BIT << Btn_Index));
 
-			//if (Btn_Index == BTN_INDEX_UP)
-			//	setBit(Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT);
-			//if (Btn_Index == BTN_INDEX_DOWN)
-			//	setBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);
-
-			*p_timer = 1;// restart counting for the next LONG_PRESS_DELAY cycle (use 1, not 0)
+			// clear release-generated events on new press
+			clearBit(Display_Info.butt_states, shortBit);
+			clearBit(Display_Info.butt_states, longBit);
+			clearBit(Display_Info.butt_states, heldBit);
 		}
-		// otherwise keep counting; do not set short-press while held
+		else if (timer_ms >= LONG_PRESS_DELAY)
+		{
+			// fire long-press once per LONG_PRESS_DELAY block
+			if (!(Display_Info.long_press_fired & (1 << Btn_Index)))
+			{
+				setBit(Display_Info.long_press_fired, (1 << Btn_Index));
+				setBit(Display_Info.butt_states, longBit);
+			}
+
+			// held marker stays as long as pressed after threshold
+			setBit(Display_Info.butt_states, heldBit);
+
+			// prevent short press on release after long press
+			clearBit(Display_Info.butt_states, shortBit);
+
+			*p_timer = 1; // restart long block timing
+		}
 	}
 	else // button released
 	{
-		// clear hold state on release
-		clearBit(Display_Info.butt_states, (BUTTON_AUTO_STILL_HELD_BIT << Btn_Index));
+		clearBit(Display_Info.butt_states, heldBit);
+		clearBit(Display_Info.butt_states, longBit); // long is a marker; Operation() also clears, but keep it consistent
 
-		// if released between short and long thresholds -> short press event
-		// Check bitmap instead of array
+		// short press on release only if long-press never fired
 		if (!(Display_Info.long_press_fired & (1 << Btn_Index)) &&
 			timer_ms >= SHORT_PRESS_DELAY &&
 			timer_ms < LONG_PRESS_DELAY)
 		{
-			setBit(Display_Info.butt_states, (BUTTON_AUTO_SHORT_PRESS_BIT << Btn_Index));
-		}		// stop timer on release
+			setBit(Display_Info.butt_states, shortBit);
+		}
+
 		*p_timer = 0;
 	}
-#endif // #ifdef DISPLAY_MENU
+#endif // DISPLAY_MENU
 }
 
 void Get_Button_Press(void)	// IK20260127 included into Visual Studio

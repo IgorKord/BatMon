@@ -1,3 +1,7 @@
+20260209 IK
+FIXED double increment/decrement on UP /DOWN butoons in firmware and PC simulation, 
+made PC simulation more stable and responsive on mouse clicks on butoon images
+
 20260205 IK
 continued testing and fixing firmware
 now protocol change happen rather quick, from DNP3 to ASCII. appears as changing on press and on release
