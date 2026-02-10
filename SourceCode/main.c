@@ -533,7 +533,8 @@ uint16 Calculate_USART_UBRRregister(Uint32 BaudRate) // IK20250206
 void Set_USART_UBBRregister(Uint32 BaudRate) // IK20250206
 {
 	rt.UBRR0_setting = Calculate_USART_UBRRregister(BaudRate);
-	UBRR0 = rt.UBRR0_setting;
+	if (UBRR0 != rt.UBRR0_setting) // overwrite if setting is different
+		UBRR0 = rt.UBRR0_setting;
 }
 
 // IK 20230614 extracted to a function to recover TWI if it is timed out
@@ -6152,7 +6153,6 @@ void Init_Parameters(void)
 	iien2 = 0;                                 // clr iin2
 
 	Existing.BRate_index = SysData.NV_UI.BRate_index; // call from Init_Parameters() after Get_EEPROM_params()
-	Init_UART();
 	__enable_interrupt();												// enable global interrupts
 }
 
@@ -6260,6 +6260,8 @@ void init(void)
 	timer.start_up_ms = 6000;						// setup SysData.NV_UI.StartUpProtocol for 6 seconds
 	//SysData.xmt_delay = DEF_XMT_DELAY;			// IK20250812 no need, it is set in Init_Parameters()
 	timer.IO_update = 2000;							// Initially, two sec to update IO board (501C firmware)
+	Existing.BRate_index = Baud_9600_i;				// overwrite to 9600 for init protocol
+	Init_UART();
 
 #ifdef TEST_MODE
 	WDT_off();
@@ -6362,7 +6364,6 @@ TIMSK2 = 0x02
 	WATCHDOG_RESET();
 
 	TCNT1 = 64535;			// Set Timer 1 for 1 ms intervals.
-
 
 	clearBit(XMT_ENABLE, XMT_ON); //IK20250523 set recieve mode
 	send_setup = SEND_NOTHING;
@@ -7976,8 +7977,9 @@ void main(void)
 				num_of_inbytes = 0;								// reset number of incoming bytes
 			}
 			// Just in case recovery
-			Existing.baud_rate = Baud_9600;
 			Existing.BRate_index = Baud_9600_i;
+			Set_BaudRate(Existing.BRate_index);					// it also sets Existing.baud_rate = Baud_9600;
+
 
 			//timer.TWI_lockup = 13000;							// keep this board from timing out, 13 sec
 			TWI_Write(ALARM_WRITE, TWI_MSG_ALARMS, 0, 0);		// Also, Send TWI stuff

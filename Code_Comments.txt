@@ -1,3 +1,7 @@
+20260210 IK
+Fixed startup protocol => INIT and baud rate =>9600
+FW communicates with Battery Monitor Setup using SETUP protocol.
+
 20260209 IK
 FIXED double increment/decrement on UP /DOWN butoons in firmware and PC simulation, 
 made PC simulation more stable and responsive on mouse clicks on butoon images
