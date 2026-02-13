@@ -730,7 +730,7 @@ enum Display_Modes {	// -- used with display_mode --
 	/*21 0x15 */    ALARM_RIV,			 // "ALRV"
 	/*22 0x16 */    ALARM_RII,			 // "ALRI"
 	/*23 0x17 */    ALARM_HI_Z,			 // "ALHZ"
-	/*24 0x1A */    SELECT_PROTOCOL,	 // "DNP3"
+	/*24 0x1A */    SELECT_PROTOCOL,	 // "PROT"
 	/*25 0x18 */    COMM_ADDR,			 // "ADDR"
 	/*26 0x19 */    COMM_BAUD,			 // "BAUD"
 	/*27 0x1B */    AUTO_MAN_MODE,		 // "AUTO",
@@ -1117,85 +1117,6 @@ void SetASCIIandSignMsg(void);
 	  int (__version_4 SPRINT_F)(char *, char __flash *, ...);
 */
 
-/*-------------------------- interrupts ----------------------------
-//most of these interrupts are not used but they were defined so that
-//a reti instruction was included.
-#pragma vector = INT0_vect
-INTERRUPT void INT0_interrupt (void)
-;
-#pragma vector = INT1_vect
-INTERRUPT void INT1_interrupt(void)
-;
-#pragma vector = INT2_vect
-INTERRUPT void INT2_interrupt(void)
-;
-#pragma vector = TIMER1_COMPA_vect
-INTERRUPT void TIMER1_COMPA_interrupt(void)
-;
-#pragma vector = TIMER1_COMPB_vect
-INTERRUPT void TIMER1_COMPB_interrupt(void)
-;
-#pragma vector = TIMER1_CAPT_vect
-INTERRUPT void TIMER1_CAPT_interrupt(void)
-;
-#pragma vector = TIMER0_COMPA_vect
-INTERRUPT void TIMER0_COMPA_interrupt(void)
-;
-#pragma vector = TIMER0_COMPB_vect
-INTERRUPT void TIMER0_COMPB_interrupt(void)
-;
-#pragma vector = TIMER2_COMPB_vect
-INTERRUPT void TIMER2_COMPB_interrupt(void)
-;
-#pragma vector = TIMER2_OVF_vect
-INTERRUPT void TIMER2_OVF_interrupt (void)
-;
-#pragma vector = TIMER0_OVF_vect
-INTERRUPT void TIMER0_OVF_interrupt (void)
-;
-#pragma vector = TIMER1_OVF_vect
-INTERRUPT void TIMER1_OVF1_interrupt(void)
-;
-#pragma vector = SPI_STC_vect
-INTERRUPT void SPI_STC_interrupt (void)
-;
-#pragma vector = USART0_UDRE_vect
-INTERRUPT void USART0_UDRE_interrupt (void)
-;
-#pragma vector = USART0_TX_vect
-INTERRUPT void USART0_TX_interrupt  (void)
-;
-#pragma vector = ADC_vect
-INTERRUPT void ADC_interrupt (void)
-;
-#pragma vector = EE_READY_vect
-INTERRUPT void EE_READY_interrupt (void)
-;
-#pragma vector = ANALOG_COMP_vect
-INTERRUPT void ANALOG_COMP_interrupt (void)
-;
-#pragma vector = SPM_READY_vect
-INTERRUPT void SPM_READY_interrupt (void)
-;
-#pragma vector = PCINT0_vect
-INTERRUPT void PCINT0_interrupt (void)
-;
-#pragma vector = PCINT1_vect
-INTERRUPT void PCINT1_interrupt (void)
-;
-#pragma vector = PCINT2_vect
-INTERRUPT void PCINT2_interrupt (void)
-;
-#pragma vector = PCINT3_vect
-INTERRUPT void PCINT3_interrupt (void)
-;
-#pragma vector = WDT_vect
-INTERRUPT void WDT_interrupt (void)
-;
-#pragma vector=TWI_vect
-INTERRUPT void TWI_interrupt(void)
-;
-*/
 #ifdef PC
 #define NUM_INPUT_FIELDS   4 // on windows simulator form, text boxes for Vbat, vGnd, Vrip, Irip
 extern double UserValue[NUM_INPUT_FIELDS];

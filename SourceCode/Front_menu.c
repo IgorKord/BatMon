@@ -891,37 +891,6 @@ void Operation(void)
 	{
 		ProcessDOWNbutton();
 	}
-/* Check Up Button
-	if (Display_Info.buttons_hits & BUTTON_UP_INSTANT_PRESS_BIT)    // up button is pressed
-		ProcessUPbutton(); // IK20250804 moved to a separate function
-	if (Display_Info.butt_states & BUTTON_UP_SHORT_PRESS_BIT)    //Short press AND RELEASE of up button
-	{
-		// ProcessUPbutton(); // sets Bit (Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT)
-		clearBit(Display_Info.butt_states, BUTTON_UP_SHORT_PRESS_BIT);	// IK20251111 allow to set accelerated increment delta. resets on release of button
-	}//end short press of up button
-
-	if (Display_Info.butt_states & BUTTON_UP_LONG_PRESS_BIT)			// happen after 3 sec hold
-	{
-		// ProcessUPbutton(); // sets Bit (Display_Info.butt_states, BUTTON_UP_STILL_HELD_BIT)
-		clearBit(Display_Info.butt_states, BUTTON_UP_LONG_PRESS_BIT); // Display_Info.butt_states &= 0xFFDF;  //clear long press of UP
-	}//end long press of up
-
-	//Check Down Button
-	if (Display_Info.buttons_hits & BUTTON_DOWN_INSTANT_PRESS_BIT)    // down button is pressed
-		ProcessDOWNbutton(); // IK20250804 moved to a separate function
-	if (Display_Info.butt_states & BUTTON_DOWN_SHORT_PRESS_BIT)    //Short press and RELEASE of Down button
-	{
-		//ProcessDOWNbutton(); // IK20250804 moved to a separate function
-		//clearBit(Display_Info.butt_states, BUTTON_DOWN_STILL_HELD_BIT);	// IK20251111 allow to set accelerated decrement delta. resets on release of button
-		clearBit(Display_Info.butt_states, BUTTON_DOWN_SHORT_PRESS_BIT); // Display_Info.butt_states &= 0xFFBF;  //clear short down press
-	}//end short press of down button
-
-	if (Display_Info.butt_states & BUTTON_DOWN_LONG_PRESS_BIT)			// Long press and RELEASE of down button
-	{
-		//ProcessDOWNbutton(); // IK20250804 moved to a separate function
-		clearBit(Display_Info.butt_states, BUTTON_DOWN_LONG_PRESS_BIT);	//  Display_Info.butt_states &= 0xFF7F;  //clear long press of down
-	}//end long press of down
-*/
 	//Display_Info.Status housekeeping, handle pulse LED
 	if (rt.pulse == FALSE) {											// set/clr bit in display status
 		Display_PulseLED_OFF;	// clearBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT); // Bit_2
@@ -986,7 +955,7 @@ void Operation(void)
 		clearBit(Display_Info.Status, DISP_STATE_VoltCal_BIT);							// Display_Info.Status &= 0xEF; //clr volt cal bit
 
 	// housekeeping
-	if (timer.limit_mode_timeout_ms == LIMIT_SAFETY_INACTIVITY_TIMEOUT)					// after 150 seconds of no button press revert to manual mode
+	if (timer.limit_mode_timeout_ms >= LIMIT_SAFETY_INACTIVITY_TIMEOUT)					// after 150 seconds of no button press revert to manual mode
 	{
 		Display_Info.butt_states = BUTTON_LIMIT_LONG_PRESS_BIT;							// IK20251014 this will cause exit from limit mode as if someone pressed and held limit button for 3 seconds
 		timer.limit_mode_timeout_ms = 0;
@@ -1089,6 +1058,44 @@ char* ReplaceDoubleII(char* str)
 		indx++;
 	}
 	return str;
+}
+
+/// <summary>
+/// Function to set the protocol name to show on the display based on the current startup protocol. 
+/// It also sets the baud rate index and startup timer accordingly. 
+/// The function updates a pointer to the string that represents the protocol name to be displayed.
+/// </summary>
+/// <param name="p_InfoStr"> pointer to a name to be updated by this function</param>
+void Set_Show_Protocol(char FL * p_InfoStr) {
+	//p_InfoStr = "  ";
+	if (SysData.NV_UI.StartUpProtocol == DNP3) {
+		p_InfoStr = ("DNP3");
+		Existing.BRate_index = Baud_19200_i;
+		timer.start_up_ms = 0;						// exit from setup protocol if was in it
+	}
+	else if (SysData.NV_UI.StartUpProtocol == MODBUS) {
+		p_InfoStr = ("MBUS");
+		Existing.BRate_index = Baud_19200_i;
+		timer.start_up_ms = 0;						// exit from setup protocol if was in it
+	}
+	else if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS) {
+		p_InfoStr = ("ASC`");
+		Existing.BRate_index = ASCII_BR_INDX;			// IK20250826 set to 115200 baud, for quicker screen update
+		timer.start_up_ms = 0;						// exit from setup protocol if was in it
+	}
+	else // default to SETUP
+	// if (SysData.NV_UI.StartUpProtocol == SETUP)
+	{
+		p_InfoStr = ("INIT");
+		rt.operating_protocol = SETUP;
+		if (timer.start_up_ms == 0) {
+			// IK20260205 means after 6 sec of setup protocol, some other protocol was loaded, but now it was changed back to setup protocol,
+			//so we want to give user another 6 seconds to change it again if needed, before reverting to the last protocol
+			timer.TWI_lockup = 13000;						// set twi lockup tmr to 13 sec
+			timer.start_up_ms = 6000;						// setup SysData.NV_UI.StartUpProtocol for 6 seconds
+			Existing.BRate_index = Baud_9600_i;
+		}
+	}
 }
 
 // works in main loop
@@ -1266,30 +1273,7 @@ void DisplayPrepare(void)
 	}
 	else if (display_mode == SELECT_PROTOCOL) // -!- IK20260204 it overrides the normal protocol display to show current protocol and temporary changes baudrate
 	{
-		if (SysData.NV_UI.StartUpProtocol == DNP3) {
-			p_InfoStr = ("DNP3");
-			Existing.BRate_index = Baud_19200_i;
-		}
-		else if (SysData.NV_UI.StartUpProtocol == MODBUS) {
-			p_InfoStr = ("MBUS");
-			Existing.BRate_index = Baud_19200_i;
-		}
-		else if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS) {
-			p_InfoStr = ("ASC`");
-			Existing.BRate_index = ASCII_BR_INDX;			// IK20250826 set to 115200 baud, for quicker screen update
-		}
-		else // default to SETUP
-		// if (SysData.NV_UI.StartUpProtocol == SETUP)
-		{
-			p_InfoStr = ("INIT");
-			rt.operating_protocol = SETUP;
-			if (timer.start_up_ms == 0)		// IK20260205 means after 6 sec of setup protocol
-			{
-				timer.TWI_lockup = 13000;						// set twi lockup tmr to 13 sec
-				timer.start_up_ms = 6000;						// setup SysData.NV_UI.StartUpProtocol for 6 seconds
-				Existing.BRate_index = Baud_9600_i;
-			}
-		}
+		Set_Show_Protocol(p_InfoStr);
 
 		if (rt.operating_protocol != SysData.NV_UI.StartUpProtocol) {
 #ifdef PC

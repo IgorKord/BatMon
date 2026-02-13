@@ -3939,9 +3939,21 @@ DNP_App(void)
 					tmp_cal = tmp_cal + ((long)object_string[obj_ptr + 7] << 8);
 					tmp_cal = tmp_cal + (long)object_string[obj_ptr + 6];
 
-					if (DNP_point_CmdCode == CmdSetAsciiCmds) rt.operating_protocol = ASCII_CMDS;
-					if (DNP_point_CmdCode == CmdSetSetup) rt.operating_protocol = SETUP;
-					if (DNP_point_CmdCode == CmdSetModbus) rt.operating_protocol = MODBUS;
+					//-!- change protocol by DNP command needs testing
+					// IK202060212 changing rt.operating_protocol causes immediate change and switch to another protocol
+					// changeing SysData.NV_UI.StartUpProtocol does not cause immediate protocol change - it happen when rt.operating_protocol is updated from SysData.NV_UI.StartUpProtocol,
+					if (DNP_point_CmdCode == CmdSetAsciiCmds) { 
+						SysData.NV_UI.StartUpProtocol = ASCII_CMDS;
+						display_mode = SELECT_PROTOCOL;						// IK20260212 show change on display
+					}
+					if (DNP_point_CmdCode == CmdSetSetup) {
+						rt.operating_protocol = SETUP;		// IK202060212 changing rt.operating_protocol causes immediate change and switch to SETUP
+						display_mode = SELECT_PROTOCOL;						// IK20260212 show change on display
+					}
+					if (DNP_point_CmdCode == CmdSetModbus) {
+						SysData.NV_UI.StartUpProtocol = MODBUS;				// rt.operating_protocol 
+						display_mode = SELECT_PROTOCOL;						// IK20260212 show change on display
+					}
 
 					if (DNP_point_CmdCode == CmdCalibrateVrange)			// 0x27 = 39D
 						calibr_step = ADC_BATT_VOLTS;
@@ -4590,58 +4602,6 @@ void Parse_Setup_Msg(void)
 		timer.start_up_ms = 300000;							// keeps it in this SysData.NV_UI.StartUpProtocol for 5 more minutes
 		switch (rt.HostRxBuff[4])							// get command
 		{
-#ifdef UNI_BI_POLAR_INPUTS
-		case 'A':											// input channel type
-			if (rt.HostRxBuff[3] == 'R')					// is it a request? Only requests allowed
-		{
-				if (rt.HostRxBuff[5] == '0')
-					send_setup = SEND_INPUT1;				// Send whether Unipolar or Bipolar
-				if (rt.HostRxBuff[5] == '1')
-					send_setup = SEND_INPUT2;				// Send whether Unipolar or Bipolar
-				if (rt.HostRxBuff[5] == '2')
-					send_setup = SEND_INPUT3;				// Send whether Unipolar or Bipolar
-				if (rt.HostRxBuff[5] == '3')
-					send_setup = SEND_INPUT4;				// Send whether Unipolar or Bipolar
-				if (rt.HostRxBuff[5] == '4')
-					send_setup = SEND_INPUT5;				// Send whether Unipolar or Bipolar
-			}
-			break;
-		case 'B':											// input # bi-polar?
-			if (rt.HostRxBuff[3] == 'W')					// is it a write? only writes allowed with 'B'
-			{
-				if (rt.HostRxBuff[5] == '0')				// Input 1?
-				{
-					SysData.input_type[1] = BIPOLAR;
-					SaveToEE(SysData.input_type[1]);		// Store_Parameter(CHANNEL_ONE, BIPOLAR);	//set input 1 to Bi-polar
-					send_setup = SEND_INPUT1;				// send status of input 1
-				}
-				if (rt.HostRxBuff[5] == '1')				// Input 2?
-				{
-					SysData.input_type[2] = BIPOLAR;
-					SaveToEE(SysData.input_type[2]);		// Store_Parameter(CHANNEL_TWO, BIPOLAR);	// set input 2 to Bi-polar
-					send_setup = SEND_INPUT2;				// send status of input 2
-				}
-				if (rt.HostRxBuff[5] == '2')				// Input 3?
-				{
-					SysData.input_type[3] = BIPOLAR;
-					SaveToEE(SysData.input_type[3]);		// Store_Parameter(CHANNEL_THREE, BIPOLAR);// set input 3 to Bi-polar
-					send_setup = SEND_INPUT3;				// send status of input 3
-				}
-				if (rt.HostRxBuff[5] == '3')				// Input 4?
-				{
-					SysData.input_type[4] = BIPOLAR;
-					SaveToEE(SysData.input_type[4]);		// Store_Parameter(CHANNEL_FOUR, BIPOLAR);	// set input 4 to Bi-polar
-					send_setup = SEND_INPUT4;				// send status of input 4
-				}
-				if (rt.HostRxBuff[5] == '4')				// Input 5?
-				{
-					SysData.input_type[5] = BIPOLAR;
-					SaveToEE(SysData.input_type[5]);		// Store_Parameter(CHANNEL_FIVE, BIPOLAR);	// set input 5 to Bi-polar
-					send_setup = SEND_INPUT5;				// send status of input 5
-				}
-			}
-			break;
-#endif // UNIPOLAR_INPUTS
 		case 'C':								// "WC###"	// number of analog points
 			send_setup = SEND_NUM_OF_POINTS;				// send number of analog points
 			if (rt.HostRxBuff[3] == 'W')					// is it a write?
@@ -4666,6 +4626,7 @@ void Parse_Setup_Msg(void)
 				else
 					SysData.NV_UI.StartUpProtocol = ASCII_CMDS;			// set to ASCII commands
 				SaveToEE(SysData.NV_UI.StartUpProtocol);
+				display_mode = SELECT_PROTOCOL;							// IK20260212 show change on display
 				// rt.operating_protocol = SysData.NV_UI.StartUpProtocol; // IK20260205 commented out because this would kick out of setup
 			}
 			break;
@@ -4763,56 +4724,6 @@ void Parse_Setup_Msg(void)
 			}
 			break;
 
-#ifdef UNI_BI_POLAR_INPUTS
-		case 'U':							// "W#U" input # uni-polar?
-			if (rt.HostRxBuff[3] == 'R')					// is it a request?
-			{
-				if (rt.HostRxBuff[5] == 0x30)				// Channel 1?
-					send_setup = SEND_INPUT1;				// send status of input 1
-				if (rt.HostRxBuff[5] == 0x31)				// Channel 2?
-					send_setup = SEND_INPUT2;				// send status of input 2
-				if (rt.HostRxBuff[5] == 0x32)				// Channel 3?
-					send_setup = SEND_INPUT3;				// send status of input 3
-				if (rt.HostRxBuff[5] == 0x33)				// Channel 4?
-					send_setup = SEND_INPUT4;				// send status of input 4
-				if (rt.HostRxBuff[5] == 0x34)				// Channel 5?
-					send_setup = SEND_INPUT5;				// send status of input 5
-			}
-			if (rt.HostRxBuff[3] == 'W')					// is it a write?
-			{
-				if (rt.HostRxBuff[5] == '0')				// Channel 1?
-				{
-					SysData.input_type[1] = UNIPOLAR;
-					SaveToEE(SysData.input_type[1]);		// Store_Parameter(CHANNEL_ONE, UNIPOLAR);	// set input 1 to Uni-polar
-					send_setup = SEND_INPUT1;				// send status of input 1
-				}
-				if (rt.HostRxBuff[5] == '1')				// Channel 2?
-				{
-					SysData.input_type[2] = UNIPOLAR;
-					SaveToEE(SysData.input_type[2]);		// Store_Parameter(CHANNEL_TWO, UNIPOLAR);	// set input 2 to Uni-polar
-					send_setup = SEND_INPUT2;				// send status of input 2
-				}
-				if (rt.HostRxBuff[5] == '2')				// Channel 3?
-				{
-					SysData.input_type[3] = UNIPOLAR;
-					SaveToEE(SysData.input_type[3]);		// Store_Parameter(CHANNEL_THREE, UNIPOLAR);// set input 3 to Uni-polar
-					send_setup = SEND_INPUT3;				// send status of input 3
-				}
-				if (rt.HostRxBuff[5] == '3')				// Channel 4?
-				{
-					SysData.input_type[4] = UNIPOLAR;
-					SaveToEE(SysData.input_type[4]);		// Store_Parameter(CHANNEL_FOUR, UNIPOLAR);// set input 4 to Uni-polar
-					send_setup = SEND_INPUT4;				// send status of input 4
-				}
-				if (rt.HostRxBuff[5] == '4')				// Channel 5?
-				{
-					SysData.input_type[5] = UNIPOLAR;
-					SaveToEE(SysData.input_type[5]);		// Store_Parameter(CHANNEL_FIVE, UNIPOLAR);// set input 5 to Uni-polar
-					send_setup = SEND_INPUT5;				// send status of input 5
-				}
-			}
-			break;
-#endif // UNIPOLAR_INPUTS
 		case 'W':							// "WW###" XMT Timeout, IK20250805 limited in Battery Monitor Setup to 300 ms
 			send_setup = SEND_XMT_DELAY;					// send xmt timeout
 			if (rt.HostRxBuff[3] == 'W')					// is it a write?
