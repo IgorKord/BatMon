@@ -1,3 +1,6 @@
+IK202060302 
+too complicated to save into rt.operating_protocol and to SysData.NV_UI.StartUpProtocol and figure out what to use. decided to change one setting in SysData and if needed save it to EEPROM
+
 20260210 IK
 Fixed startup protocol => INIT and baud rate =>9600
 FW communicates with Battery Monitor Setup using SETUP protocol.

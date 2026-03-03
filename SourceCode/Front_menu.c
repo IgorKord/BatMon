@@ -1065,29 +1065,29 @@ char* ReplaceDoubleII(char* str)
 /// It also sets the baud rate index and startup timer accordingly. 
 /// The function updates a pointer to the string that represents the protocol name to be displayed.
 /// </summary>
-/// <param name="p_InfoStr"> pointer to a name to be updated by this function</param>
-void Set_Show_Protocol(char FL * p_InfoStr) {
+/// <param name="InfoStr"> pointer to a name to be updated by this function</param>
+void Set_Show_Protocol(char FL ** InfoStr) {
 	//p_InfoStr = "  ";
 	if (SysData.NV_UI.StartUpProtocol == DNP3) {
-		p_InfoStr = ("DNP3");
+		*InfoStr = ("DNP3");
 		Existing.BRate_index = Baud_19200_i;
 		timer.start_up_ms = 0;						// exit from setup protocol if was in it
 	}
 	else if (SysData.NV_UI.StartUpProtocol == MODBUS) {
-		p_InfoStr = ("MBUS");
+		*InfoStr = ("MBUS");
 		Existing.BRate_index = Baud_19200_i;
 		timer.start_up_ms = 0;						// exit from setup protocol if was in it
 	}
 	else if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS) {
-		p_InfoStr = ("ASC`");
+		*InfoStr = ("ASC`");
 		Existing.BRate_index = ASCII_BR_INDX;			// IK20250826 set to 115200 baud, for quicker screen update
 		timer.start_up_ms = 0;						// exit from setup protocol if was in it
 	}
 	else // default to SETUP
 	// if (SysData.NV_UI.StartUpProtocol == SETUP)
 	{
-		p_InfoStr = ("INIT");
-		rt.operating_protocol = SETUP;
+		*InfoStr = ("INIT");
+		SysData.NV_UI.StartUpProtocol = SETUP;
 		if (timer.start_up_ms == 0) {
 			// IK20260205 means after 6 sec of setup protocol, some other protocol was loaded, but now it was changed back to setup protocol,
 			//so we want to give user another 6 seconds to change it again if needed, before reverting to the last protocol
@@ -1151,7 +1151,7 @@ void DisplayPrepare(void)
 		else{
 			if ((Display_Info.InfoStr[0] == 'A') && (Display_Info.InfoStr[1] == 'R')) // ARGA initial message
 			{
-				uint8 ProtocolIndex = SysData.NV_UI.StartUpProtocol;
+				uint8 ProtocolIndex = SysData.NV_UI.StartUpProtocol; //Ik20260225  show saved into EEPROM protocol
 #ifdef PROT_NAMES_3CHARS
 				char BriefProtocolNames[4][3] = {
 					'I','n','i',
@@ -1273,7 +1273,7 @@ void DisplayPrepare(void)
 	}
 	else if (display_mode == SELECT_PROTOCOL) // -!- IK20260204 it overrides the normal protocol display to show current protocol and temporary changes baudrate
 	{
-		Set_Show_Protocol(p_InfoStr);
+		Set_Show_Protocol(&p_InfoStr);
 
 		if (rt.operating_protocol != SysData.NV_UI.StartUpProtocol) {
 #ifdef PC
@@ -1290,7 +1290,7 @@ void DisplayPrepare(void)
 	}
 	else
 		p_InfoStr = mode_strings[display_mode];
-if (limit_mode != TRUE) // not in limit mode, normal operation
+	if (limit_mode != TRUE) // not in limit mode, normal operation
 	{
 		//Set Alarm displays if any
 		if (Display_Info.alarm_status)

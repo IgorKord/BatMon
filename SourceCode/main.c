@@ -58,7 +58,7 @@ char FW_PartNumber[] = "826-509-A";	// IK20230706 must be in RAM and not the cha
 char FW_PartNumber[] = "826-501-A";	// IK20230706 must be in RAM and not the char* for printf
 #endif //#ifdef LAST_GASP
 
-char FW_Date[] = "09-Feb-2026";		// IK20230706 must be in RAM for printf
+char FW_Date[] = "24-Feb-2026";		// IK20230706 must be in RAM for printf
 #define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
 float FirmwareVersion;				// to be shown as float on LED, "3.0", initialization to 'FW_ver_float' in init()
 
@@ -1055,7 +1055,7 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 		timer.extender = 0;								// reset extender
 		timer.FreeRunningCounter++;						// Grok20251231
 
-		if ((rt.operating_protocol == ASCII_CMDS) && (rt.OperStatusWord & SendRealTimeData_eq1_Bit))
+		if ((SysData.NV_UI.StartUpProtocol == ASCII_CMDS) && (rt.OperStatusWord & SendRealTimeData_eq1_Bit))
 		{
 			if (timer.RealTimeUpdate > 0)
 				timer.RealTimeUpdate++;
@@ -1249,7 +1249,7 @@ INTERRUPT void USART0_RX_interrupt(void)
 	delay_us(1000);
 #endif
 	uart_byte = UDR0;
-	if (rt.operating_protocol == SETUP)                // if in startup mode check for a setup msg
+	if (SysData.NV_UI.StartUpProtocol == SETUP)                // if in startup mode check for a setup msg
 	{
 		if ((msg_status == MSG_DONE) && (uart_byte == 0x0D))                // msg started yet ?
 		{
@@ -1292,9 +1292,9 @@ INTERRUPT void USART0_RX_interrupt(void)
 			//rt.HostRxBuffPtr = 0;
 			msg_status = MSG_DONE;
 		}
-	} // end of if (rt.operating_protocol == SETUP)
+	} // end of if (SysData.NV_UI.StartUpProtocol == SETUP)
 
-	else if (rt.operating_protocol == ASCII_CMDS)
+	else if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS)
 	{
 #ifdef UART_TEST_SIGNALS	/******TEST SIGNAL********************/
 		clearBit(PORTD, TxRxLED_Green_PD7);    // normal state OFF, logic 1 for green LED pin. turn on Green LED for time measuring
@@ -1313,7 +1313,7 @@ INTERRUPT void USART0_RX_interrupt(void)
 #endif	/******TEST SIGNAL********************/
 	}
 
-	else if (rt.operating_protocol == DNP3)
+	else if (SysData.NV_UI.StartUpProtocol == DNP3)
 	{
 		if (msg_status == MSG_DONE)                 // msg started yet ?
 		{
@@ -1340,9 +1340,9 @@ INTERRUPT void USART0_RX_interrupt(void)
 			rt.HostRxBuffPtr = 0;
 		rt.HostRxBuff[rt.HostRxBuffPtr] = uart_byte;                 // store the new char in Q
 		//timer.CommChHoldOff = 20;                         // msgs coming in so hold
-	} // end of if (rt.operating_protocol == DNP)
+	} // end of if (SysData.NV_UI.StartUpProtocol == DNP)
 
-	else if (rt.operating_protocol == MODBUS)
+	else if (SysData.NV_UI.StartUpProtocol == MODBUS)
 	{
 		/*----------- Frame Error Check ---------*/
 		if (UCSR0A & FRAME_ERROR_BIT)				// if frame error detected
@@ -1370,7 +1370,7 @@ INTERRUPT void USART0_RX_interrupt(void)
 		rt.HostRxBuffPtr++;
 		if (rt.HostRxBuffPtr >= 50)									// if at end of Q wrap around
 			rt.HostRxBuffPtr = 0;
-	} // end of if (rt.operating_protocol == MODBUS)
+	} // end of if (SysData.NV_UI.StartUpProtocol == MODBUS)
 } // end of INTERRUPT void USART0_RX_interrupt(void)
 
 /*-------------------------- functions  -----------------------------*/
@@ -2277,7 +2277,7 @@ void Send_232(uint8 chars_to_send)
 	uint8 wt;
 #ifndef PC
 	WATCHDOG_RESET();
-	if (rt.operating_protocol == SETUP)
+	if (SysData.NV_UI.StartUpProtocol == SETUP)
 		timer.CommChHoldOff = 5;
 	else
 		timer.CommChHoldOff = SysData.xmt_delay;// set by SysData.xmt_delay
@@ -3940,18 +3940,18 @@ DNP_App(void)
 					tmp_cal = tmp_cal + (long)object_string[obj_ptr + 6];
 
 					//-!- change protocol by DNP command needs testing
-					// IK202060212 changing rt.operating_protocol causes immediate change and switch to another protocol
-					// changeing SysData.NV_UI.StartUpProtocol does not cause immediate protocol change - it happen when rt.operating_protocol is updated from SysData.NV_UI.StartUpProtocol,
-					if (DNP_point_CmdCode == CmdSetAsciiCmds) { 
+					// IK202060212 changing rt.operational_protocol causes immediate change and switch to another protocol
+					// changeing SysData.NV_UI.StartUpProtocol does not cause immediate protocol change - it happen when SysData.NV_UI.StartUpProtocol is updated from SysData.NV_UI.StartUpProtocol,
+					if (DNP_point_CmdCode == CmdSetAsciiCmds) {
 						SysData.NV_UI.StartUpProtocol = ASCII_CMDS;
 						display_mode = SELECT_PROTOCOL;						// IK20260212 show change on display
 					}
 					if (DNP_point_CmdCode == CmdSetSetup) {
-						rt.operating_protocol = SETUP;		// IK202060212 changing rt.operating_protocol causes immediate change and switch to SETUP
+						SysData.NV_UI.StartUpProtocol = SETUP;		// IK202060212 changing SysData.NV_UI.StartUpProtocol causes immediate change and switch to SETUP
 						display_mode = SELECT_PROTOCOL;						// IK20260212 show change on display
 					}
 					if (DNP_point_CmdCode == CmdSetModbus) {
-						SysData.NV_UI.StartUpProtocol = MODBUS;				// rt.operating_protocol 
+						SysData.NV_UI.StartUpProtocol = MODBUS;				// SysData.NV_UI.StartUpProtocol
 						display_mode = SELECT_PROTOCOL;						// IK20260212 show change on display
 					}
 
@@ -4074,7 +4074,7 @@ DNP_App(void)
 						// at this moment, cal_timer = 0;
 						timer.Calibration = DEF_CALIBRATION_DELAY;					// give it 1.5s to get an ADC reading
 					}
-					if ((calibr_step == NOT_A_CALIBRATION)) // IK20260203 allow calibration in ASCII mode || (rt.operating_protocol != DNP3))
+					if ((calibr_step == NOT_A_CALIBRATION)) // IK20260203 allow calibration in ASCII mode || (SysData.NV_UI.StartUpProtocol != DNP3))
 					{
 						calibr_step = NOT_A_CALIBRATION;
 						cal_status = 0;
@@ -4512,8 +4512,8 @@ void Parse_Modbus_Msg(void)
 		case NO_FUNCTION:								// no function 0
 			break;
 
-		case READ_HOLDING_REGISTERS:					// Function 3 Read holding regs IK20250718 for BatMon, holding rt.registers contain votage and current analog values
-		case READ_INPUT_REGISTERS:						// Function 4 Read Input Registers
+		case READ_HOLDING_REGISTERS:					// case / Function 3 Read holding regs IK20250718 for BatMon, holding rt.registers contain votage and current analog values
+		case READ_INPUT_REGISTERS:						// case / Function 4 Read Input Registers
 			if (msg == ModBusGOOD)						// CRC check passed
 			{
 				send_modbus = ILLEGAL_ADDRESS;			// asked for addr not implemented
@@ -4532,6 +4532,7 @@ void Parse_Modbus_Msg(void)
 			else										// doesn't implement for this function.
 				send_modbus = SEND_NOTHING;				// send no reply cause msg was bad
 			break;
+
 		case DIAGNOSTICS:								// Function 8 Diagnostics
 			if (msg == ModBusGOOD)						// if msg is good
 			{
@@ -4545,21 +4546,46 @@ void Parse_Modbus_Msg(void)
 			else										// msg wasn't good so don't
 				send_modbus = SEND_NOTHING;				// reply
 			break;
+
+		case PRESET_SINGLE_REGISTER:					// IK20260302 Function 6 Write Single Register
+			if (msg == ModBusGOOD)						// CRC check passed
+			{
+				if (rt.device_register == 0x0064)		// register 0x64 = 100: switch to ASCII_CMDS protocol
+				{
+					// low byte of rt.registers carries the new protocol code (ignored here - register address selects protocol)
+					send_modbus = SEND_CMD_ECHO;				// echo FC06 frame as success response
+					SysData.NV_UI.StartUpProtocol = ASCII_CMDS;
+					SaveToEE(SysData.NV_UI.StartUpProtocol);	// persist to EEPROM
+					display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
+				}
+				else if (rt.device_register == 0x0065)	// register 0x65 = 101: switch to DNP3 protocol
+				{
+					send_modbus = SEND_CMD_ECHO;				// echo FC06 frame as success response
+					SysData.NV_UI.StartUpProtocol = DNP3;
+					SaveToEE(SysData.NV_UI.StartUpProtocol);	// persist to EEPROM
+					display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
+				}
+				else
+					send_modbus = ILLEGAL_ADDRESS;		// register not implemented
+			}
+			else
+				send_modbus = SEND_NOTHING;				// bad CRC - no reply
+			break;
+
 		default:										// not any of above functions;
-		// IK20250718 cases below are replaced by default case
-		//case READ_COIL_STATUS:						// Function 1  READ COIL STATUS
-		//case READ_INPUT_STATUS:						// Function 2  READ INPUT STATUS
-		//case FORCE_SINGLE_COIL:						// Function 5  Force single coil
-		//case PRESET_SINGLE_REGISTER:					// Function 6  Preset Single Register
-		//case READ_EXCEPTION_STATUS:					// Function 7  Read Exception Status
-		//case PROGRAM_484:								// Function 9  Program 484
-		//case POLL_484:								// Function 10 POLL 484
-		//case FETCH_COMM_EVENT_COUNTER:				// Function 11 Fetch Comm Event Cntr
-		//case FETCH_COMM_EVENT_LOG:					// Function 12 Fetch Comm Event Log
-		//case PROGRAM_CONTROLLER:						// Function 13 Program Controller
-		//case POLL_CONTROLLER:							// Function 14 Poll Controller
-		//case FORCE_MULTIPLE_COILS:					// Function 15 Force Multiple Coils
-		//case PRESET_MULTIPLE_REGISTERS:				// Function 16 Preset Multiple Regs
+			// IK20250718 cases below are replaced by default case
+			//case READ_COIL_STATUS:						// Function 1  READ COIL STATUS
+			//case READ_INPUT_STATUS:						// Function 2  READ INPUT STATUS
+			//case FORCE_SINGLE_COIL:						// Function 5  Force single coil
+			//case READ_EXCEPTION_STATUS:					// Function 7  Read Exception Status
+			//case PROGRAM_484:								// Function 9  Program 484
+			//case POLL_484:								// Function 10 POLL 484
+			//case FETCH_COMM_EVENT_COUNTER:				// Function 11 Fetch Comm Event Cntr
+			//case FETCH_COMM_EVENT_LOG:					// Function 12 Fetch Comm Event Log
+			//case PROGRAM_CONTROLLER:						// Function 13 Program Controller
+			//case POLL_CONTROLLER:							// Function 14 Poll Controller
+			//case FORCE_MULTIPLE_COILS:					// Function 15 Force Multiple Coils
+			//case PRESET_MULTIPLE_REGISTERS:				// Function 16 Preset Multiple Regs
 			if (msg == ModBusGOOD)						// good msg but this function
 				send_modbus = NOT_SUPPORTED_MODBUS;		// is not a supported in this product
 			else
@@ -4573,9 +4599,8 @@ void Parse_Modbus_Msg(void)
 	else
 		//debug = 11;
 	// --------------------- End of command checks ----------
-	ClearRxBuffer(0x00);						// at this point all parsing is done so clear out the buffer with nonsense
-} // end of Parse_Modbus_Msg(void)
-
+		ClearRxBuffer(0x00);						// at this point all parsing is done so clear out the buffer with nonsense
+}
 /*********************************************************************/
 /*                P A R S E   S E T U P   M S G                      */
 /*********************************************************************/
@@ -4627,7 +4652,7 @@ void Parse_Setup_Msg(void)
 					SysData.NV_UI.StartUpProtocol = ASCII_CMDS;			// set to ASCII commands
 				SaveToEE(SysData.NV_UI.StartUpProtocol);
 				display_mode = SELECT_PROTOCOL;							// IK20260212 show change on display
-				// rt.operating_protocol = SysData.NV_UI.StartUpProtocol; // IK20260205 commented out because this would kick out of setup
+				// SysData.NV_UI.StartUpProtocol = SysData.NV_UI.StartUpProtocol; // IK20260205 commented out because this would kick out of setup
 			}
 			break;
 		case 'E':								// "WE###" DLL number of retries, IK20250805, Battery Monitor Setup never sets it, just reads from BM and sends it back
@@ -7415,12 +7440,22 @@ void SetGetRipCURRthreshold(void)
 
 /*************************************************************/
 // shows what is saved in EEPROM. Obviously, to execute this ASCII command, acting protocol from RAM must be ASCII
+// 'prot>dnp3 sets protocol in EEPROM
+// 'prot? returns current protocol in EEPROM, which is used at startup. To change active protocol in RAM, use 'prot>now>' command.
+// 'prot>now>dnp3' sets protocol in RAM immediately, It does not change saved protocol in EEPROM, so at next startup,
+//  the protocol will be what is saved in EEPROM. This is for test purpose, to switch to DNP3 or ModBus without going through menu and without changing saved startup protocol in EEPROM.
 void SetGetProtocol(void)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
-	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //"DNP3" or "SETUP"  or "ModBus" or "ASCII" starting 1 bytes after command
+	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //IK20260224 "now>" or "DNP3" or "SETUP"  or "ModBus" or "ASCII" starting 1 bytes after command
 	if (temp_Inp_str[CMD_LEN] == '>')
 	{
+		uint8 change_now = 0;
+		if (param == (('n' + 256 * 'o') + ('w' + 256 * '>') * 65536))
+		{
+			change_now = 1;
+			param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 5]);
+		}
 		//SETUP = 0x00,
 		//DNP3 = 0x01,
 		//MODBUS = 0x02,
@@ -7430,18 +7465,32 @@ void SetGetProtocol(void)
 		//if (param == (('s' + 256 * 'e') + ('t' + 256 * 'u') * 65536)) // 'setup'
 		//	SysData.NV_UI.StartUpProtocol = SETUP; // set to 0x00
 		//else
+
+		{
+			uint8 ProtCode = -1; // invalid
 			if (param == (('d' + 256 * 'n') + ('p' + 256 * '3') * 65536))
-			SysData.NV_UI.StartUpProtocol = DNP3; // set to 0x01
-		else if (param == (('m' + 256 * 'o') + ('d' + 256 * 'b') * 65536))
-			SysData.NV_UI.StartUpProtocol = MODBUS; // set to 0x02
-		else if (param == (('a' + 256 * 's') + ('c' + 256 * 'i') * 65536))
-			SysData.NV_UI.StartUpProtocol = ASCII_CMDS; // set to 0x03
-		// the 'menu' protocol is not implemented
-		//else if (param == (('m' + 256 * 'e') + ('n' + 256 * 'u') * 65536))
-		//	SysData.NV_UI.StartUpProtocol = ASCII_MENU; // set to 0x04
-		else
-			Send_RCI_Param_Error_as_FlashConst("DNP3 ModBus ASCII");
-			// Send_RCI_Param_Error_as_FlashConst("Setup DNP3 ModBus ASCII"); // IK20260205 excluded setup
+			{
+				ProtCode = DNP3; // set to 0x01
+			}
+			else if (param == (('m' + 256 * 'o') + ('d' + 256 * 'b') * 65536))
+			{
+				ProtCode = MODBUS; // set to 0x02
+			}
+			else if (param == (('a' + 256 * 's') + ('c' + 256 * 'i') * 65536))
+			{
+				ProtCode = ASCII_CMDS;	// set to 0x03
+			}
+			else{
+				Send_RCI_Param_Error_as_FlashConst(">now >DNP3 >ModBus >ASCII");	// IK20260205 excluded setup ("Setup DNP3 ModBus ASCII");
+				return;
+
+			}
+//IK20260302 too complicated to save into rt.operating_protocol and to SysData.NV_UI.StartUpProtocol. decided to change one setting in SysData and if needed save it to EEPROM
+			SysData.NV_UI.StartUpProtocol = ProtCode;	// change active protocol in RAM immediately, without waiting for 'save' command.
+			if (change_now == 0 ) 						// If 'now>' is not used in the command, save protocol in EEPROM, so at next startup, the protocol will be what is saved in EEPROM.
+				SaveToEE(SysData.NV_UI.StartUpProtocol);
+		}
+		display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
 	}
 	else // ? -- get command
 	{
@@ -7455,25 +7504,66 @@ void SetGetProtocol(void)
 }
 
 /*************************************************************/
-// exit ASCII RCI SysData.NV_UI.StartUpProtocol and swith to DNP immediately
+// exit ASCII RCI Protocol and swith to DNP immediately
 void SwitchToDNP(void)
 {
 	cputs("Switching to DNP3\r\n");
 	Delay_ms(200);
-	SysData.NV_UI.StartUpProtocol = DNP3;
-	display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change rt.operating_protocol
+	SysData.NV_UI.StartUpProtocol  = DNP3;
+	display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
 }
 
 /*************************************************************/
-// exit ASCII RCI SysData.NV_UI.StartUpProtocol and swith to ModBus immediately
+// exit ASCII RCI Protocol and swith to ModBus immediately
 void SwitchToModBus(void)
 {
 	cputs("Switching to ModBus\r\n");
 	Delay_ms(200);
 	SysData.NV_UI.StartUpProtocol = MODBUS;
-	display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change rt.operating_protocol
+	display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
 }
 
+/*********************************************************************/
+/*              S W I T C H   T O   A S C I I   ( M O D B U S )      */
+/*********************************************************************/
+/*  Description:  Called from Modbus write handler when host sends a
+				  "set protocol = ASCII" command via a Modbus FC06 or
+				  FC16 write to the protocol-select register.
+				  Mirrors SwitchToDNP() / SwitchToModBus() pattern.
+	Inputs:       None
+	Outputs:      SysData.NV_UI.StartUpProtocol = ASCII_CMDS
+	Notes:        The Modbus parser must call this after validating the
+				  register address and confirming the written value
+				  equals ASCII_CMDS.
+	Revisions:    IK20260302
+*/
+/*********************************************************************/
+void SetASCIIfromModbus(void)
+{
+	SysData.NV_UI.StartUpProtocol = ASCII_CMDS;
+	display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and switch protocol
+}
+
+/*********************************************************************/
+/*              S W I T C H   T O   D N P 3   ( M O D B U S )        */
+/*********************************************************************/
+/*  Description:  Called from Modbus write handler when host sends a
+				  "set protocol = DNP3" command via a Modbus FC06 or
+				  FC16 write to the protocol-select register.
+				  Mirrors SwitchToDNP() / SwitchToModBus() pattern.
+	Inputs:       None
+	Outputs:      SysData.NV_UI.StartUpProtocol = DNP3
+	Notes:        The Modbus parser must call this after validating the
+				  register address and confirming the written value
+				  equals DNP3.
+	Revisions:    IK20260302
+*/
+/*********************************************************************/
+void SetDNP3fromModbus(void)
+{
+	SysData.NV_UI.StartUpProtocol = DNP3;
+	display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and switch protocol
+}
 /*************************************************************/
 // Get 'phas[e?]' returns Set command syntax 'phase>1-ph', 'phase>3-ph'. Setting in flash is updated after 'save' command.
 // Set / Get one-phase (120 Hz) or 3-phase (360 Hz) charger. Calibration parameters have 2 sets for 120 or 360 Hz
@@ -7800,7 +7890,7 @@ void main(void)
 	PC_LOOP_INITIALIZED = TRUE;
 #endif
 #ifdef ASCII_TESTING
-	rt.operating_protocol = ASCII_CMDS;							//-!- IK20241222 overwrite for test
+	SysData.NV_UI.StartUpProtocol = ASCII_CMDS;							//-!- IK20241222 overwrite for test
 	setBit(rt.Host , CharEchoFlag);
 	Print_FW_Version();
 	SendCrLf();
@@ -7844,13 +7934,13 @@ void main(void)
 			ClearTestPin44;										// IK20250523 reset test pin #44 (easy to solder to)
 #endif // #ifdef TIME_TESTING
 		}
-		CheckExecuteFrontPanelCmd();						// inside is front panel menu
+		CheckExecuteFrontPanelCmd();							// inside is front panel menu
 		//if (timer.TWI_request == 0) // IK20250919 added to have stable periodic check of front panel buttons
 		//{
 		//	timer.TWI_request = 20 ; // once in 20 ms check front buttons on display board
 		//}
 		// IK20250812 moved into interrupt to have more precise timing
-		//if ((rt.battery_deciVolts > 140) &&						// between 14 and 380 vdc
+		//if ((rt.battery_deciVolts > 140) &&					// between 14 and 380 vdc
 		//	(rt.battery_deciVolts < 3800))						// waits till getting good battery voltage
 		//	Check_Alarms();										// to start checking alarms
 
@@ -7860,14 +7950,14 @@ void main(void)
 		// IK20251219 re-arranged protocol check in the order of likiness of use
 		if (msg_status == MSG_STARTED)							// New RS485 Msg?
 		{
-			if (rt.operating_protocol == DNP3)				// if in DNP
+			if (SysData.NV_UI.StartUpProtocol == DNP3)			// if in DNP
 			{
 				Parse_DNP_Msg();								// parse it as such
 				msg_status = MSG_DONE;							// tell all that its done
 				num_of_inbytes = 0;								// reset number of incoming bytes
 			}
 
-			else if (rt.operating_protocol == MODBUS)			// if in Modbus
+			else if (SysData.NV_UI.StartUpProtocol == MODBUS)	// if in Modbus
 			{
 				if (timer.ModBus_100us == 0)					// end of msg ?
 				{
@@ -7879,7 +7969,7 @@ void main(void)
 			}
 		}
 
-		if (rt.operating_protocol == SETUP)
+		if (SysData.NV_UI.StartUpProtocol == SETUP)
 		{
 			if (msg_status == MSG_ARRIVED)						// if in setup mode
 			{
@@ -7907,7 +7997,7 @@ void main(void)
 				Init_UART();						// call from main() after SETUP protocol timeout Set Baud and comm parameters
 				display_mode = VOLTS;				// IK20260205 after 6 sec of SETUP and shoving "ARGA", switch to show "BAT" voltage
 
-				if (rt.operating_protocol == MODBUS)					// @ 9600 baud
+				if (SysData.NV_UI.StartUpProtocol == MODBUS)					// @ 9600 baud
 				{
 					rt.protocol_parity = SysData.app_confirm;			// IK20260205 update realtime copy of MODBUS parity
 					if (rt.protocol_parity == EVEN)						// ==1? is rt.UART_parity even?
@@ -7916,19 +8006,19 @@ void main(void)
 						UCSR0C = 0x36;									// make it odd
 					rt.first_register = SysData.NV_UI.host_address;		// same location
 				}
-				else if (rt.operating_protocol == DNP3) 				// init incoming buffer
+				else if (SysData.NV_UI.StartUpProtocol == DNP3) 				// init incoming buffer
 				{
 					UCSR0C = 0x06;										// no UART_parity, async, 1 stop
 					memset(rt.HostRxBuff, 0xFF, HOST_RX_BUFF_LEN);		// so clear out the buffer with nonsense
 				}
-				else // (rt.operating_protocol == ASCII)
+				else // (SysData.NV_UI.StartUpProtocol == ASCII)
 				{
 					SetASCIIandSignMsg();
 				}
 			}	// end of if ((timer.start_up == 0)
-		}		// && (rt.operating_protocol == SETUP)) //start up timed out
+		}		// && (SysData.NV_UI.StartUpProtocol == SETUP)) //start up timed out
 
-		else if (rt.operating_protocol == ASCII_CMDS)				// New IK20241030
+		else if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS)			// New IK20241030
 		{
 		//	CHECK PC communication
 			// IK20250527 happen each 150 ms: program does not go there for 125ms, and parces for 12.5 ms??
@@ -7938,11 +8028,8 @@ void main(void)
 		}
 
 		// IK20231214 not set to any value //
-		if ((timer.TWI_hangup == 0)
-			// IK20231214 not set to this value // && (twi_reply_status == WAITING_REPLY)
-		)
+		if (timer.TWI_hangup == 0)
 		{
-			// IK20231214 not checked //twi_reply_status = DEVICE_TROUBLE;
 			iien1 = iien1 | 0x40;                 //set dev trouble bit
 		}
 
@@ -7952,16 +8039,13 @@ void main(void)
 			calibr_step = CALIBRATION_DONE;      // so end it.//added 8/14/19
 		}
 
-		if ((send_dnp != SEND_NOTHING) || (send_modbus != SEND_NOTHING) || (send_setup != SEND_NOTHING)
-			// IK20231214 not set anywhere to WAITING_REPLY // && (twi_reply_status != WAITING_REPLY)
-			// IK20231214 not set anywhere                  // && (twi_sending == false)
-			)
+		if ((send_dnp != SEND_NOTHING) || (send_modbus != SEND_NOTHING) || (send_setup != SEND_NOTHING))
 		{
-			if (rt.operating_protocol == DNP3)
+			if (SysData.NV_UI.StartUpProtocol == DNP3)
 				Send_DNP_Msg(send_dnp);            //yeh go send it
-			if (rt.operating_protocol == MODBUS)
+			if (SysData.NV_UI.StartUpProtocol == MODBUS)
 				Send_Modbus_Msg(send_modbus);      //yeh go send it
-			if (rt.operating_protocol == SETUP)
+			if (SysData.NV_UI.StartUpProtocol == SETUP)
 				Send_Setup_Msg(send_setup);        //yeh go send it
 		}
 
@@ -7969,7 +8053,7 @@ void main(void)
 // never			(measurement_ID != 0) &&
 //            (timer.ADC_ms == 0) &&
 #ifndef PC
-			(rt.operating_protocol != SETUP) && 	//-!- IK20250304 enable measurement during setup?
+			(SysData.NV_UI.StartUpProtocol != SETUP) && 	//-!- IK20250304 enable measurement during setup?
 #endif
 			 (msg_status == MSG_DONE))
 		{

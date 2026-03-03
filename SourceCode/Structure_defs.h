@@ -227,14 +227,7 @@ typedef struct  { // RealTimeVars
 	volatile uint16 OperStatusWord;				// each bit calls different diagnostic or test, bit definitions in main.h
 	// IK20251029 changed several variables to float for better resolution and easier menu operation
 	MeasuredData OutData;	//IK20251118 encapsulate all float measurement results into union to easy show n terminal
-	/*
-	float battery_voltage_f;					// in Volts, 145V saved as 145.00
-	float G_fault_voltage_f;
-	float minus_gnd_volts_f;
-	float plus_gnd_volts_f;
-	float ripple_mV_f;
-	float ripple_mA_f;
-*/
+
 	// used in DNP calibration, indicates which current loop setting is active
 	uint8 ripple_calibration_phase;				// CalibrateSinglePhase=127 is single phase calibration , 255 is 3-phase calibration, 0 means not in calibration mode
 	uint8 cal_4mA;								// calibrating 4 mA
@@ -249,11 +242,10 @@ typedef struct  { // RealTimeVars
 
 	//---- Modbus Variables ----
 	uint8  registers;							// ModBus: how many bytes are coming: 4*registers
-	uint16 first_register;						// if (rt.operating_protocol == MODBUS) first_register = host_address;      //same location
+	uint16 first_register;						// if (Protocol == MODBUS) first_register = host_address;      //same location
 	uint16 device_register;
 	uint8  protocol_parity;						// == 0 No parity; == 1 UART_parity even; == 2 UART_parity odd
 
-//    volatile uint8 Transmitting; 	// this flag is set by main level output function like cputs() when buffer gets new string, reset by interrupt when has been transmitted
 	volatile uint8 Host;
 //	volatile uint8 HostTx_StrLen; 				// the length of the string written tp the buffer, setting by main level output function like cputs(), reset by interrupt when transmitted
 //	volatile uint8 HostTxPtr_IN; 				// index of writing to buffer, increasing by main level output function like cputs(), reset by interrupt when transmitted
@@ -264,15 +256,15 @@ typedef struct  { // RealTimeVars
 	char   HostRxBuff[HOST_RX_BUFF_LEN];		// [256] used with UART
 	uint16 ADC_buff[8];							//-!- IK20250602 ! for test ! holds results of ADC conversion
 	// alarm event counters, used in Check_Alarms()
-	uint8  h_battery_fault_cntr;               // High Battery Voltage detection event counter
-	uint8  l_battery_fault_cntr;               // Low Battery Voltage detection event counter
-	uint8  p_gf_cntr;                          // Positive Ground Fault detection event counter
-	uint8  m_gf_cntr;                          // Negative Ground Fault detection event counter
-	uint8  rv_cntr;                            // Ripple Voltage detection event counter
-	uint8  ri_cntr;                            // Ripple Current detection event counter
-	uint8  high_impedance_cntr;                // High Z (impedance) detection event counter
-	uint8  ac_cntr;                            // AC loss detection event counter
-} RealTimeVars;//real time variables in a structure
+	uint8  h_battery_fault_cntr;				// High Battery Voltage detection event counter
+	uint8  l_battery_fault_cntr;				// Low Battery Voltage detection event counter
+	uint8  p_gf_cntr;							// Positive Ground Fault detection event counter
+	uint8  m_gf_cntr;							// Negative Ground Fault detection event counter
+	uint8  rv_cntr;								// Ripple Voltage detection event counter
+	uint8  ri_cntr;								// Ripple Current detection event counter
+	uint8  high_impedance_cntr;					// High Z (impedance) detection event counter
+	uint8  ac_cntr;								// AC loss detection event counter
+} RealTimeVars;	//real time variables in a structure
 extern RealTimeVars rt;
 
 
