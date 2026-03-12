@@ -58,7 +58,7 @@ char FW_PartNumber[] = "826-509-A";	// IK20230706 must be in RAM and not the cha
 char FW_PartNumber[] = "826-501-A";	// IK20230706 must be in RAM and not the char* for printf
 #endif //#ifdef LAST_GASP
 
-char FW_Date[] = "24-Feb-2026";		// IK20230706 must be in RAM for printf
+char FW_Date[] = "10-Mar-2026";		// IK20230706 must be in RAM for printf
 #define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
 float FirmwareVersion;				// to be shown as float on LED, "3.0", initialization to 'FW_ver_float' in init()
 
@@ -3930,7 +3930,7 @@ DNP_App(void)
 				//DNP_point_CmdCode = object_string[obj_ptr + 4];
 				if ((object_string[obj_ptr + 3] == 0x01) && //1 point
 					(DNP_point_CmdCode >= CmdCalibrateVrange) &&
-					(DNP_point_CmdCode <= CmdSetModbus) )
+					(DNP_point_CmdCode <= DNPcmdSetModbusProtocol) )
 				{
 					iien2 = GOOD_APDU;            //good function & object
 
@@ -3942,15 +3942,15 @@ DNP_App(void)
 					//-!- change protocol by DNP command needs testing
 					// IK202060212 changing rt.operational_protocol causes immediate change and switch to another protocol
 					// changeing SysData.NV_UI.StartUpProtocol does not cause immediate protocol change - it happen when SysData.NV_UI.StartUpProtocol is updated from SysData.NV_UI.StartUpProtocol,
-					if (DNP_point_CmdCode == CmdSetAsciiCmds) {
+					if (DNP_point_CmdCode == ByteCmdSetAsciiProtocol) {
 						SysData.NV_UI.StartUpProtocol = ASCII_CMDS;
 						display_mode = SELECT_PROTOCOL;						// IK20260212 show change on display
 					}
-					if (DNP_point_CmdCode == CmdSetSetup) {
+					if (DNP_point_CmdCode == DNPcmdSetSetupProtocol) {
 						SysData.NV_UI.StartUpProtocol = SETUP;		// IK202060212 changing SysData.NV_UI.StartUpProtocol causes immediate change and switch to SETUP
 						display_mode = SELECT_PROTOCOL;						// IK20260212 show change on display
 					}
-					if (DNP_point_CmdCode == CmdSetModbus) {
+					if (DNP_point_CmdCode == DNPcmdSetModbusProtocol) {
 						SysData.NV_UI.StartUpProtocol = MODBUS;				// SysData.NV_UI.StartUpProtocol
 						display_mode = SELECT_PROTOCOL;						// IK20260212 show change on display
 					}
@@ -4550,7 +4550,7 @@ void Parse_Modbus_Msg(void)
 		case PRESET_SINGLE_REGISTER:					// IK20260302 Function 6 Write Single Register
 			if (msg == ModBusGOOD)						// CRC check passed
 			{
-				if (rt.device_register == 0x0064)		// register 0x64 = 100: switch to ASCII_CMDS protocol
+				if (rt.device_register == ByteCmdSetAsciiProtocol)		// register 0x30 = 48: switch to ASCII_CMDS protocol
 				{
 					// low byte of rt.registers carries the new protocol code (ignored here - register address selects protocol)
 					send_modbus = SEND_CMD_ECHO;				// echo FC06 frame as success response
@@ -4558,12 +4558,12 @@ void Parse_Modbus_Msg(void)
 					SaveToEE(SysData.NV_UI.StartUpProtocol);	// persist to EEPROM
 					display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
 				}
-				else if (rt.device_register == 0x0065)	// register 0x65 = 101: switch to DNP3 protocol
+				else if (rt.device_register == ModbusCmdSetDNPprotocol)	// register 0x33 = 51d: switch to DNP3 protocol
 				{
 					send_modbus = SEND_CMD_ECHO;				// echo FC06 frame as success response
 					SysData.NV_UI.StartUpProtocol = DNP3;
 					SaveToEE(SysData.NV_UI.StartUpProtocol);	// persist to EEPROM
-					display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
+					display_mode = SELECT_PROTOCOL;		// Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
 				}
 				else
 					send_modbus = ILLEGAL_ADDRESS;		// register not implemented
@@ -6896,7 +6896,7 @@ void Send_verbose_comment_as_FlashConst(char FL * comment)
 void SetGet_param(int float_offset, float minValue, float maxValue, float* Qf_var_ptr,  char* verb_msg)
 {
 	float temp_float;
-	char* temp_Inp_str = CommStr;										// pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	char* temp_Inp_str = CommStr;										// pointer to RxBuff[0]
 	int str_ptr = CMD_LEN + (float_offset & (SHOW_LONG - 1));
 
 	if (temp_Inp_str[str_ptr] == '=')
@@ -7347,31 +7347,62 @@ void SetGetDelay(void)
 	SysData.NV_UI.alarm_delay_sec_f = (uint16)temp_N;
 }
 
-/*************************************************************/
-// DNP/ModBus Address set/get: 'addr? returns Set command syntax 'addr=NNNN', DNP range up to 65000, ModBus pange up to 255.  Setting in flash is updated after 'save' command.
-void SetGetHostAddress(void)
-{
-	float MaxAddress=255.0f;
-	float temp_N = SysData.NV_UI.host_address;
-	if (SysData.NV_UI.StartUpProtocol == DNP3) MaxAddress = 65000.0f; // MAX_DNP3_ADDRESS = ((uint16)65519)
-	else if (SysData.NV_UI.StartUpProtocol == MODBUS) MaxAddress = 255.0f;
-
-	sprintf(RCI_message, "Host Address, dflt=%d, range 1 to %d", 3, (uint16)MaxAddress); // DNP3 or ModBus address
-	SetGet_param(2 + SHOW_LONG, 0.0f, MaxAddress, &temp_N, RCI_message);
-	SysData.NV_UI.host_address = (uint16)(temp_N);
+/************************************************************* /
+uint16 SetProtocolMaxAddress() {
+	uint16 MaxAdr = 255;
+	if (SysData.NV_UI.StartUpProtocol == DNP3) MaxAdr = 65000; // MAX_DNP3_ADDRESS = ((uint16)65519)
+	//else if (SysData.NV_UI.StartUpProtocol == MODBUS) MaxAdr = 255.0f;
+	return MaxAdr;
 }
 
-// DNP/ModBus Address set/get: 'addr? returns Set command syntax 'addr=NNNN', DNP range up to 65000, ModBus pange up to 255.  Setting in flash is updated after 'save' command.
+/*************************************************************/
+void SetGetAddress(uint8 host_0_or_meter_1)	// 0 for host, 1 for meter
+{
+	float temp_N;
+	char* temp_Inp_str = CommStr; // pointer to rt.RxBuff[0]
+	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //"dnp3" or "modb" starting 1 bytes after command
+	uint16 MaxAddress;
+	// set max protocol address
+	if (param == (('d' + 256 * 'n') + ('p' + 256 * '3') * 65536)) {
+		MaxAddress = 65000;
+	}
+	else if (param == (('m' + 256 * 'o') + ('d' + 256 * 'b') * 65536)) {
+		MaxAddress = 255;
+	}
+	if (host_0_or_meter_1 == 0)
+		temp_N = (float)SysData.NV_UI.host_address;
+	else
+		temp_N = SysData.NV_UI.meter_address;
+
+	SetGet_param(4+SHOW_LONG, 0.0f, (float)MaxAddress, &temp_N, RCI_message); // IK20260312 fixed address command - deleted offset of 2
+
+	if (host_0_or_meter_1 == 0)
+		SysData.NV_UI.host_address = (uint16)(temp_N);
+	else
+		SysData.NV_UI.meter_address = temp_N;
+}
+
+// -!- K20260312 - NEED DEBUGGING. expected it does not return protocol after command
+// refactored Host and Meter address commands into one function with argument to specify which address, 
+// because they are very similar and differ only by which variable they read and write and which command string they show. 
+// Also, added max address limit based on protocol type specified in command argument, because DNP3 and ModBus have different address limits.
+// 
+// DNP/ModBus Address set/get:
+// 'hadr>dnp3? returns Set command syntax 'hadr>dnp3=NNNN', 
+// DNP range up to 65000, // ModBus range up to 255.
+// Setting in flash is updated after 'save' command.
+void SetGetHostAddress(void)
+{
+	SetGetAddress(0);	// 0 for host, 1 for meter
+}
+
+// DNP/ModBus Address set/get: 
+// 'madr>modb? returns Set command syntax 'madr>modb=NNNN', 
+// DNP range up to 65000, ModBus range up to 255.  
+// Setting in flash is updated after 'save' command.
 void SetGetMeterAddress(void)
 {
-	float MaxAddress = 255.0f;
-	float temp_N = SysData.NV_UI.meter_address;
-	if (SysData.NV_UI.StartUpProtocol == DNP3) MaxAddress = 65000.0f; // MAX_DNP3_ADDRESS = ((uint16)65519)
-	else if (SysData.NV_UI.StartUpProtocol == MODBUS) MaxAddress = 255.0f;
-
-	sprintf(RCI_message, "Meter Address, dflt=%d, range 1 to %d", 2,(Uint32)MaxAddress); // DNP3 or ModBus address
-	SetGet_param(2 + SHOW_LONG, 0.0f, MaxAddress, &temp_N, RCI_message);
-	SysData.NV_UI.meter_address = (uint16)(temp_N);
+	SetGetAddress(1);	// 0 for host, 1 for meter
 }
 
 /*************************************************************/
@@ -7446,7 +7477,7 @@ void SetGetRipCURRthreshold(void)
 //  the protocol will be what is saved in EEPROM. This is for test purpose, to switch to DNP3 or ModBus without going through menu and without changing saved startup protocol in EEPROM.
 void SetGetProtocol(void)
 {
-	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	char* temp_Inp_str = CommStr; // pointer to rt.RxBuff[0]
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //IK20260224 "now>" or "DNP3" or "SETUP"  or "ModBus" or "ASCII" starting 1 bytes after command
 	if (temp_Inp_str[CMD_LEN] == '>')
 	{
@@ -7601,7 +7632,7 @@ void SetGetBaudRate(void)
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); // number starting 1 byte after command
 	if (temp_Inp_str[CMD_LEN] == '=')
 	{
-		int BR = -1; // negative means invalid. Real BaudRate is 4 times bigger than BR, so BR is 16-bit value
+		int BR = -1; // negative means invalid. Real BaudRate is 4 times bigger than BR, so BR fits in 16-bit value
 		// compare 4 ASCII chars in 'param' to known baud rates
 		if (param == (('1' + 256 * '1') + ('5' + 256 * '2') * 65536))		// "115200"
 			BR = Baud_115200>>2;

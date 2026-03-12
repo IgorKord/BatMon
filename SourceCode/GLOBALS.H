@@ -1043,10 +1043,11 @@ enum Alarm_Event_IDs {	// in Structure_defs.h: #define NUM_ALARMS  9	// Current 
 #define CmdSetPwmValue              46  // index = 46 (send this command to set PWM value of current loop output with param = Set_PWM_Value)
 #define CmdCalibrate1or3Phase       47  // index = 47 (send this command with param = 127 for single phase, 255 for 3 phase, 0 to stop)
 
-//IK20250205 new DNP commands to control communication protocol
-#define CmdSetAsciiCmds             48  // Point 48 (0x30) - Exit DNP protocol, start ASCII_CMDS
-#define CmdSetSetup                 49  // Point 49 (0x31) - Exit DNP protocol, start SETUP
-#define CmdSetModbus                50  // Point 50 (0x32) - Exit DNP protocol, start MODBUS
+//IK20250205 new DNP and Modbus commands to control communication protocol
+#define ByteCmdSetAsciiProtocol     48  // Point 48 (0x30) - Exit DNP protocol, start ASCII_CMDS
+#define DNPcmdSetSetupProtocol      49  // Point 49 (0x31) - Exit DNP protocol, start SETUP
+#define DNPcmdSetModbusProtocol     50  // Point 50 (0x32) - Exit DNP protocol, start MODBUS
+#define ModbusCmdSetDNPprotocol     51	// = 0x33 Exit MODBUS protocol, start DNP3
 
 #define CalibrateSinglePhase        127 // use with CmdCalibrate1or3Phase = 47
 #define Calibrate_ThreePhase        255 // index = 47

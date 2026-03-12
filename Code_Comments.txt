@@ -1,3 +1,31 @@
+20260312 IK
+>>>BUG: DNP protocol start working only after  user gets to protocol choice in front menu.
+
+fixed BatMon address command "madr" and Host address command "hadr" - deleted offset of 2
+// -!- K20260312 - NEED DEBUGGING. expected it does not return protocol after command
+// refactored Host and Meter address commands into one function with argument to specify which address, 
+// because they are very similar and differ only by which variable they read and write and which command string they show. 
+// Also, added max address limit based on protocol type specified in command argument, because DNP3 and ModBus have different address limits.
+// 
+// DNP/ModBus Address set/get:
+// 'hadr>dnp3? returns Set command syntax 'hadr>dnp3=NNNN', 
+// DNP range up to 65000, // ModBus range up to 255.
+// Setting in flash is updated after 'save' command.
+void SetGetHostAddress(void)
+{
+	SetGetAddress(0);	// 0 for host, 1 for meter
+}
+
+// DNP/ModBus Address set/get: 
+// 'madr>modb? returns Set command syntax 'madr>modb=NNNN', 
+// DNP range up to 65000, ModBus range up to 255.  
+// Setting in flash is updated after 'save' command.
+void SetGetMeterAddress(void)
+{
+	SetGetAddress(1);	// 0 for host, 1 for meter
+}
+
+
 IK202060302 
 too complicated to save into rt.operating_protocol and to SysData.NV_UI.StartUpProtocol and figure out what to use. decided to change one setting in SysData and if needed save it to EEPROM
 
