@@ -4554,14 +4554,14 @@ void Parse_Modbus_Msg(void)
 				{
 					// low byte of rt.registers carries the new protocol code (ignored here - register address selects protocol)
 					send_modbus = SEND_CMD_ECHO;				// echo FC06 frame as success response
-					SysData.NV_UI.StartUpProtocol = ASCII_CMDS;
-					SaveToEE(SysData.NV_UI.StartUpProtocol);	// persist to EEPROM
+					rt.operating_protocol = ASCII_CMDS;
+					//SaveToEE(SysData.NV_UI.StartUpProtocol);	// do not persist to EEPROM
 					display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
 				}
 				else if (rt.device_register == ModbusCmdSetDNPprotocol)	// register 0x33 = 51d: switch to DNP3 protocol
 				{
 					send_modbus = SEND_CMD_ECHO;				// echo FC06 frame as success response
-					SysData.NV_UI.StartUpProtocol = DNP3;
+					SysData.NV_UI.StartUpProtocol = DNP3;		//-!- IK20260319 save to EEPROM, but do not switch protocol yet
 					SaveToEE(SysData.NV_UI.StartUpProtocol);	// persist to EEPROM
 					display_mode = SELECT_PROTOCOL;		// Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
 				}
@@ -4648,9 +4648,10 @@ void Parse_Setup_Msg(void)
 					SysData.NV_UI.StartUpProtocol = DNP3;				// set to dnp
 				else if (tmpByte == '2')
 					SysData.NV_UI.StartUpProtocol = MODBUS;				// set to modbus
-				else
-					SysData.NV_UI.StartUpProtocol = ASCII_CMDS;			// set to ASCII commands
-				SaveToEE(SysData.NV_UI.StartUpProtocol);
+				//else
+				//	SysData.NV_UI.StartUpProtocol = ASCII_CMDS;			// set to ASCII commands
+				if ((tmpByte == '1') ||  (tmpByte == '2'))
+					SaveToEE(SysData.NV_UI.StartUpProtocol);
 				display_mode = SELECT_PROTOCOL;							// IK20260212 show change on display
 				// SysData.NV_UI.StartUpProtocol = SysData.NV_UI.StartUpProtocol; // IK20260205 commented out because this would kick out of setup
 			}
@@ -6066,6 +6067,22 @@ void Init_Parameters(void)
 	SetDefaultsInRAM();	// IK20240104 first - load default data
 
 	Get_EEPROM_params(); // IK20240104 than, GET SYSTEM PARAMETERS FROM FLASH if data is valid
+	// ===== PROTOCOL STARTUP - ALWAYS SETUP =====
+	// ALWAYS start with SETUP protocol @ 9600 baud, regardless of saved protocol
+	rt.operating_protocol = SETUP;              // Acting protocol = SETUP
+	SysData.NV_UI.baud_rate = Baud_9600;        // Force 9600 baud
+	Existing.BRate_index = Baud_9600_i;
+	Existing.baud_rate = Baud_9600;
+
+	// Initialize UART with SETUP protocol settings
+	//Init_UART();
+	// Start the 6-second startup timer
+	//timer.start_up_ms = 6000;                    // 6 seconds in SETUP mode
+	//timer.TWI_lockup = 13000;                    // 13 sec TWI lockup timer
+
+	// Note: SysData.NV_UI.StartUpProtocol contains the STORED protocol
+	// It will be activated after timer.start_up_ms expires
+	// ===== END PROTOCOL STARTUP FIX =====
 
 	SetCurrentLoopVoltagePoints();
 
@@ -6192,12 +6209,16 @@ void init(void)
 	timer.comm_activity = 0;
 	comm_state = NO_ACTIVITY;					// in enum UART_Events
 	all_stations_msg = false;
-	timer.TWI_lockup = 13000;						// set twi lockup tmr to 13 sec
-	timer.start_up_ms = 6000;						// setup SysData.NV_UI.StartUpProtocol for 6 seconds
-	//SysData.xmt_delay = DEF_XMT_DELAY;			// IK20250812 no need, it is set in Init_Parameters()
-	timer.IO_update = 2000;							// Initially, two sec to update IO board (501C firmware)
-	Existing.BRate_index = Baud_9600_i;				// overwrite to 9600 for init protocol
+
+	// Note: SysData.NV_UI.StartUpProtocol contains the STORED protocol
+	// It will be activated after timer.start_up_ms expires
+
+	// Initialize UART with SETUP protocol settings
 	Init_UART();
+	// Start the 6-second startup timer
+	timer.start_up_ms = 6000;                    // 6 seconds in SETUP mode
+	timer.IO_update = 2000;							// Initially, two sec to update IO board (501C firmware)
+	timer.TWI_lockup = 13000;                    // 13 sec TWI lockup timer
 
 #ifdef TEST_MODE
 	WDT_off();
@@ -7981,14 +8002,14 @@ void main(void)
 		// IK20251219 re-arranged protocol check in the order of likiness of use
 		if (msg_status == MSG_STARTED)							// New RS485 Msg?
 		{
-			if (SysData.NV_UI.StartUpProtocol == DNP3)			// if in DNP
+			if (rt.operating_protocol == DNP3)					// if in DNP
 			{
 				Parse_DNP_Msg();								// parse it as such
 				msg_status = MSG_DONE;							// tell all that its done
 				num_of_inbytes = 0;								// reset number of incoming bytes
 			}
 
-			else if (SysData.NV_UI.StartUpProtocol == MODBUS)	// if in Modbus
+			else if (rt.operating_protocol == MODBUS)			// if in Modbus
 			{
 				if (timer.ModBus_100us == 0)					// end of msg ?
 				{
@@ -8000,7 +8021,7 @@ void main(void)
 			}
 		}
 
-		if (SysData.NV_UI.StartUpProtocol == SETUP)
+		if (rt.operating_protocol == SETUP)
 		{
 			if (msg_status == MSG_ARRIVED)						// if in setup mode
 			{
@@ -8022,13 +8043,35 @@ void main(void)
 			//---------> this executes ONCE after initial 6 seconds in SETUP protocol if there is no commands arrive <-------------------------------------------
 			if (timer.start_up_ms == 0)
 			{
-				Get_EEPROM_params();									// Get all the stored parameters into SysData
+				// Timer expired and still in SETUP mode - switch to stored protocol
+				Get_EEPROM_params();							// Get all the stored parameters into SysData
+
+				// Don't switch to ASCII_CMDS from EEPROM (it's production-only)
+				if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS)
+				{
+					SysData.NV_UI.StartUpProtocol = DNP3;  // Default to DNP3
+					SaveToEE(SysData.NV_UI.StartUpProtocol);
+				}
+
+				// Now activate the stored protocol
 				rt.operating_protocol = SysData.NV_UI.StartUpProtocol;
-				Existing.BRate_index = SysData.NV_UI.BRate_index;	 // call from main() after SETUP protocol timeout
-				Init_UART();						// call from main() after SETUP protocol timeout Set Baud and comm parameters
+
+				// Set appropriate baud rate for the protocol
+				if (rt.operating_protocol == DNP3 || rt.operating_protocol == MODBUS)
+				{
+					Existing.BRate_index = SysData.NV_UI.BRate_index;
+					Existing.baud_rate = SysData.NV_UI.baud_rate;
+				}
+
+				// Reinitialize UART with new settings
+				Init_UART();
+				// Clear receive buffer for new protocol
+				rt.HostRxBuffPtr = rt.EchoRxBuffPtr = 0;
+				msg_status = MSG_DONE;
+
 				display_mode = VOLTS;				// IK20260205 after 6 sec of SETUP and shoving "ARGA", switch to show "BAT" voltage
 
-				if (SysData.NV_UI.StartUpProtocol == MODBUS)					// @ 9600 baud
+				if (rt.operating_protocol == MODBUS)
 				{
 					rt.protocol_parity = SysData.app_confirm;			// IK20260205 update realtime copy of MODBUS parity
 					if (rt.protocol_parity == EVEN)						// ==1? is rt.UART_parity even?
@@ -8037,19 +8080,19 @@ void main(void)
 						UCSR0C = 0x36;									// make it odd
 					rt.first_register = SysData.NV_UI.host_address;		// same location
 				}
-				else if (SysData.NV_UI.StartUpProtocol == DNP3) 				// init incoming buffer
+				else if (rt.operating_protocol == DNP3) 					// init incoming buffer
 				{
 					UCSR0C = 0x06;										// no UART_parity, async, 1 stop
 					memset(rt.HostRxBuff, 0xFF, HOST_RX_BUFF_LEN);		// so clear out the buffer with nonsense
 				}
-				else // (SysData.NV_UI.StartUpProtocol == ASCII)
+				else // (rt.operating_protocol == ASCII)
 				{
 					SetASCIIandSignMsg();
 				}
 			}	// end of if ((timer.start_up == 0)
 		}		// && (SysData.NV_UI.StartUpProtocol == SETUP)) //start up timed out
 
-		else if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS)			// New IK20241030
+		else if (rt.operating_protocol == ASCII_CMDS)			// New IK20241030
 		{
 		//	CHECK PC communication
 			// IK20250527 happen each 150 ms: program does not go there for 125ms, and parces for 12.5 ms??

@@ -1071,7 +1071,7 @@ void Set_Show_Protocol(char FL ** InfoStr) {
 	if (SysData.NV_UI.StartUpProtocol == DNP3) {
 		*InfoStr = ("DNP3");
 		Existing.BRate_index = Baud_19200_i;
-		timer.start_up_ms = 0;						// exit from setup protocol if was in it
+		timer.start_up_ms = 0;	// exit from setup protocol if was in it. Stop startup timer (user made a choice)
 	}
 	else if (SysData.NV_UI.StartUpProtocol == MODBUS) {
 		*InfoStr = ("MBUS");
@@ -1084,7 +1084,6 @@ void Set_Show_Protocol(char FL ** InfoStr) {
 		timer.start_up_ms = 0;						// exit from setup protocol if was in it
 	}
 	else // default to SETUP
-	// if (SysData.NV_UI.StartUpProtocol == SETUP)
 	{
 		*InfoStr = ("INIT");
 		SysData.NV_UI.StartUpProtocol = SETUP;
@@ -1095,6 +1094,14 @@ void Set_Show_Protocol(char FL ** InfoStr) {
 			timer.start_up_ms = 6000;						// setup SysData.NV_UI.StartUpProtocol for 6 seconds
 			Existing.BRate_index = Baud_9600_i;
 		}
+	}
+	// Apply the protocol change immediately
+	if (rt.operating_protocol != SysData.NV_UI.StartUpProtocol) {
+		rt.operating_protocol = SysData.NV_UI.StartUpProtocol;
+		rt.UBRR0_setting = Calculate_USART_UBRRregister((Uint32)Existing.baud_rate);
+		rt.HostRxBuffPtr = rt.EchoRxBuffPtr = 0;
+		msg_status = MSG_DONE;
+		Init_UART();
 	}
 }
 
