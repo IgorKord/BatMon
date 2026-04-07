@@ -23,6 +23,12 @@
     <ClCompile Include="SourceCode\Front_menu.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SourceCode\ASCII_commands.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceCode\DNP.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceCode\GLOBALS.H">
@@ -40,6 +46,7 @@
     <ClInclude Include="SourceCode\ASCII_commands.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="SourceCode\DNP.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SourceCode\Front_Board.rc">

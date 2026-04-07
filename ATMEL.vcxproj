@@ -129,6 +129,8 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="SourceCode\ASCII_commands.c" />
+    <ClCompile Include="SourceCode\DNP.c" />
     <ClCompile Include="SourceCode\eeprom.c" />
     <ClCompile Include="SourceCode\Front_menu.c" />
     <ClCompile Include="SourceCode\Main.c">
@@ -138,6 +140,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceCode\ASCII_commands.h" />
+    <ClInclude Include="SourceCode\DNP.h" />
     <ClInclude Include="SourceCode\GLOBALS.H" />
     <ClInclude Include="SourceCode\Hardware.h" />
     <ClInclude Include="SourceCode\resource.h" />

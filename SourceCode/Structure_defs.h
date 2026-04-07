@@ -1,3 +1,5 @@
+#ifndef STRUCTURE_DEFS
+#define STRUCTURE_DEFS
 #define CMD_LEN   4 // 4-char commands
 
 #define Bit_0                    1 //0x0001
@@ -412,7 +414,7 @@ typedef struct  {				// use received from front board (via TWI communication) st
 	volatile uint8  buttons_hits;			// lower 5 bits hold mirror of front board button presses - if button pressed bit is set to 1, released == 0, arrives via TWI from front board
 											// upper two bits reflect event if user continues holding UP or DOWN button more then LONG_PRESS_DELAY. Used to increase delta increment of a limit voltage or DNP /ModBus address
 	volatile uint16  butt_states;			// holds events SHORT_PRESS, LONG_PRESS of button states. Comm board handles states and does menu
-	uint16 PressTimeStamp[NUM_BUTTONS];		// works with FreeRunningCounter to calculate duration of hold for auto increment/decrement 
+	uint16 PressTimeStamp[NUM_BUTTONS];		// works with FreeRunningCounter to calculate duration of hold for auto increment/decrement
 	uint8 long_press_fired;					// Add the byte tracking presses for 5 buttons (bits 0-4)
 	volatile char  ButtonStateChanged;		// indicates new button pressed 0=CLR; 1=SET (pressed); 2=BTN_RELEASED
 	volatile char  ProcessingButton;		// indicates that menu is or was called. Blocks other button presses in firmware or, in simulation, Windows multiple events
@@ -462,16 +464,5 @@ union uAlarm_criteria { // used to access members as array
 
 extern const union uAlarm_criteria Alarm_Limits[]; // values are saved in centiVolts, for example, 120.5 V is saved as 12050
 
-/*
-IK20250715 copilot suggested functions
-typedef struct {
-	volatile uint16 timer;
-	uint8 state; // pressed, released, etc.
-	uint8 short_press_bit;
-	uint8 long_press_bit;
-} ButtonHandler;
-extern ButtonHandler button_handlers[NUM_BUTTONS];
+#endif // STRUCTURE_DEFS
 
-void ButtonHandler_Init(ButtonHandler* handler, uint8 short_bit, uint8 long_bit);
-void ButtonHandler_Update(ButtonHandler* handler, uint8 is_pressed, uint16 short_delay, uint16 long_delay, volatile uint16* butt_states);
-*/

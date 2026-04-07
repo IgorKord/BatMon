@@ -1,0 +1,81 @@
+				
+	501A_CommBoard2 - Debug			
+	Reading project nodes...			
+				
+	Cleaning... 7 files.			
+	Front_menu.c			
+	Warning[Pe550]: variable "prev_buttons_hits" was set but never used	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\Front_menu.c	709	
+	ASCII_commands.c			
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	50	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	68	
+	Warning[Pe223]: function "Send_Char" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	140	
+	Warning[Pe223]: function "Send_Char" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	171	
+	Warning[Pe223]: function "__no_operation" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	238	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	243	
+	Warning[Pe223]: function "Send_Char" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	288	
+	Warning[Pe223]: function "Send_Char" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	302	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	342	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	351	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	379	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	437	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	452	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	472	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	608	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	611	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	618	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	626	
+	Warning[Pe223]: function "Send_Char" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	648	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	706	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	709	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	718	
+	Warning[Pe223]: function "Send_Char" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	946	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	963	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	968	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	1058	
+	Warning[Pe223]: function "Send_Char" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	1090	
+	Warning[Pe009]: nested comment is not allowed	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	1132	
+	Warning[Pe223]: function "Send_Char" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	1305	
+	Warning[Pe223]: function "Send_Char" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	1391	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	1433	
+	Warning[Pe223]: function "Send_Char" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	1454	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	1503	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	1674	
+	Warning[Pe223]: function "Print_F" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	1679	
+	Warning[Pe223]: function "Send_Char" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	1697	
+	Warning[Pe223]: function "puts" declared implicitly	C:\In_Development\Product Software\826\826-501A\GitHub\BatMon\SourceCode\ASCII_commands.c	1739	
+	main.c			
+	501A_CommBoard2.d90			
+	Warning[w6]: Type conflict for external/entry "Print_F", in module "ASCII_commands" against external/entry in module "main" ; prototyped function vs K&R function   /* In module ASCII_commands: */			
+	  /* K&R Function, args 0, attr 0 */			
+	  int (__version_4 Print_F)();			
+	  /* In module main: */			
+	  /* Function, args 2, attr 0 */			
+	  void (__version_4 Print_F)(char __flash *,			
+	                             ...);			
+				
+	Warning[w6]: Type conflict for external/entry "Send_Char", in module "ASCII_commands" against external/entry in module "main" ; prototyped function vs K&R function   /* In module ASCII_commands: */			
+	  /* K&R Function, args 0, attr 0 */			
+	  int (__version_4 Send_Char)();			
+	  /* In module main: */			
+	  /* Function, args 1, attr 0 */			
+	  void (__version_4 Send_Char)(uint8);			
+	    typedef unsigned char uint8;			
+				
+	Warning[w6]: Type conflict for external/entry "puts", in module "ASCII_commands" against external/entry in module "?puts" ; prototyped function vs K&R function   /* In module ASCII_commands: */			
+	  /* K&R Function, args 0, attr 0 */			
+	  int (__version_4 puts)();			
+	  /* In module ?puts: */			
+	  /* Function, args 1, attr 0 */			
+	  int (__version_4 puts)(char const *);			
+				
+	Post-build command			
+				
+	.\List\501A_CommBoard2.map			
+	.\List\501A_CommBoard2_rev_J-Copy.map			
+	.\List\501A_CommBoard2_rev_J.map			
+	        3 file(s) copied.			
+				
+	Total number of errors: 0			
+	Total number of warnings: 41			
+				
+	Build succeeded			

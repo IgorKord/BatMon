@@ -46,7 +46,6 @@ uint8  limit_mode;							// indicates whether limit mode is active. Activates af
 uint8  display_mode;						// indicates what is being displayed and the actions available to user. The pointer 'p_InfoStr' holds what is shown on the bottom 14-segmets 4 indicators Info display
 //---- Display Board variables
 extern SettingsStruct Existing;				// keep current setting to detect change vs SysData.NV_UI
-extern const char FL* ProtocolNames;
 extern uint16 timeDelta;
 uint8  comm_value_change;					// indicates if a value is being changed
 uint8  baud_value_change;

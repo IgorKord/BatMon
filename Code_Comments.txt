@@ -3,7 +3,7 @@ After 6 sec if there are no setup requests, the protocol should switch to the on
 I load copy of EEPROM_SysData structure into SysData structure on init(), so after 6 sec working protocol should be taken from SysData. 
 Two protocols "DNP3" and "MODBUS" with default baudrate of 19200, are the working protocols customer would use. 
 I added ASCII protocol mostly for production, for better calibration handling, saving parameters into file on PC, etc. 
-The ASCII protocol can be loaded if user decides so via front LCD display /menu / buttons, or from DNP / ModBus.
+The ASCII protocol can be loaded, if user decides so, via front LCD display /menu / buttons, or from DNP / ModBus.
 I added commands to DNP / ModBus protocols which switch protocol to ASCII, and this ASCII protocol should stay without timeout, until user changes it or power down. 
 However, ASCII protocol should not be saved / restored into / from EEPROM.
 I have a real time structure, 'rt', and in it the 'rt.operating_protocol' intended to be a temporary copy, but handling both locations of protocol is tricky.

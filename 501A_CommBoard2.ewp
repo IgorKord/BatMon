@@ -2104,7 +2104,16 @@
         </settings>
     </configuration>
     <file>
+        <name>$PROJ_DIR$\SourceCode\ASCII_commands.c</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\SourceCode\ASCII_commands.h</name>
+    </file>
+    <file>
         <name>$PROJ_DIR$\Code_Comments.txt</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\SourceCode\DNP.c</name>
     </file>
     <file>
         <name>$PROJ_DIR$\SourceCode\Front_menu.c</name>

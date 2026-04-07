@@ -17,6 +17,13 @@
 #ifndef GLOBALS
 #define GLOBALS
 
+//#define TEST_MODE // IK20240327 to disable watchdog timer and prevent reset after break point is hit
+#ifdef TEST_MODE
+#define WATCHDOG_RESET   DoNothing
+#else
+#define WATCHDOG_RESET __watchdog_reset
+#endif
+
 extern float FirmwareVersion;     //Version 3.0
 #define STRINGS_IN_FLASH // FOR IAR compiler; TO WORK, THIS OPTION MUST BE DEFINED in project options->compiler->extra options! --string_literals_in_flash   to place strings in flash
 
@@ -244,16 +251,6 @@ __declspec(dllimport) void __stdcall Sleep(unsigned long ms); //for compilation 
 #ifdef __cplusplus
 }
 #endif
-extern void delay_us(unsigned long long us);
-extern void Wait_in_Visual_C(unsigned int Delay);
-extern void __no_operation(void);
-extern void __watchdog_reset(void);
-extern void clrLCD(void);
-extern void gotoxy(int x, int y);
-char check_ch(int* ptrKEY);
-extern void clrscr(void);
-extern void ClearScreen(void);
-int PUTCHAR(int c); //returning same char
 typedef int                 BOOL;
 #define FL
 #define FLP
@@ -412,6 +409,7 @@ typedef int                  int16;
 
 
 #include "Structure_defs.h"
+#include "ASCII_commands.h"
 #include <stdlib.h>
 #ifdef __cplusplus
   #include <cstdio>
@@ -613,10 +611,12 @@ extern uint8  limit_mode;                          //indicates whether limit mod
 extern uint8  Is_in_auto_mode;                  // IK20251007 combined auto and manual mode in one variable. == TRUE means 'Auto', == FALSE means 'Manual' //indicate whether auto mode is active
 //extern uint8  manual_mode;                         //indicates whether manual mode is active
 extern uint16 latched_alarm_status;                  // defined in Front_Menu.c, indicates alarms active for local use
-
-#ifdef LNP_TESTER
-extern uint8 Zcmd_received;                     // IK20230601 added for parsing
-#endif //#ifdef LNP_TESTER
+extern uint8  calibr_step;							// what are you calibrating
+extern volatile uint8  cal_status;					// used in DNP calibration, indicates what is being calibrated
+extern /*volatile*/ uint8  iien1;		// IIN byte 1
+extern /*volatile*/ uint8  iien2;		// IIN byte 2
+extern /*volatile*/ uint8  all_stations_msg;			// indicates if this is a DNP broadcast message to all stations
+extern uint16 send_dnp;							// instructs what msg to send if any; uint16 because it could get OBJECT_1_RESPONSE = 1024
 
 /*------------------------- Structures -----------------------------*/
 //typedef struct    // Encapsulate into structure to allow addressing in assembler with increment
@@ -1053,22 +1053,27 @@ enum Alarm_Event_IDs {	// in Structure_defs.h: #define NUM_ALARMS  9	// Current 
 #define Calibrate_ThreePhase        255 // index = 47
 #define CalibrateStopPhaseCal       0   // index = 47
 
+//-!- IK20250812 clibration delay somewhere was indicated as 1.5s, somewhere else as 15s (probably remnant of timer interrupt 100us before it gets extender and 1 ms increments).
+// it should be enough 1.5 sec. The BatMonTest program might wait shorter than 15s which results in unsucessfull calibration.
+#define DEF_CALIBRATION_DELAY	1500		// default calibration delay, in ms, to allow operational amplifiers, multiplexer, ADC to settle before saving calibration data to EEPROM
+
 /*-------------------------- prototypes ----------------------------*/
 
+extern void delay_us(unsigned long long us);
+extern void Wait_in_Visual_C(unsigned int Delay);
+extern void __no_operation(void);
+extern void __watchdog_reset(void);
+extern void clrLCD(void);
+extern void gotoxy(int x, int y);
+char check_ch(int* ptrKEY);
+extern void clrscr(void);
+extern void ClearScreen(void);
+int PUTCHAR(int c); //returning same char
 
-//void ISR_TxOutputHandler(void);  // called from interrupt periodically with 1 ms intervals
 int Is_Numeric(char* strp);
 void Send_Response_to_UART(uint8);
 uint8  EEPROM_Read_byte(uint16 EEaddress); // IK20231214
 void EEPROM_Write_byte(uint16 EEaddress, uint8 value); // IK20231214
-
-#if(0) // old code, not used
-float  EEPROM_Read_float(uint16 EEaddress); // IK20231215
-uint16 EEPROM_Read_two_bytes(uint16 EEaddress); // IK20231214
-void EEPROM_Write_float(uint16 EEaddress, float value); // IK20231215
-void EEPROM_Write_two_bytes(uint16 EEaddress, uint16 value); // IK20231214
-#endif //#if(0) // old code, not used
-
 void Delay_ms(uint16 Delay);
 Uchar ParseRCI(void);
 void DoNothing();
@@ -1109,6 +1114,13 @@ uint16 Calculate_USART_UBRRregister(Uint32 BaudRate) ;
 void Set_and_Save_New_BaudRate(uint8 BR_index);
 void Init_UART(void);
 void SetASCIIandSignMsg(void);
+void SaveParams(void);
+void SetCurrentLoopVoltagePoints();
+void Store_Event(uint8 EventType, uint8 PointState);
+void Parse_DNP_Msg(void);
+void Send_DNP_Msg(uint16 type);
+
+
 /* without redefining sprintf IAR gives warning
 	Warning[w6]: Type conflict for external/entry "SPRINT_F", in module "Front_menu" against external/entry in module "main" ; prototyped function vs K&R function   // In module Front_menu: //
 	  // K&R Function, args 0, attr 0 //
@@ -1117,6 +1129,7 @@ void SetASCIIandSignMsg(void);
 	  // Function, args 3, attr 0 //
 	  int (__version_4 SPRINT_F)(char *, char __flash *, ...);
 */
+#define analog_points input_type[0]			// number of active analog input points - first element in array input_type[0], the rest: input_type[1] is former input_1
 
 #ifdef PC
 #define NUM_INPUT_FIELDS   4 // on windows simulator form, text boxes for Vbat, vGnd, Vrip, Irip

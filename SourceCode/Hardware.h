@@ -782,12 +782,5 @@ long GP4DAT;
  GP0CLR = BIT;
 #define STROBE 	 TestP37_off; TestP37_on; Delay_uS(4); TestP37_off;
 
-//*********************************** HARDWARE: STATUS LED on Header Board ***************************
-//#define     BLINK_RATE  (Bit_10 * TICKS_IN_mSEC)
-//*********************************** HARDWARE: LED on Front Panel ***********************************
-//#define     LED_REG     GP2DAT //P2.0 - P2.1
-
-//#ifdef PC //for PC
-//#endif  //for PC
 
 #endif //_HARDWARE_
