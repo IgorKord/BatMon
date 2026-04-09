@@ -1,3 +1,125 @@
+This firmware talks via serial port with C# application "Battery Monitor Setup" located in folder C:\In_Development\Product Software\Battery Monitor Setup CS.NET. 
+Form Simulator.cs has radio buttons which shouls issue serial commands to the controller firmware switching propocols between SETUP, DNP3, ModBus, and ASCII. 
+buttons names are : "DNPButton", "ModBusButton", and "ASCII_Button" Please verify correctness of commands issuedby C# form to firmware. 
+I verify that firmware correctly reacts to these commands, switch protocol accordingly, and shows Protocol on LED display.
+Copilot:
+Based on my analysis, I can now provide you with a comprehensive verification report. Let me create a summary document:
+Protocol Switching Command Verification Report
+Summary
+The C# application (Simulator.cs) does NOT send explicit protocol switching commands to the firmware when the radio buttons are clicked. Instead, it only updates internal state variables (protocol = "DNP", protocol = "Modbus", or protocol = "ASCII").
+Current C# Implementation
+The three button handlers in Simulator.cs:
+1.	DNPButton_CheckedChanged - Sets protocol = "DNP"
+2.	ModbusButton_CheckedChanged - Sets protocol = "Modbus"
+3.	ASCII_button_CheckedChanged - Sets protocol = "ASCII"
+These handlers ONLY:
+•	Update the internal Protocol string variable
+•	Change UI visibility (hide/show protocol-specific controls)
+•	Change COM port parity settings
+•	Do NOT send any serial commands to the firmware
+Firmware Protocol Switching Commands
+The firmware supports three different methods for protocol switching:
+
+Method 1: ASCII RCI Commands (Recommended for C# application)
+Defined in: ASCII_commands.c, lines 1338-1405
+Command Format: prot>xxxx
+
+Examples:
+prot>dnp3     → Switch to DNP3 (saves to EEPROM)
+prot>modb     → Switch to MODBUS (saves to EEPROM)
+prot>asci     → Switch to ASCII (temporary, NOT saved)
+
+GET command:
+prot          → Returns current saved protocol
+
+Method 2: DNP3 Control Points
+>>> Defined in: DNP.c, lines 1506-1525
+Point 48 (0x30) → Switch to ASCII (temporary)
+Point 49 (0x31) → Switch to SETUP (temporary)
+Point 50 (0x32) → Switch to MODBUS (saves to EEPROM)
+
+Method 3: MODBUS Registers
+Defined in: main.c, lines 2445-2458
+Register 48 (0x30) → Switch to ASCII (temporary)
+Register 51 (0x33) → Switch to DNP3 (saves to EEPROM)
+
+The C# button handlers should send ASCII commands to the firmware:
+-------------------------
+private void DNPButton_CheckedChanged(object sender, EventArgs e) {
+    if (protocol == "ASCII" || protocol == "Modbus" || string.IsNullOrEmpty(protocol)) {
+        if (ProtocolUpdated == false) {
+            ProtocolUpdated = true;
+            protocol = "DNP";
+            
+            // **ADD THIS:** Send protocol switch command to firmware
+            if (monitor_port_open == true) {
+                _mainForm.Serial_Port.WriteLine("prot>dnp3\r");
+                Tools.msSleep(100);  // Wait for firmware to process
+            }
+            
+            // ... rest of existing code
+        }
+    }
+}
+
+private void ModbusButton_CheckedChanged(object sender, EventArgs e) {
+    if (protocol == "ASCII" || protocol == "DNP" || string.IsNullOrEmpty(protocol)) {
+        if (ProtocolUpdated == false) {
+            ProtocolUpdated = true;
+            protocol = "Modbus";
+            
+            // **ADD THIS:** Send protocol switch command to firmware
+            if (monitor_port_open == true) {
+                _mainForm.Serial_Port.WriteLine("prot>modb\r");
+                Tools.msSleep(100);  // Wait for firmware to process
+            }
+            
+            // ... rest of existing code
+        }
+    }
+}
+
+private void ASCII_button_CheckedChanged(object sender, EventArgs e) {
+    if (protocol == "DNP" || protocol == "Modbus" || string.IsNullOrEmpty(protocol)) {
+        if (ProtocolUpdated == false) {
+            ProtocolUpdated = true;
+            protocol = "ASCII";
+            
+            // **ADD THIS:** Send protocol switch command to firmware
+            if (monitor_port_open == true) {
+                _mainForm.Serial_Port.WriteLine("prot>asci\r");
+                Tools.msSleep(100);  // Wait for firmware to process
+            }
+            
+            // ... rest of existing code
+        }
+    }
+}
+--------------------------
+Not quite right.
+for example, ascii commands are not recognised if current protocol is DMP or modbus, 
+if (protocol == "ASCII" || protocol == "DNP"... 
+so line
+_mainForm.Serial_Port.WriteLine("prot>modb\r"); 
+would not work if protocol is DNP 
+I added if(){}-else{} 
+cases for correct handling, please see these three *_CheckedChanged() . 
+I added "//TODO:..." comments. and revise your suggestions
+
+<<<<< Copilot crashed
+
+
+20260409:
+This is actually a 'C' code, but I enabled C++ compiler which better tracks and 'finds all references' of a member in  a structure. 
+The Visual Studio's C toolchain could only find reference to the structure itself, but not a member of the structure.
+the design intent: firmware has 4 protocols.
+1.	SETUP - FW always starts in setup protocol; if no setup commands arrived in 6 sec, the saved in  'SysData.NV_UI.StartUpProtocol' gets loaded.
+2.	DNP3 one of 2 protocols normally availabe
+3.	Modbus second of 2 protocols normally availabe
+4.	ASCII - is production / testing protocol allowing calibrations, retrieve or set parameters, etc. 
+It can be called from SETUP, DNP3, or Modbus protocols but is not saved itno EEPROM.
+
+
 In firmware, on power on, serial protocol should be SETUP with baudrate 9600. allowing to change configuration, unit DNP address, etc. 
 After 6 sec if there are no setup requests, the protocol should switch to the one stored in EEPROM, in EEPROM_SysData.NV_UI.StartUpProtocol.
 I load copy of EEPROM_SysData structure into SysData structure on init(), so after 6 sec working protocol should be taken from SysData. 
@@ -1232,7 +1354,7 @@ Made interrupt Tx preliminary work.
 20240328 20240328_501A_BM_&_VSworking.zip
 Measured original interrupt timing - was very close to 100 us.
 Re-factor timer interrupt so it happens 10 times slower, in 1 ms intervals.
-Changed divide by 128 instead of by 8, changed OCR2A setting to 124 instead of 200, removed prescaler = 10
+Changed divide to 128 instead of 8, changed OCR2A setting to 124 instead of 200, removed prescaler = 10
 original interrupt was set to 100 us, with tmr_extender++; each tenth time all timer vars increment was performed.
 
 The 100 us was just to show DNP interchar timing with more accuracy?

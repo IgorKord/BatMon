@@ -1,3 +1,10 @@
+//File "ASCII_commands.c", line 1761: the rci[] array of structures (abbreviation of Remote Command Interface) contains command tokens(four bytes)
+//and a pointer to the fuction which handles a command.
+//Handler function detects if command is "SET" (should contain a '=' or '>' on a specific location in command string) or
+//"GET" - if '=' or '>' are not there.The GET command should return response in the form of a correct 'SET' command.
+//This is done because if various commands responses are captured in a 'param' file,
+//later this parameter file contents can be send back to controller restoring settings.
+
 #include "ASCII_commands.h"
 #include "GLOBALS.h"
 #ifndef PC
@@ -1137,29 +1144,102 @@ uint16 SetProtocolMaxAddress() {
 /*************************************************************/
 void SetGetAddress(uint8 host_0_or_meter_1)	// 0 for host, 1 for meter
 {
-	float temp_N;
 	char* temp_Inp_str = CommStr; // pointer to rt.RxBuff[0]
-	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //"dnp3" or "modb" starting 1 bytes after command
+	Uint32 param;
 	uint16 MaxAddress = 65000;
-	// set max protocol address
-	//if (param == (('d' + 256 * 'n') + ('p' + 256 * '3') * 65536)) {
-	//	MaxAddress = 65000;
-	//}
-	//else
-	if (param == (('m' + 256 * 'o') + ('d' + 256 * 'b') * 65536)) {
-		MaxAddress = 255;
+	uint16 address_value;
+	char protocol_str[5] = {0};
+	uint8 protocol_specified = 0;
+
+	// Get current address value
+	if (host_0_or_meter_1 == 0)
+		address_value = SysData.NV_UI.host_address;
+	else
+		address_value = (uint16)SysData.NV_UI.meter_address;
+
+	// Check if protocol is specified in command (position 4 is '>')
+	if (temp_Inp_str[CMD_LEN] == '>')
+	{
+		protocol_specified = 1;
+		param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //"dnp3" or "modb" starting 1 byte after '>'
+
+		// Validate protocol and determine max address
+		if (param == (('d' + 256 * 'n') + ('p' + 256 * '3') * 65536)) {
+			MaxAddress = 65000;
+			CopyConstString("dnp3", protocol_str);
+		}
+		else if (param == (('m' + 256 * 'o') + ('d' + 256 * 'b') * 65536)) {
+			MaxAddress = 255;
+			CopyConstString("modb", protocol_str);
+		}
+		else {
+			sprintf(RCI_message, ">dnp3 >modb");
+			goto Error_msg;
+		}
+
+		// Check for SET command: '=' at position CMD_LEN+5 (after ">dnp3" or ">modb")
+		if (temp_Inp_str[CMD_LEN + 5] == '=')
+		{
+			// SET command with protocol - process it
+			if (Is_Numeric(&temp_Inp_str[CMD_LEN + 6]) != TRUE) {
+				sprintf(RCI_message, "range [0..%u]", MaxAddress);
+				goto Error_msg;
+			}
+
+			uint16 temp_N = (uint16)atol(&temp_Inp_str[CMD_LEN + 6]);
+			if (temp_N > MaxAddress) {
+				sprintf(RCI_message, "range [0..%u]", MaxAddress);
+				goto Error_msg;
+			}
+
+			// Save the value
+			if (host_0_or_meter_1 == 0)
+				SysData.NV_UI.host_address = temp_N;
+			else
+				SysData.NV_UI.meter_address = temp_N;
+			return; // SET command complete
+		}
+		// else: GET command with protocol specified - fall through to output below
 	}
-	if (host_0_or_meter_1 == 0)
-		temp_N = (float)SysData.NV_UI.host_address;
 	else
-		temp_N = SysData.NV_UI.meter_address;
+	{
+		// No protocol specified - infer from SysData.NV_UI.StartUpProtocol
+		if (SysData.NV_UI.StartUpProtocol == DNP3) {
+			MaxAddress = 65000;
+			CopyConstString("dnp3", protocol_str);
+		}
+		else if (SysData.NV_UI.StartUpProtocol == MODBUS) {
+			MaxAddress = 255;
+			CopyConstString("modb", protocol_str);
+		}
+		else {
+			// ASCII_CMDS or SETUP - default to DNP3 format
+			MaxAddress = 65000;
+			CopyConstString("dnp3", protocol_str);
+		}
 
-	SetGet_param(4 + SHOW_LONG, 0.0f, (float)MaxAddress, &temp_N, RCI_message); // IK20260312 fixed address command - deleted offset of 2
+		// Check if user tried "madr=44" (SET without protocol) - reject it
+		if (temp_Inp_str[CMD_LEN] == '=') {
+			sprintf(RCI_message, "%s>%s=value - Protocol required",
+				host_0_or_meter_1 == 0 ? "hadr" : "madr", protocol_str);
+			goto Error_msg;
+		}
+		// else: GET command without protocol - fall through to output below
+	}
 
-	if (host_0_or_meter_1 == 0)
-		SysData.NV_UI.host_address = (uint16)(temp_N);
-	else
-		SysData.NV_UI.meter_address = temp_N;
+	// GET command - output full format with protocol
+	Put_CMD_as_chars();  // Output "hadr" or "madr"
+	printf(">%s=%u", protocol_str, address_value);
+
+	// Verbose comment
+	if (testBit(rt.Host, CmdVerboseResponse))
+	{
+		cputs(host_0_or_meter_1 == 0 ? " // Host address" : " // Meter address");
+	}
+	return;
+Error_msg:
+	Send_RCI_Param_Error(RCI_message);
+	return;
 }
 
 // -!- K20260312 - NEED DEBUGGING. expected it does not return protocol after command
@@ -1296,12 +1376,22 @@ void SetGetProtocol(void)
 				return;
 
 			}
-			//IK20260302 too complicated to save into rt.operating_protocol and to SysData.NV_UI.StartUpProtocol. decided to change one setting in SysData and if needed save it to EEPROM
-			SysData.NV_UI.StartUpProtocol = ProtCode;	// change active protocol in RAM immediately, without waiting for 'save' command.
-			if (change_now == 0) 						// If 'now>' is not used in the command, save protocol in EEPROM, so at next startup, the protocol will be what is saved in EEPROM.
-				SaveToEE(SysData.NV_UI.StartUpProtocol);
+
+			// ASCII is production/test only - never saved to EEPROM
+			if (ProtCode == ASCII_CMDS) {
+				rt.operating_protocol = ASCII_CMDS;	// Only update runtime protocol
+				// Do NOT modify SysData.NV_UI.StartUpProtocol - leave it unchanged
+			}
+			else {
+				// DNP3 or MODBUS - normal customer protocols that persist to EEPROM
+				rt.operating_protocol = ProtCode;
+				SysData.NV_UI.StartUpProtocol = ProtCode;	// Update EEPROM variable
+				if (change_now == 0) {						// If 'now>' not used, save to EEPROM
+					SaveToEE(SysData.NV_UI.StartUpProtocol);
+				}
+			}
 		}
-		display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
+		display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and switch protocol
 	}
 	else // ? -- get command
 	{

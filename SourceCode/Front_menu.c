@@ -331,11 +331,25 @@ void ProcessUPbutton() {
 			}
 			else if (display_mode == SELECT_PROTOCOL)
 			{
-				if (SysData.NV_UI.StartUpProtocol < ASCII_CMDS)			// IK20251110 limit the adjustable range
-				{
-					SysData.NV_UI.StartUpProtocol += PROTOCOL_SELECTION_INC_DEC;
-					SaveToEE(SysData.NV_UI.StartUpProtocol);								// Store the protocol in EEPROM
+				// Increment protocol: SETUP → DNP3 → MODBUS → ASCII (stop at boundary, no wrap)
+				// SETUP and ASCII are temporary (runtime only, no EEPROM save)
+				// DNP3 and MODBUS are customer protocols (persist to EEPROM)
+				if (rt.operating_protocol == SETUP) {
+					rt.operating_protocol = DNP3;
+					SysData.NV_UI.StartUpProtocol = DNP3;		// Persist customer protocol
+					SaveToEE(SysData.NV_UI.StartUpProtocol);
+					timer.start_up_ms = 0;						// Stop SETUP timeout
 				}
+				else if (rt.operating_protocol == DNP3) {
+					rt.operating_protocol = MODBUS;
+					SysData.NV_UI.StartUpProtocol = MODBUS;		// Persist customer protocol
+					SaveToEE(SysData.NV_UI.StartUpProtocol);
+				}
+				else if (rt.operating_protocol == MODBUS) {
+					rt.operating_protocol = ASCII_CMDS;			// ASCII is temporary
+					// Do NOT modify SysData.NV_UI.StartUpProtocol - preserve MODBUS for next power-up
+				}
+				// else: already at ASCII_CMDS → stay at ASCII (no wrap)
 			}
 
 			else if (display_mode == COMM_ADDR) //-!- IK20251111 extend to ModBus, range 0 to 255
@@ -539,11 +553,36 @@ void ProcessDOWNbutton() {
 
 			else if (display_mode == SELECT_PROTOCOL)
 			{
-				if (SysData.NV_UI.StartUpProtocol > DNP3)									// IK20260205 limit the adjustable range, exclude setup
+#if (0) // takes extra 26 bytes of code
+				if (rt.operating_protocol > DNP3)									// IK20260205 limit the adjustable range, exclude setup
 				{
-					SysData.NV_UI.StartUpProtocol -= PROTOCOL_SELECTION_INC_DEC;
-					SaveToEE(SysData.NV_UI.StartUpProtocol);								// Store the protocol in EEPROM
+					rt.operating_protocol -= PROTOCOL_SELECTION_INC_DEC;
+					if ((rt.operating_protocol == MODBUS) || (rt.operating_protocol == DNP3)){
+						SysData.NV_UI.StartUpProtocol = rt.operating_protocol;
+						SaveToEE(SysData.NV_UI.StartUpProtocol);								// Store the protocol in EEPROM
+					}
 				}
+#else // this code takes less space
+				// Decrement protocol: ASCII -> MODBUS -> DNP3 -> SETUP (stop at boundary, no wrap)
+				// SETUP and ASCII are temporary (runtime only, no EEPROM save)
+				// DNP3 and MODBUS are customer protocols (persist to EEPROM)
+				if (rt.operating_protocol == ASCII_CMDS) {
+					rt.operating_protocol = MODBUS;
+					SysData.NV_UI.StartUpProtocol = MODBUS;		// Persist customer protocol
+					SaveToEE(SysData.NV_UI.StartUpProtocol);
+				}
+				else if (rt.operating_protocol == MODBUS) {
+					rt.operating_protocol = DNP3;
+					SysData.NV_UI.StartUpProtocol = DNP3;		// Persist customer protocol
+					SaveToEE(SysData.NV_UI.StartUpProtocol);
+				}
+				else if (rt.operating_protocol == DNP3) {
+					rt.operating_protocol = SETUP;				// SETUP is temporary
+					// Do NOT modify SysData.NV_UI.StartUpProtocol - SETUP timeout will handle fallback
+					// timer.start_up_ms will be initialized by Set_Show_Protocol() in DisplayPrepare()
+				}
+				// else: already at SETUP -> stay at SETUP (no wrap)
+#endif
 			}
 
 			else if (display_mode == COMM_ADDR)
@@ -1060,8 +1099,8 @@ char* ReplaceDoubleII(char* str)
 }
 
 /// <summary>
-/// Function to set the protocol name to show on the display based on the current startup protocol. 
-/// It also sets the baud rate index and startup timer accordingly. 
+/// Function to set the protocol name to show on the display based on the current startup protocol.
+/// It also sets the baud rate index and startup timer accordingly.
 /// The function updates a pointer to the string that represents the protocol name to be displayed.
 /// </summary>
 /// <param name="InfoStr"> pointer to a name to be updated by this function</param>

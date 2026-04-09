@@ -11,7 +11,7 @@ int SPRINT_F(char* OutStr, char FL* fmt, ...);
 void Send_Char(uint8 Tx_char);
 uint16 PutStr(const char* Str);
 uint16 PrintConstString(const char FL* str_f_ptr);
-uint16 CopyConstString(const char FL* str_f_ptr, char* dest);
+//uint16 CopyConstString(const char FL* str_f_ptr, char* dest);
 
 // Standard wrappers (if needed)
 #ifndef PC

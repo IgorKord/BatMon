@@ -1504,19 +1504,24 @@ DNP_App(void)
 					tmp_cal = tmp_cal + (long)object_string[obj_ptr + 6];
 
 					//-!- change protocol by DNP command needs testing
-					// IK202060212 changing rt.operational_protocol causes immediate change and switch to another protocol
-					// changeing SysData.NV_UI.StartUpProtocol does not cause immediate protocol change - it happen when SysData.NV_UI.StartUpProtocol is updated from SysData.NV_UI.StartUpProtocol,
+					// IK20260212 Protocol switching from DNP commands
+					// ASCII and SETUP are temporary protocols - only update rt.operating_protocol (never persist to EEPROM)
+					// MODBUS is customer protocol - update both runtime and persistent storage
 					if (DNP_point_CmdCode == ByteCmdSetAsciiProtocol) {
-						SysData.NV_UI.StartUpProtocol = ASCII_CMDS;
-						display_mode = SELECT_PROTOCOL;						// IK20260212 show change on display
+						rt.operating_protocol = ASCII_CMDS;		// ASCII is production/test only - runtime only
+						// Do NOT modify SysData.NV_UI.StartUpProtocol
+						display_mode = SELECT_PROTOCOL;			// Show change on display
 					}
 					if (DNP_point_CmdCode == DNPcmdSetSetupProtocol) {
-						SysData.NV_UI.StartUpProtocol = SETUP;		// IK202060212 changing SysData.NV_UI.StartUpProtocol causes immediate change and switch to SETUP
-						display_mode = SELECT_PROTOCOL;						// IK20260212 show change on display
+						rt.operating_protocol = SETUP;			// SETUP is temporary - runtime only
+						// Do NOT modify SysData.NV_UI.StartUpProtocol
+						display_mode = SELECT_PROTOCOL;			// Show change on display
 					}
 					if (DNP_point_CmdCode == DNPcmdSetModbusProtocol) {
-						SysData.NV_UI.StartUpProtocol = MODBUS;				// SysData.NV_UI.StartUpProtocol
-						display_mode = SELECT_PROTOCOL;						// IK20260212 show change on display
+						rt.operating_protocol = MODBUS;			// MODBUS is customer protocol
+						SysData.NV_UI.StartUpProtocol = MODBUS;	// Update EEPROM variable
+						// Note: SaveToEE() should be called explicitly if persistence is desired
+						display_mode = SELECT_PROTOCOL;			// Show change on display
 					}
 
 					if (DNP_point_CmdCode == CmdCalibrateVrange)			// 0x27 = 39D
