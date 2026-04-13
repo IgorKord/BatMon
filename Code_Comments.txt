@@ -1,3 +1,21 @@
+First: MS VisualStudio limits tokens to 128000, typical message when you exceed it below:
+----------------------------------------------------------------------
+v Logs
+Microsoft.VisualStudio.Copilot.Service
+HttpRequestFailure
+v Exception Details
+Exception_type: System.Net.http.HttpRequestException
+Exception_message {"error":{"message":"prompt token count of 128336 exceeds the limit of
+		128000","code":"model_max_prompt_tokens_exceeded"}}
+hresult		 -2146233088
+http_status_code 400
+http_satus	 BadRequest
+correlation_id	 0d4a6b9a-7aea-4493-b607-9411b42bdea9
+message_id	 d26f3446-3db5-4315-8b3f-3e04cbbbf312
+client_id	 Microsoft.VisualStudio.Conversations.Chart.HelpWindow	
+-------------------------------------------------------------------
+Please be frugal, I do understand what you are proposing and I not need a summary of your changes.
+
 This firmware talks via serial port with C# application "Battery Monitor Setup" located in folder C:\In_Development\Product Software\Battery Monitor Setup CS.NET. 
 Form Simulator.cs has radio buttons which shouls issue serial commands to the controller firmware switching propocols between SETUP, DNP3, ModBus, and ASCII. 
 buttons names are : "DNPButton", "ModBusButton", and "ASCII_Button" Please verify correctness of commands issuedby C# form to firmware. 

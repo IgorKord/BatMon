@@ -56,4 +56,7 @@
   <ItemGroup>
     <Text Include="Code_Comments.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Protocol_Switch_Implementation_Summary.md" />
+  </ItemGroup>
 </Project>

@@ -155,6 +155,9 @@
   <ItemGroup>
     <Text Include="Code_Comments.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Protocol_Switch_Implementation_Summary.md" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
