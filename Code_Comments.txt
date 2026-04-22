@@ -1,4 +1,22 @@
-First: MS VisualStudio limits tokens to 128000, typical message when you exceed it below:
+20260415 
+testing firmware with BatMonSetup, VB old version.
+Started from FW ver 2.5, verified that firmware starts in SETUP mode and could react on setup commands.
+DNP and ModBus protocols can be selected and saved into EEPROM,
+and show real time data.
+Modbus
+ADDR = 2
+Response delay = 30ms
+Interchar timeout 1041 ms
+first channel address = 0 (this should be used on Simulation screen)
+parity = none
+number of active cannnels = 5
+----------------------------------------
+FW v 3.0 - DNP 3 works.
+Modbus is not.
+SETUP can connect to BM, after trying to set Modbus and restrting BatMonSetup, go to Setup form it again shows DNP3.
+
+
+Info: MS VisualStudio limits tokens to 128000. See the typical message when you exceed token quota below:
 ----------------------------------------------------------------------
 v Logs
 Microsoft.VisualStudio.Copilot.Service
@@ -14,7 +32,8 @@ correlation_id	 0d4a6b9a-7aea-4493-b607-9411b42bdea9
 message_id	 d26f3446-3db5-4315-8b3f-3e04cbbbf312
 client_id	 Microsoft.VisualStudio.Conversations.Chart.HelpWindow	
 -------------------------------------------------------------------
-Please be frugal, I do understand what you are proposing and I not need a summary of your changes.
+Please be frugal, I do understand what you are proposing and I do not need a summary of your changes.
+How many tokens were used?
 
 This firmware talks via serial port with C# application "Battery Monitor Setup" located in folder C:\In_Development\Product Software\Battery Monitor Setup CS.NET. 
 Form Simulator.cs has radio buttons which shouls issue serial commands to the controller firmware switching propocols between SETUP, DNP3, ModBus, and ASCII. 

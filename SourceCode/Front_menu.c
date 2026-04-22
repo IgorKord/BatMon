@@ -238,6 +238,31 @@ void ProcessUPbutton() {
 				if (display_mode == ALARM_RII)	clearBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Current_Bit);
 				if (display_mode == ALARM_AC)	clearBit(SysData.NV_UI.disabled_alarms, Alarm_AC_Loss_Bit       );
 				if (display_mode == ALARM_HI_Z)	clearBit(SysData.NV_UI.disabled_alarms, Alarm_High_Impedance_Bit);
+
+				// Protocol selection in SYS menu (same as LIMIT menu)
+				if (display_mode == SELECT_PROTOCOL)
+				{
+					// Increment protocol: SETUP → DNP3 → MODBUS → ASCII → SETUP (wrap around)
+					if (rt.operating_protocol == SETUP) {
+						rt.operating_protocol = DNP3;
+						SysData.NV_UI.StartUpProtocol = DNP3;
+						SaveToEE(SysData.NV_UI.StartUpProtocol);
+						timer.start_up_ms = 0;
+					}
+					else if (rt.operating_protocol == DNP3) {
+						rt.operating_protocol = MODBUS;
+						SysData.NV_UI.StartUpProtocol = MODBUS;
+						SaveToEE(SysData.NV_UI.StartUpProtocol);
+					}
+					else if (rt.operating_protocol == MODBUS) {
+						rt.operating_protocol = ASCII_CMDS;
+					}
+					else if (rt.operating_protocol == ASCII_CMDS) {
+						rt.operating_protocol = SETUP;
+						timer.TWI_lockup = 13000;
+						timer.start_up_ms = 6000;
+					}
+				}
 			}
 
 			// ************   LONG PRESS UP    **************
@@ -329,9 +354,10 @@ void ProcessUPbutton() {
 					SaveToEE(SysData.Bat_Cal_Offset_Volts_f);								// Store the bat offset in EEPROM
 				}
 			}
-			else if (display_mode == SELECT_PROTOCOL)
+			// LIMIT menu protocol handler - only execute when NOT in SYS menu
+			else if ((display_mode == SELECT_PROTOCOL) && (In_setup_alarm_limits_mode == FALSE))
 			{
-				// Increment protocol: SETUP → DNP3 → MODBUS → ASCII (stop at boundary, no wrap)
+				// Increment protocol: SETUP → DNP3 → MODBUS → ASCII → SETUP (wrap around)
 				// SETUP and ASCII are temporary (runtime only, no EEPROM save)
 				// DNP3 and MODBUS are customer protocols (persist to EEPROM)
 				if (rt.operating_protocol == SETUP) {
@@ -349,7 +375,14 @@ void ProcessUPbutton() {
 					rt.operating_protocol = ASCII_CMDS;			// ASCII is temporary
 					// Do NOT modify SysData.NV_UI.StartUpProtocol - preserve MODBUS for next power-up
 				}
-				// else: already at ASCII_CMDS → stay at ASCII (no wrap)
+				else if (rt.operating_protocol == ASCII_CMDS) {
+					// Wrap around: ASCII → SETUP
+					rt.operating_protocol = SETUP;				// SETUP is temporary
+					// Do NOT modify SysData.NV_UI.StartUpProtocol - preserve last customer protocol
+					// Initialize SETUP timeout for 6 seconds
+					timer.TWI_lockup = 13000;					// set twi lockup tmr to 13 sec
+					timer.start_up_ms = 6000;					// SETUP protocol for 6 seconds
+				}
 			}
 
 			else if (display_mode == COMM_ADDR) //-!- IK20251111 extend to ModBus, range 0 to 255
@@ -416,6 +449,30 @@ void ProcessDOWNbutton() {
 				if (display_mode == ALARM_RII)	setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Current_Bit);
 				if (display_mode == ALARM_AC)	setBit(SysData.NV_UI.disabled_alarms, Alarm_AC_Loss_Bit);
 				if (display_mode == ALARM_HI_Z)	setBit(SysData.NV_UI.disabled_alarms, Alarm_High_Impedance_Bit);
+
+				// Protocol selection in SYS menu (same as LIMIT menu)
+				if (display_mode == SELECT_PROTOCOL)
+				{
+					// Decrement protocol: ASCII → MODBUS → DNP3 → SETUP → ASCII (circular)
+					if (rt.operating_protocol == ASCII_CMDS) {
+						rt.operating_protocol = MODBUS;
+						SysData.NV_UI.StartUpProtocol = MODBUS;
+						SaveToEE(SysData.NV_UI.StartUpProtocol);
+					}
+					else if (rt.operating_protocol == MODBUS) {
+						rt.operating_protocol = DNP3;
+						SysData.NV_UI.StartUpProtocol = DNP3;
+						SaveToEE(SysData.NV_UI.StartUpProtocol);
+					}
+					else if (rt.operating_protocol == DNP3) {
+						rt.operating_protocol = SETUP;
+						timer.TWI_lockup = 13000;
+						timer.start_up_ms = 6000;
+					}
+					else if (rt.operating_protocol == SETUP) {
+						rt.operating_protocol = ASCII_CMDS;
+					}
+				}
 			}
 
 			// Immediate DOWN actions (do not require long-press)
@@ -551,19 +608,10 @@ void ProcessDOWNbutton() {
 				}
 			}
 
-			else if (display_mode == SELECT_PROTOCOL)
+			// LIMIT menu protocol handler - only execute when NOT in SYS menu
+			else if ((display_mode == SELECT_PROTOCOL) && (In_setup_alarm_limits_mode == FALSE))
 			{
-#if (0) // takes extra 26 bytes of code
-				if (rt.operating_protocol > DNP3)									// IK20260205 limit the adjustable range, exclude setup
-				{
-					rt.operating_protocol -= PROTOCOL_SELECTION_INC_DEC;
-					if ((rt.operating_protocol == MODBUS) || (rt.operating_protocol == DNP3)){
-						SysData.NV_UI.StartUpProtocol = rt.operating_protocol;
-						SaveToEE(SysData.NV_UI.StartUpProtocol);								// Store the protocol in EEPROM
-					}
-				}
-#else // this code takes less space
-				// Decrement protocol: ASCII -> MODBUS -> DNP3 -> SETUP (stop at boundary, no wrap)
+				// Decrement protocol: ASCII → MODBUS → DNP3 → SETUP → ASCII (circular)
 				// SETUP and ASCII are temporary (runtime only, no EEPROM save)
 				// DNP3 and MODBUS are customer protocols (persist to EEPROM)
 				if (rt.operating_protocol == ASCII_CMDS) {
@@ -578,11 +626,15 @@ void ProcessDOWNbutton() {
 				}
 				else if (rt.operating_protocol == DNP3) {
 					rt.operating_protocol = SETUP;				// SETUP is temporary
-					// Do NOT modify SysData.NV_UI.StartUpProtocol - SETUP timeout will handle fallback
-					// timer.start_up_ms will be initialized by Set_Show_Protocol() in DisplayPrepare()
+					// Do NOT modify SysData.NV_UI.StartUpProtocol - preserve last customer protocol
+					timer.TWI_lockup = 13000;					// set twi lockup tmr to 13 sec
+					timer.start_up_ms = 6000;					// SETUP protocol for 6 seconds
 				}
-				// else: already at SETUP -> stay at SETUP (no wrap)
-#endif
+				else if (rt.operating_protocol == SETUP) {
+					// Wrap around: SETUP → ASCII (circular navigation)
+					rt.operating_protocol = ASCII_CMDS;			// ASCII is temporary
+					// Do NOT modify SysData.NV_UI.StartUpProtocol - preserve last customer protocol
+				}
 			}
 
 			else if (display_mode == COMM_ADDR)
@@ -672,7 +724,8 @@ NextMenuItem next_LIMIT_display_mode[] =
 	BUZZER_STATE_SET,	LATCHED_STATE_SET,
 	LATCHED_STATE_SET,	SHOW_FW_VER,
 	SHOW_FW_VER,		CAL1_SET_4_20_MODE,
-	CAL1_SET_4_20_MODE,	LIMIT_START,
+	CAL1_SET_4_20_MODE,	SELECT_PROTOCOL,
+	SELECT_PROTOCOL,	LIMIT_START,
 	END_MENU,			END_MENU, // to indicate the end of the menu
 };
 
@@ -808,9 +861,10 @@ void Operation(void)
 			else
 			{
 				display_mode = SelectNextMode(display_mode, next_LIMIT_display_mode);
-				if ((display_mode > CAL1_SET_4_20_MODE)
-					&& (display_mode != VOLTS) // enum LIMIT_MODE is zero
-					) // below 0 < display_mode > above 11
+				if ((display_mode > CAL1_SET_4_20_MODE)  // 13 - block CAL menu items (14-19)
+					&& (display_mode != SELECT_PROTOCOL) // 24 - allow only SELECT_PROTOCOL
+					&& (display_mode != VOLTS)           // 28 - allow VOLTS
+					) // Only CAL1(13), SELECT_PROTOCOL(24), and VOLTS(28) allowed above LIMIT items
 					display_mode = LIMIT_START; // = 0
 			}
 		}
@@ -1099,47 +1153,34 @@ char* ReplaceDoubleII(char* str)
 }
 
 /// <summary>
-/// Function to set the protocol name to show on the display based on the current startup protocol.
-/// It also sets the baud rate index and startup timer accordingly.
+/// Function to set the protocol name to show on the display based on the CURRENT operating protocol.
+/// It also sets the baud rate index accordingly.
 /// The function updates a pointer to the string that represents the protocol name to be displayed.
 /// </summary>
 /// <param name="InfoStr"> pointer to a name to be updated by this function</param>
 void Set_Show_Protocol(char FL ** InfoStr) {
-	//p_InfoStr = "  ";
-	if (SysData.NV_UI.StartUpProtocol == DNP3) {
+	// Display the CURRENT operating protocol, not the startup protocol
+	if (rt.operating_protocol == DNP3) {
 		*InfoStr = ("DNP3");
 		Existing.BRate_index = Baud_19200_i;
-		timer.start_up_ms = 0;	// exit from setup protocol if was in it. Stop startup timer (user made a choice)
 	}
-	else if (SysData.NV_UI.StartUpProtocol == MODBUS) {
+	else if (rt.operating_protocol == MODBUS) {
 		*InfoStr = ("MBUS");
 		Existing.BRate_index = Baud_19200_i;
-		timer.start_up_ms = 0;						// exit from setup protocol if was in it
 	}
-	else if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS) {
+	else if (rt.operating_protocol == ASCII_CMDS) {
 		*InfoStr = ("ASC`");
-		Existing.BRate_index = ASCII_BR_INDX;			// IK20250826 set to 115200 baud, for quicker screen update
-		timer.start_up_ms = 0;						// exit from setup protocol if was in it
+		Existing.BRate_index = ASCII_BR_INDX;			// 115200 baud for ASCII
 	}
-	else // default to SETUP
+	else if (rt.operating_protocol == SETUP)
 	{
 		*InfoStr = ("INIT");
-		SysData.NV_UI.StartUpProtocol = SETUP;
-		if (timer.start_up_ms == 0) {
-			// IK20260205 means after 6 sec of setup protocol, some other protocol was loaded, but now it was changed back to setup protocol,
-			//so we want to give user another 6 seconds to change it again if needed, before reverting to the last protocol
-			timer.TWI_lockup = 13000;						// set twi lockup tmr to 13 sec
-			timer.start_up_ms = 6000;						// setup SysData.NV_UI.StartUpProtocol for 6 seconds
-			Existing.BRate_index = Baud_9600_i;
-		}
+		Existing.BRate_index = Baud_9600_i;
 	}
-	// Apply the protocol change immediately
-	if (rt.operating_protocol != SysData.NV_UI.StartUpProtocol) {
-		rt.operating_protocol = SysData.NV_UI.StartUpProtocol;
-		rt.UBRR0_setting = Calculate_USART_UBRRregister((Uint32)Existing.baud_rate);
-		rt.HostRxBuffPtr = rt.EchoRxBuffPtr = 0;
-		msg_status = MSG_DONE;
-		Init_UART();
+	else // fallback - should not reach here
+	{
+		*InfoStr = ("????");
+		Existing.BRate_index = Baud_9600_i;
 	}
 }
 
@@ -1316,22 +1357,11 @@ void DisplayPrepare(void)
 		rt.InfoLED_blink_eq1 = TRUE;
 		p_InfoStr = mode_strings[SHOW_FW_VER]; // ("SYS ");
 	}
-	else if (display_mode == SELECT_PROTOCOL) // -!- IK20260204 it overrides the normal protocol display to show current protocol and temporary changes baudrate
+	else if (display_mode == SELECT_PROTOCOL) // Display current protocol selection
 	{
 		Set_Show_Protocol(&p_InfoStr);
-
-		if (rt.operating_protocol != SysData.NV_UI.StartUpProtocol) {
-#ifdef PC
-			PutStr(p_InfoStr); SendCrLf();		// output to console == 'serial port' to see the string which is going to Info display
-#endif
-			rt.operating_protocol = SysData.NV_UI.StartUpProtocol;// IK20251217 in main(), the difference will be detected and applied
-			// IK20251210 check if baud rate need to be changed - then do it; this happens in main loop.
-			// otherwise writing to UBBR0 disrupts UART work
-			rt.UBRR0_setting = Calculate_USART_UBRRregister((Uint32)Existing.baud_rate); // IK20251217 in main(), the difference will be detected and applied
-			rt.HostRxBuffPtr = rt.EchoRxBuffPtr = 0;	//IK20251219 reset buffer pointer
-			msg_status = MSG_DONE;	// and status of message -> anew
-			Init_UART(); // IK20251210 set baud rate according to selected protocol
-		}
+		// Note: Display function only SHOWS current protocol, does not change it
+		// Protocol changes happen in ProcessUPbutton/ProcessDOWNbutton handlers
 	}
 	else
 		p_InfoStr = mode_strings[display_mode];
