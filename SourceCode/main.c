@@ -58,7 +58,7 @@ char FW_PartNumber[] = "826-509-A";	// IK20230706 must be in RAM and not the cha
 char FW_PartNumber[] = "826-501-A";	// IK20230706 must be in RAM and not the char* for printf
 #endif //#ifdef LAST_GASP
 
-char FW_Date[] = "10-Mar-2026";		// IK20230706 must be in RAM for printf
+char FW_Date[] = "22-Apr-2026";		// IK20230706 must be in RAM for printf
 #define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
 float FirmwareVersion;				// to be shown as float on LED, "3.0", initialization to 'FW_ver_float' in init()
 
@@ -247,8 +247,6 @@ uint8  calibr_step;							// what are you calibrating
 #endif // TIME_TESTING
 
 uint8  debug = 0;							// IK20250522 ! FOR TEST, debug is not explicitly initialized, zero! delay 0.5 ms before switching to transmit mode
-//volatile uint8 tVar_u8;					// test variable
-//volatile uint16 tVar_u16;					// test variable
 
 uint8  relay_board_status;					// updated via TWI when read RelayBoard, holds relay board status, AC power loss bit
 uint8  RxGreen_TxRed_LED_op;				// determines whether the comm LED is red or green
@@ -287,7 +285,7 @@ iien2 = IIN byte 2
 
 uint16 crc;									// IK20250812 changed from volatile and encapsulated calculations in _disable - _enable_interrupt. holds locally computed crc
 
-volatile uint8  cal_status;					// used in DNP calibration, indicates what is being calibrated
+volatile uint8  cal_status;					//-!- IK20260422 no need volatile? used in DNP calibration, indicates what is being calibrated
 
 //---- Meter Variables
 

@@ -1141,7 +1141,7 @@ uint16 SetProtocolMaxAddress() {
 	return MaxAdr;
 }
 
-/*************************************************************/
+/ *************************************************************/
 void SetGetAddress(uint8 host_0_or_meter_1)	// 0 for host, 1 for meter
 {
 	char* temp_Inp_str = CommStr; // pointer to rt.RxBuff[0]

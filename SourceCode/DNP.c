@@ -1173,8 +1173,7 @@ void Send_DNP_Msg(uint16 type)
 				11/05/18      REC     Added points for PWM calibration
 */
 /********************************************************************/
-void
-DNP_App(void)
+void DNP_App(void)
 {
 	uint8 i, j;
 	long tmp_cal;
