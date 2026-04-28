@@ -58,7 +58,7 @@ char FW_PartNumber[] = "826-509-A";	// IK20230706 must be in RAM and not the cha
 char FW_PartNumber[] = "826-501-A";	// IK20230706 must be in RAM and not the char* for printf
 #endif //#ifdef LAST_GASP
 
-char FW_Date[] = "22-Apr-2026";		// IK20230706 must be in RAM for printf
+char FW_Date[] = "28-Apr-2026";		// IK20230706 must be in RAM for printf
 #define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
 float FirmwareVersion;				// to be shown as float on LED, "3.0", initialization to 'FW_ver_float' in init()
 
@@ -169,6 +169,17 @@ struct twi_variables twi_send;
 #define DEF_XMT_DELAY			30			// default xmt delay(response delay)  // ms
 #define DEF_BAUD_RATE			Baud_19200	// default baud rate
 #define DEF_BAUD_RATE_INDEX		Baud_19200_i	// default baud rate
+#define UCSR0A_SETTINGS			0x22		// default set a RX reset (0x20) and double speed mode (0x02) flags, to get 2.4% accuracy at 115200 baud
+// Bit 5 - UDREn: USART Data Register Empty
+// The UDREn Flag indicates if the transmit buffer (UDRn) is ready to receive new data. If UDREn
+// is one, the buffer is empty, and therefore ready to be written. The UDREn Flag can generate a
+// Data Register Empty interrupt (see description of the UDRIEn bit).
+// UDREn is set after a reset to indicate that the Transmitter is ready.
+//  Bit 1 - U2Xn : Double the USART Transmission Speed
+// This bit only has effect for the asynchronous operation.Write this bit to zero when using synchronous
+// operation.
+// Writing this bit to one will reduce the divisor of the baud rate divider from 16 to 8 effectively doubling
+// the transfer rate for asynchronous communication.
 
 // IK20250623 default values moved to Globals.h
 //
@@ -459,10 +470,24 @@ signed char Find_BR_index(Uint32 BaudRateVal) {
 	return (signed char)-1;
 }
 
+/// <summary>
+/// Sets the USART baud rate register (UBRR) based on the provided baud rate value.
+/// Baud rate values and their corresponding UBRR register settings for a 16 MHz clock are approximately:
+/// baudrate    stdmodeUBRR (error %)| double speed UBBR (error %)
+/// 9600        103=0x67    (+0.16%) | 207=0xCF          (+0.16%)
+/// 14400        68=0x44    (+0.64%) | 138=0x8A)         (-0.08%)
+/// 19200        51=0x33    (+0.16%) | 103=0x67)         (+0.16%)
+/// 115200        8=0x08    (-3.55%) |  16=0x10)         (+2.12%)
+/// exact value is 7.68, 0x7 has +8.5% error, but with rounding to nearest integer, it is 7 (0x07) with 3.5% error;
+/// the function rounds to nearest integer, so it gives 8, with -3.55%
+/// </summary>
+/// <param name="BaudRate">The desired baud rate value.</param>
+/// <returns>The calculated UBRR register value for the given baud rate.</returns>
 uint16 Calculate_USART_UBRRregister(Uint32 BaudRate) // IK20250206
 {
-	//	uint16 RegSetting = ((MASTER_CLOCK / 16) / BaudRate) - 1;		// this always rounds down, for 115200 it gives 7.68 -> 7 and error is = +8.5% (real BR = 125000)
-	float RegSetting = ((float)(MASTER_CLOCK >> 4) / BaudRate) - 0.5f;	// this rounds to nearest integer, for 115200 it gives 7.68 -> 8, error= -3.5% (real BR = 111111)
+	// 	float RegSetting = ((MASTER_CLOCK / 16) / BaudRate) - 1;	// std mode
+	// 	float RegSetting = ((MASTER_CLOCK / 8) / BaudRate) - 1;		// dbl speed
+	float RegSetting = ((float)(MASTER_CLOCK >> 3) / BaudRate - 0.5f);	// this rounds to nearest integer, for 115200 it gives 7.68 -> 8, error= -3.5% (real BR = 111111)
 	return (Uint32)RegSetting;
 }
 
@@ -946,7 +971,7 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 		timer.extender = 0;								// reset extender
 		timer.FreeRunningCounter++;						// Grok20251231
 
-		if ((SysData.NV_UI.StartUpProtocol == ASCII_CMDS) && (rt.OperStatusWord & SendRealTimeData_eq1_Bit))
+		if ((rt.operating_protocol == ASCII_CMDS) && (rt.OperStatusWord & SendRealTimeData_eq1_Bit))
 		{
 			if (timer.RealTimeUpdate > 0)
 				timer.RealTimeUpdate++;
@@ -1108,7 +1133,7 @@ INTERRUPT void USART0_RX_interrupt(void)
 	delay_us(1000);
 #endif
 	uart_byte = UDR0;
-	if (SysData.NV_UI.StartUpProtocol == SETUP)                // if in startup mode check for a setup msg
+	if (rt.operating_protocol == SETUP)                // if in startup mode check for a setup msg
 	{
 		if ((msg_status == MSG_DONE) && (uart_byte == 0x0D))                // msg started yet ?
 		{
@@ -1151,9 +1176,9 @@ INTERRUPT void USART0_RX_interrupt(void)
 			//rt.HostRxBuffPtr = 0;
 			msg_status = MSG_DONE;
 		}
-	} // end of if (SysData.NV_UI.StartUpProtocol == SETUP)
+	} // end of if (rt.operating_protocol == SETUP)
 
-	else if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS)
+	else if (rt.operating_protocol == ASCII_CMDS)
 	{
 #ifdef UART_TEST_SIGNALS	/******TEST SIGNAL********************/
 		clearBit(PORTD, TxRxLED_Green_PD7);    // normal state OFF, logic 1 for green LED pin. turn on Green LED for time measuring
@@ -2136,10 +2161,10 @@ void Send_Setup_Msg (uint8 type)
 		wrk_str[0] = 0x1B;							// ESC
 		wrk_str[1] = 'R';
 		wrk_str[2] = 'D';							// character indicating SysData.NV_UI.StartUpProtocol
-		if (SysData.NV_UI.StartUpProtocol <= ASCII_CMDS)
-			wrk_str[3] = SysData.NV_UI.StartUpProtocol;
-		else // error, should not be here
-			wrk_str[3] = '0';						// return 0
+		// IK20260428 rt.operating_protocol is always SETUP there if (rt.operating_protocol < ASCII_CMDS)
+		wrk_str[3] = SysData.NV_UI.StartUpProtocol; // show SAVED protocol, not active
+		//else // error, should not be here
+		//	wrk_str[3] = '0';						// return 0
 		wrk_str[4] = 0x0D;							// CR
 		bytes = 5;									// how many bytes to send
 	}
@@ -2445,7 +2470,7 @@ void Parse_Modbus_Msg(void)
 					send_modbus = SEND_CMD_ECHO;				// echo FC06 frame as success response
 					rt.operating_protocol = ASCII_CMDS;
 					//SaveToEE(SysData.NV_UI.StartUpProtocol);	// do not persist to EEPROM
-					display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
+					display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message 
 				}
 				else if (rt.device_register == ModbusCmdSetDNPprotocol)	// register 0x33 = 51d: switch to DNP3 protocol
 				{
@@ -2534,14 +2559,11 @@ void Parse_Setup_Msg(void)
 			send_setup = SEND_PROTOCOL;						// send SysData.NV_UI.StartUpProtocol
 			if (rt.HostRxBuff[3] == 'W')					// is it a write?
 			{
-				if (tmpByte == '1')							// get SysData.NV_UI.StartUpProtocol and convert to int
-					SysData.NV_UI.StartUpProtocol = DNP3;				// set to dnp
-				else if (tmpByte == '2')
-					SysData.NV_UI.StartUpProtocol = MODBUS;				// set to modbus
-				//else
-				//	SysData.NV_UI.StartUpProtocol = ASCII_CMDS;			// set to ASCII commands
-				if ((tmpByte == '1') ||  (tmpByte == '2'))
-					SaveToEE(SysData.NV_UI.StartUpProtocol);
+				if ((tmpByte == '1') || (tmpByte == '2'))	// Set SysData.NV_UI.StartUpProtocol
+				{
+					SysData.NV_UI.StartUpProtocol = tmpByte - '0';	// char '1' is conveted to binary 1 which is DNP3
+					SaveToEE(SysData.NV_UI.StartUpProtocol);		// char '2' is conveted to binary 2 which is Modbus
+				}
 				display_mode = SELECT_PROTOCOL;							// IK20260212 show change on display
 				// SysData.NV_UI.StartUpProtocol = SysData.NV_UI.StartUpProtocol; // IK20260205 commented out because this would kick out of setup
 			}
@@ -3641,7 +3663,6 @@ void SetSysDataDefaultsInRAM(void)
 																		// whether or not latch on some event or when condition clears, restore normal operation
 	rt.pulse = OFF;
 
-	//--- Modbus Settings start at 0x010
 	Sp->NV_UI.StartUpProtocol = DNP3;									// SysData.NV_UI.StartUpProtocol byte, enum DNP or MODBUS or ASCII_CMDS or ASCII_MENU
 	rt.protocol_parity = NONE;											// 0 == NONE; 1 == rt.UART_parity EVEN; 2 == rt.UART_parity ODD
 	Sp->dll_confirm = 0;												// dll confirm status
@@ -3854,21 +3875,20 @@ void WDT_set_2sec_interrupt(void)
 }
 
 /// <summary>
-/// function checks and initializes UART baud rate then saves in the SysData.NV_UI and in EEPROM
+/// function checks and initializes UART baud rate based on Existing.BRate_index, which is set from EEPROM or default value in Init_Parameters()
+/// then saves in the SysData.NV_UI and in EEPROM
 /// if index is outside the range, it is set to default Baud_19200_i
 /// a new BR_index and baud rate based on Baud_Rates[BR_index] array
-/// Then it intialyzes UART baudrate register
+/// Then it intialyzes UART baudrate register and if BR is different, re-inits UART
 /// </summary>
-/// <param name="BR_index"> index to address Baud_Rates[BR_index]</param>
 void Init_UART() {
 	uint8 c;
-	//Uint32 t_long;
-	UCSR0C = 0x06;									// no UART_parity, async, 1 stop
-	UCSR0A = 0x20;									// redundant because it is set a reset anyway
-	UCSR0B = 0x98;									// enable rcv & xmt
+	UCSR0C = 0x06;				// no UART_parity, async, 1 stop
+	UCSR0A = UCSR0A_SETTINGS;	// default set a RX reset (0x20) and double speed mode (0x02) flags, to get 2.4% accuracy at 115200 baud
+	UCSR0B = 0x98;				// enable rcv & xmt
 
 	Set_BaudRate(Existing.BRate_index);
-	for (c = 0; c < 16; c++) //IK20260203 some delay to settle UART
+	for (c = 0; c < 16; c++)	//IK20260203 some delay to settle UART
 	{
 		_NOP();
 	}
@@ -4115,7 +4135,7 @@ void main(void)
 	PC_LOOP_INITIALIZED = TRUE;
 #endif
 #ifdef ASCII_TESTING
-	SysData.NV_UI.StartUpProtocol = ASCII_CMDS;							//-!- IK20241222 overwrite for test
+	rt.operating_protocol = ASCII_CMDS;							//-!- IK20241222 overwrite for test
 	setBit(rt.Host , CharEchoFlag);
 	Print_FW_Version();
 	SendCrLf();
@@ -4220,7 +4240,7 @@ void main(void)
 				Get_EEPROM_params();							// Get all the stored parameters into SysData
 
 				// Don't switch to ASCII_CMDS from EEPROM (it's production-only)
-				if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS)
+				if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS) // Prevent accidents, ASCII is not saved into EEPROM
 				{
 					SysData.NV_UI.StartUpProtocol = DNP3;  // Default to DNP3
 					SaveToEE(SysData.NV_UI.StartUpProtocol);
@@ -4263,11 +4283,11 @@ void main(void)
 					SetASCIIandSignMsg();
 				}
 			}	// end of if ((timer.start_up == 0)
-		}		// && (SysData.NV_UI.StartUpProtocol == SETUP)) //start up timed out
+		}		// && (SysData.NV_UI.StartUpProtocol == SETUP))	//start up timed out
 
 		else if (rt.operating_protocol == ASCII_CMDS)			// New IK20241030
 		{
-		//	CHECK PC communication
+			//	CHECK PC communication
 			// IK20250527 happen each 150 ms: program does not go there for 125ms, and parces for 12.5 ms??
 			// IK20250606 fixed - replaced 120 ms while(ADC_timer ) {} delay in ADC conversion with check and return if ADC_timer >0
 			ParseRCI();
@@ -4481,7 +4501,7 @@ void main(void)
 		// IK20251217 comment: below "Just in case" repair settings to the correct values
 
 		//-- Set up COMMS ---
-		UCSR0A = 0x20;										// redundant because it is set a reset anyway
+		UCSR0A = UCSR0A_SETTINGS;	// default set a RX reset (0x20) and double speed mode (0x02) flags, to get 2.4% accuracy at 115200 baud
 		UCSR0B = 0x98;										// enable rcv & xmt,
 		if (UBRR0 != rt.UBRR0_setting)		// Baud register or baud rate changed
 		{

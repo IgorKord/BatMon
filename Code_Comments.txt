@@ -1,4 +1,21 @@
-20260415 
+20260428
+Changed UART settings so it uses double speed. Bit #1 U2X0 of UCSR0A (USART Control and Status Register A) is set to 1
+This allows 2.4% error in 115200 BR, vs. 3.5% for normal speed
+in process of debugging protocol change - ASCII choice does not change baudrate.
+
+20260423
+Tested with VB.net aplication and FW version 2.5.
+Modbus typical transmission:
+02 03 18 00 00 00 00 00 7D 03 6D 00 00 01 03 FF
+C1 00 A5 00 00 00 0A 00 00 00 01 61
+
+DNP3 typical transmission:
+05 64 29 44 64 00 02 00 B2 33 C0 C0 81 80 00 01
+01 00 00 07 00 1E 03 00 00 04 E2 46 6F EF 01 00
+E2 FD FF FF F3 07 FF FF 00 00 00 00 8B B1 00 00
+00 00 FF FF
+
+20260415
 testing firmware with BatMonSetup, VB old version.
 Started from FW ver 2.5, verified that firmware starts in SETUP mode and could react on setup commands.
 DNP and ModBus protocols can be selected and saved into EEPROM,
@@ -30,14 +47,14 @@ http_status_code 400
 http_satus	 BadRequest
 correlation_id	 0d4a6b9a-7aea-4493-b607-9411b42bdea9
 message_id	 d26f3446-3db5-4315-8b3f-3e04cbbbf312
-client_id	 Microsoft.VisualStudio.Conversations.Chart.HelpWindow	
+client_id	 Microsoft.VisualStudio.Conversations.Chart.HelpWindow
 -------------------------------------------------------------------
 Please be frugal, I do understand what you are proposing and I do not need a summary of your changes.
 How many tokens were used?
 
-This firmware talks via serial port with C# application "Battery Monitor Setup" located in folder C:\In_Development\Product Software\Battery Monitor Setup CS.NET. 
-Form Simulator.cs has radio buttons which shouls issue serial commands to the controller firmware switching propocols between SETUP, DNP3, ModBus, and ASCII. 
-buttons names are : "DNPButton", "ModBusButton", and "ASCII_Button" Please verify correctness of commands issuedby C# form to firmware. 
+This firmware talks via serial port with C# application "Battery Monitor Setup" located in folder C:\In_Development\Product Software\Battery Monitor Setup CS.NET.
+Form Simulator.cs has radio buttons which shouls issue serial commands to the controller firmware switching propocols between SETUP, DNP3, ModBus, and ASCII.
+buttons names are : "DNPButton", "ModBusButton", and "ASCII_Button" Please verify correctness of commands issuedby C# form to firmware.
 I verify that firmware correctly reacts to these commands, switch protocol accordingly, and shows Protocol on LED display.
 Copilot:
 Based on my analysis, I can now provide you with a comprehensive verification report. Let me create a summary document:
@@ -87,13 +104,13 @@ private void DNPButton_CheckedChanged(object sender, EventArgs e) {
         if (ProtocolUpdated == false) {
             ProtocolUpdated = true;
             protocol = "DNP";
-            
+
             // **ADD THIS:** Send protocol switch command to firmware
             if (monitor_port_open == true) {
                 _mainForm.Serial_Port.WriteLine("prot>dnp3\r");
                 Tools.msSleep(100);  // Wait for firmware to process
             }
-            
+
             // ... rest of existing code
         }
     }
@@ -104,13 +121,13 @@ private void ModbusButton_CheckedChanged(object sender, EventArgs e) {
         if (ProtocolUpdated == false) {
             ProtocolUpdated = true;
             protocol = "Modbus";
-            
+
             // **ADD THIS:** Send protocol switch command to firmware
             if (monitor_port_open == true) {
                 _mainForm.Serial_Port.WriteLine("prot>modb\r");
                 Tools.msSleep(100);  // Wait for firmware to process
             }
-            
+
             // ... rest of existing code
         }
     }
@@ -121,54 +138,54 @@ private void ASCII_button_CheckedChanged(object sender, EventArgs e) {
         if (ProtocolUpdated == false) {
             ProtocolUpdated = true;
             protocol = "ASCII";
-            
+
             // **ADD THIS:** Send protocol switch command to firmware
             if (monitor_port_open == true) {
                 _mainForm.Serial_Port.WriteLine("prot>asci\r");
                 Tools.msSleep(100);  // Wait for firmware to process
             }
-            
+
             // ... rest of existing code
         }
     }
 }
 --------------------------
 Not quite right.
-for example, ascii commands are not recognised if current protocol is DMP or modbus, 
-if (protocol == "ASCII" || protocol == "DNP"... 
+for example, ascii commands are not recognised if current protocol is DMP or modbus,
+if (protocol == "ASCII" || protocol == "DNP"...
 so line
-_mainForm.Serial_Port.WriteLine("prot>modb\r"); 
-would not work if protocol is DNP 
-I added if(){}-else{} 
-cases for correct handling, please see these three *_CheckedChanged() . 
+_mainForm.Serial_Port.WriteLine("prot>modb\r");
+would not work if protocol is DNP
+I added if(){}-else{}
+cases for correct handling, please see these three *_CheckedChanged() .
 I added "//TODO:..." comments. and revise your suggestions
 
 <<<<< Copilot crashed
 
 
 20260409:
-This is actually a 'C' code, but I enabled C++ compiler which better tracks and 'finds all references' of a member in  a structure. 
+This is actually a 'C' code, but I enabled C++ compiler which better tracks and 'finds all references' of a member in  a structure.
 The Visual Studio's C toolchain could only find reference to the structure itself, but not a member of the structure.
 the design intent: firmware has 4 protocols.
 1.	SETUP - FW always starts in setup protocol; if no setup commands arrived in 6 sec, the saved in  'SysData.NV_UI.StartUpProtocol' gets loaded.
 2.	DNP3 one of 2 protocols normally availabe
 3.	Modbus second of 2 protocols normally availabe
-4.	ASCII - is production / testing protocol allowing calibrations, retrieve or set parameters, etc. 
+4.	ASCII - is production / testing protocol allowing calibrations, retrieve or set parameters, etc.
 It can be called from SETUP, DNP3, or Modbus protocols but is not saved itno EEPROM.
 
 
-In firmware, on power on, serial protocol should be SETUP with baudrate 9600. allowing to change configuration, unit DNP address, etc. 
+In firmware, on power on, serial protocol should be SETUP with baudrate 9600. allowing to change configuration, unit DNP address, etc.
 After 6 sec if there are no setup requests, the protocol should switch to the one stored in EEPROM, in EEPROM_SysData.NV_UI.StartUpProtocol.
-I load copy of EEPROM_SysData structure into SysData structure on init(), so after 6 sec working protocol should be taken from SysData. 
-Two protocols "DNP3" and "MODBUS" with default baudrate of 19200, are the working protocols customer would use. 
-I added ASCII protocol mostly for production, for better calibration handling, saving parameters into file on PC, etc. 
+I load copy of EEPROM_SysData structure into SysData structure on init(), so after 6 sec working protocol should be taken from SysData.
+Two protocols "DNP3" and "MODBUS" with default baudrate of 19200, are the working protocols customer would use.
+I added ASCII protocol mostly for production, for better calibration handling, saving parameters into file on PC, etc.
 The ASCII protocol can be loaded, if user decides so, via front LCD display /menu / buttons, or from DNP / ModBus.
-I added commands to DNP / ModBus protocols which switch protocol to ASCII, and this ASCII protocol should stay without timeout, until user changes it or power down. 
+I added commands to DNP / ModBus protocols which switch protocol to ASCII, and this ASCII protocol should stay without timeout, until user changes it or power down.
 However, ASCII protocol should not be saved / restored into / from EEPROM.
 I have a real time structure, 'rt', and in it the 'rt.operating_protocol' intended to be a temporary copy, but handling both locations of protocol is tricky.
-In this firmware, the serial protocol is loaded from SysData.NV_UI.StartUpProtocol (say, it is DNP3) immediately, which is incorrect because UART is still at 9600, but loaded protocol is DNP3. 
+In this firmware, the serial protocol is loaded from SysData.NV_UI.StartUpProtocol (say, it is DNP3) immediately, which is incorrect because UART is still at 9600, but loaded protocol is DNP3.
 The PC software which communicates with device expects either SETUP @ 9600 or DNP/MODBUS @ 19200, thus - it cannot communicate.
-Please analyze the code and suggest how to fix it. The main idea is to load protocol from EEPROM after 6 sec, not immediately, 
+Please analyze the code and suggest how to fix it. The main idea is to load protocol from EEPROM after 6 sec, not immediately,
 and before that use SETUP protocol with 9600 baudrate. You should use rt.operation_protocol for 'acting' protocol.
 
 Key Points
@@ -179,8 +196,8 @@ Key Points
 ✅ Timer-based transition ensures 6-second window for SETUP commands
 ✅ Clean buffer on protocol switch prevents garbage characters
 
-I made changes. NOTE: the user can change and save baudrate for DNP/Modbus protocols in EEPROM as well, so I restored saved baudrate. 
-I also changed Modbus register which switched to ASCII from 100 to 48 (0x30) and re-use the same 0x30 value to swich from DNP to ASCII. 
+I made changes. NOTE: the user can change and save baudrate for DNP/Modbus protocols in EEPROM as well, so I restored saved baudrate.
+I also changed Modbus register which switched to ASCII from 100 to 48 (0x30) and re-use the same 0x30 value to swich from DNP to ASCII.
 Please verify logic of start up, and also re-check DNP-to-ASCII and MODBUS-to-ASCII code.
 
 Verification Summary
@@ -201,8 +218,8 @@ Looking at init() (line 6198-6345) and main() (line 7928-8092):
 ⚠️ ISSUE FOUND: Protocol Check Logic
 Problem in main loop (lines 8002-8092):
 The code checks StartUpProtocol instead of operating_protocol: fixed
-I fixed it. anayze lines 4442 - 4458: in SETUP protocol we can select protocol to be loaded when setup exits to DNP, MODBUS, or ASCII, 
-but only DNP or MODBUS should be saved into EEPROM. problem is - the rt.operationg ptotocol defines acting protocol, 
+I fixed it. anayze lines 4442 - 4458: in SETUP protocol we can select protocol to be loaded when setup exits to DNP, MODBUS, or ASCII,
+but only DNP or MODBUS should be saved into EEPROM. problem is - the rt.operationg ptotocol defines acting protocol,
 so if we switch that, the firmware program leaves SETUP protocol immediately and abruptly, without telling to a connected PC
 recheck please.
 
@@ -213,12 +230,12 @@ recheck please.
 
 fixed BatMon address command "madr" and Host address command "hadr" - deleted offset of 2
 // -!- K20260312 - NEED DEBUGGING. expected it does not return protocol after command
-// refactored Host and Meter address commands into one function with argument to specify which address, 
-// because they are very similar and differ only by which variable they read and write and which command string they show. 
+// refactored Host and Meter address commands into one function with argument to specify which address,
+// because they are very similar and differ only by which variable they read and write and which command string they show.
 // Also, added max address limit based on protocol type specified in command argument, because DNP3 and ModBus have different address limits.
-// 
+//
 // DNP/ModBus Address set/get:
-// 'hadr>dnp3? returns Set command syntax 'hadr>dnp3=NNNN', 
+// 'hadr>dnp3? returns Set command syntax 'hadr>dnp3=NNNN',
 // DNP range up to 65000, // ModBus range up to 255.
 // Setting in flash is updated after 'save' command.
 void SetGetHostAddress(void)
@@ -226,9 +243,9 @@ void SetGetHostAddress(void)
 	SetGetAddress(0);	// 0 for host, 1 for meter
 }
 
-// DNP/ModBus Address set/get: 
-// 'madr>modb? returns Set command syntax 'madr>modb=NNNN', 
-// DNP range up to 65000, ModBus range up to 255.  
+// DNP/ModBus Address set/get:
+// 'madr>modb? returns Set command syntax 'madr>modb=NNNN',
+// DNP range up to 65000, ModBus range up to 255.
 // Setting in flash is updated after 'save' command.
 void SetGetMeterAddress(void)
 {
@@ -236,7 +253,7 @@ void SetGetMeterAddress(void)
 }
 
 
-IK20260302 
+IK20260302
 too complicated to save into rt.operating_protocol and to SysData.NV_UI.StartUpProtocol and figure out what to use. decided to change one setting in SysData and if needed save it to EEPROM
 
 20260210 IK
@@ -244,7 +261,7 @@ Fixed startup protocol => INIT and baud rate =>9600
 FW communicates with Battery Monitor Setup using SETUP protocol.
 
 20260209 IK
-FIXED double increment/decrement on UP /DOWN butoons in firmware and PC simulation, 
+FIXED double increment/decrement on UP /DOWN butoons in firmware and PC simulation,
 made PC simulation more stable and responsive on mouse clicks on butoon images
 
 20260205 IK
@@ -257,19 +274,19 @@ In such case delta is decreased to smaller value 100->10->1->0.1
 Code complexity does not add a value to UX.
 Set original auto increment clip to max, min, without changing delta,
  checking / refactoring serial commands and protocol set up.
- 
-20260202 
+
+20260202
 with Copilot help:
 fixed auto delta increment with long press of UP / DOWN buttons.
 Fixed baud rate update on hit 'DOWN'
 fixed menu set but not reset for pulse, latch, etc.
 
 20251231a_501A_BM_dnw_Grok.zip
-Code deviates more and more from the almost working ChatGPT code. 
+Code deviates more and more from the almost working ChatGPT code.
 In this version buttons cannot change anything, no matter long or short hit
 
 20251231_501A_BM_dnw_Grok.zip
-Grok-proposed changes implemented. Test: the button short press does not do anything. Holding auto for 1 sec changes shown item, 
+Grok-proposed changes implemented. Test: the button short press does not do anything. Holding auto for 1 sec changes shown item,
 but this change should be on short press-release. Holding Limit for few seconds does not bring LIMIT menu
 
 20251230

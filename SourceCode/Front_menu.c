@@ -37,7 +37,7 @@ typedef enum {
 } ButtonState_t;
 //-!- IK20250808  modes should be unified into one structure?
 uint8  last_display_mode;
-uint8  In_setup_alarm_limits_mode;				// indicates if in the setup alarm limits mode (after LIMIT button was pressed for 3+ sec). allows to setup HBAT, LBAT, etc., limits. to disable alarms
+uint8  In_setup_alarm_limits_mode;			// indicates if in the setup alarm limits mode (after LIMIT button was pressed for 3+ sec). allows to setup HBAT, LBAT, etc., limits. to disable alarms
 uint8  In_calibr_menu_mode;
 uint8  last_mode;							// to remeber last mode when entering limit menu
 uint8  Is_in_auto_mode;						// IK20251007 combined auto and manual mode in one variable. == TRUE means 'Auto', == FALSE means 'Manual' //indicates whether auto mode is active
@@ -275,6 +275,9 @@ void ChangeProtocol(Schar direction)
 			rt.operating_protocol = SETUP;				// SETUP is temporary
 			timer.TWI_lockup = 13000;					// Initialize SETUP timeout
 			timer.start_up_ms = 6000;					// SETUP protocol for 6 seconds
+			//main loop will set baudrate, line ~4230
+			//Existing.BRate_index = Baud_9600_i;
+			//Set_BaudRate(Existing.BRate_index);			// it also sets Existing.baud_rate = Baud_9600;
 		}
 		// else if SETUP: stay at minimum (no wrap-around)
 	}
@@ -382,7 +385,7 @@ void ProcessUPbutton() {
 				I420_calibr_lock = I420calibLOCKED;
 			}
 
-			else if (display_mode == CAL_V_BAT)
+			else if (display_mode == CAL_V_BAT) //== 19
 			{
 				if (SysData.Bat_Cal_Offset_Volts_f < SysData.NV_UI.plus_gf_threshold_V_f)	// IK20251110 limit the adjustable range
 				{

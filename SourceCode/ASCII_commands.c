@@ -1380,6 +1380,7 @@ void SetGetProtocol(void)
 			// ASCII is production/test only - never saved to EEPROM
 			if (ProtCode == ASCII_CMDS) {
 				rt.operating_protocol = ASCII_CMDS;	// Only update runtime protocol
+				SetASCIIandSignMsg(); //IK20260428
 				// Do NOT modify SysData.NV_UI.StartUpProtocol - leave it unchanged
 			}
 			else {
