@@ -2236,6 +2236,33 @@ int Add_ModBus_BinaryLongToWorkString(int start_pos,long value)
 }
 
 /*********************************************************************/
+/*          S E N D   M O D B U S   E X C E P T I O N                */
+/*********************************************************************/
+/* Helper function to send Modbus exception responses.
+   Reduces code duplication for error cases.
+
+   Inputs:  exception_code - Modbus exception code:
+			0x01 = Illegal function
+			0x02 = Illegal address  
+			0x03 = Illegal data
+			0x04 = Device failure
+			0x06 = Device busy
+   Outputs: Sends 5-byte exception response via RS-485
+
+   Revision: 2025-May-01  IK  Created from refactored code
+*/
+static void Send_Modbus_Exception(uint8 exception_code)
+{
+	wrk_str[0] = (uint8)SysData.NV_UI.meter_address;
+	wrk_str[1] = wrk_str[1] | 0x80;						// exception response flag
+	wrk_str[2] = exception_code;
+	Calc_ModbusCRC(3);
+	wrk_str[3] = crc >> 8;
+	wrk_str[4] = crc & 0x00FF;
+	Send_232(5);
+}
+
+/*********************************************************************/
 /*                      S E N D   M O D B U S   M S G                */
 /*********************************************************************/
 /*  DESCRIPTION: This routine builds the various messages to be sent.
@@ -2254,6 +2281,8 @@ int Add_ModBus_BinaryLongToWorkString(int start_pos,long value)
 	It appears that ElectroSwitch transfers:
 	in upper 2-bytes --- (word millivolts / 1000), i.e., round volts, MSB first
 	in lower 2-bytes --- (word millivolts); with resolution 1 mV equals one count. the 523 mV is saved and transfered as 523
+
+	IK20260501 Refactored exception responses into helper function
 
 	*********************************************************************/
 void Send_Modbus_Msg(uint8 type)
@@ -2307,49 +2336,19 @@ void Send_Modbus_Msg(uint8 type)
 		Send_232(bytes);									// send it
 		break;
 	case NOT_SUPPORTED_MODBUS:
-		wrk_str[0] = (uint8)SysData.NV_UI.meter_address;
-		wrk_str[1] = wrk_str[1] | 0x80;						// exception response
-		wrk_str[2] = 0x01;									// illegal function
-		Calc_ModbusCRC(3);									// or unsupported function
-		wrk_str[3] = crc >> 8;
-		wrk_str[4] = crc & 0x00FF;
-		Send_232(5);
+		Send_Modbus_Exception(0x01);					// illegal function
 		break;
-	case ILLEGAL_DATA:										// build invalid entry msg
-		wrk_str[0] = (uint8)SysData.NV_UI.meter_address;
-		wrk_str[1] = wrk_str[1] | 0x80;						// exception response
-		wrk_str[2] = 0x03;									// illegal data
-		Calc_ModbusCRC(3);
-		wrk_str[3] = crc >> 8;
-		wrk_str[4] = crc & 0x00FF;
-		Send_232(5);										// send it
+	case ILLEGAL_DATA:
+		Send_Modbus_Exception(0x03);					// illegal data
 		break;
-	case ILLEGAL_ADDRESS:									// build invalid address msg
-		wrk_str[0] = (uint8)SysData.NV_UI.meter_address;
-		wrk_str[1] = wrk_str[1] | 0x80;						// exception response
-		wrk_str[2] = 0x02;									// illegal address
-		Calc_ModbusCRC(3);									//
-		wrk_str[3] = crc >> 8;
-		wrk_str[4] = crc & 0x00FF;
-		Send_232(5);
+	case ILLEGAL_ADDRESS:
+		Send_Modbus_Exception(0x02);					// illegal address
 		break;
 	case SLAVE_DEVICE_BUSY:
-		wrk_str[0] = (uint8)SysData.NV_UI.meter_address;
-		wrk_str[1] = wrk_str[1] | 0x80;						// exception response
-		wrk_str[2] = 0x06;									// device busy
-		Calc_ModbusCRC(3);
-		wrk_str[3] = crc >> 8;
-		wrk_str[4] = crc & 0x00FF;
-		Send_232(5);
+		Send_Modbus_Exception(0x06);					// device busy
 		break;
 	case SLAVE_DEVICE_FAILURE:
-		wrk_str[0] = (uint8)SysData.NV_UI.meter_address;
-		wrk_str[1] = wrk_str[1] | 0x80;						// exception response
-		wrk_str[2] = 0x04;									// device failure
-		Calc_ModbusCRC(3);
-		wrk_str[3] = crc >> 8;
-		wrk_str[4] = crc & 0x00FF;
-		Send_232(5);
+		Send_Modbus_Exception(0x04);					// device failure
 		break;
 	default:												// none of the above
 		break;												// so do nothing
