@@ -980,12 +980,13 @@ enum Setup_Replies
    SEND_APP_CONFIRM_STATUS = 9,
    SEND_XMT_DELAY = 10,
    SEND_BAUD_RATE = 11,
+   SEND_MODBUS_FIRST_REG = 12,
 #ifdef UNI_BI_POLAR_INPUTS //UNIPOLAR_INPUTS were depricated on 2018-May-24
-   SEND_INPUT1 = 12, //-!- IK20250714 should be removed, always BIPOLAR,
-   SEND_INPUT2 = 13, // meanwhile, up to SEND_INPUT5 must be consequitive
-   SEND_INPUT3 = 14,
-   SEND_INPUT4 = 15,
-   SEND_INPUT5 = 16
+   SEND_INPUT1 = 13, //-!- IK20250714 should be removed, always BIPOLAR,
+   SEND_INPUT2 = 14, // meanwhile, up to SEND_INPUT5 must be consequitive
+   SEND_INPUT3 = 15,
+   SEND_INPUT4 = 16,
+   SEND_INPUT5 = 17
 #endif //UNI_BI_POLAR_INPUTS, UNIPOLAR_INPUTS were depricated on 2018-May-24
 };
 

@@ -1,3 +1,6 @@
+20260501
+fixed modbus communication : first_register supposed to be be 0, was mixed with DNP host address ==3
+
 20260428
 Changed UART settings so it uses double speed. Bit #1 U2X0 of UCSR0A (USART Control and Status Register A) is set to 1
 This allows 2.4% error in 115200 BR, vs. 3.5% for normal speed
@@ -30,7 +33,7 @@ number of active cannnels = 5
 ----------------------------------------
 FW v 3.0 - DNP 3 works.
 Modbus is not.
-SETUP can connect to BM, after trying to set Modbus and restrting BatMonSetup, go to Setup form it again shows DNP3.
+SETUP can connect to BM, after trying to set Modbus and restarting BatMonSetup, go to Setup form, it again shows DNP3.
 
 
 Info: MS VisualStudio limits tokens to 128000. See the typical message when you exceed token quota below:
@@ -53,7 +56,7 @@ Please be frugal, I do understand what you are proposing and I do not need a sum
 How many tokens were used?
 
 This firmware talks via serial port with C# application "Battery Monitor Setup" located in folder C:\In_Development\Product Software\Battery Monitor Setup CS.NET.
-Form Simulator.cs has radio buttons which shouls issue serial commands to the controller firmware switching propocols between SETUP, DNP3, ModBus, and ASCII.
+Form Simulator.cs has radio buttons which shouls issue serial commands to the controller firmware switching protocols between SETUP, DNP3, ModBus, and ASCII.
 buttons names are : "DNPButton", "ModBusButton", and "ASCII_Button" Please verify correctness of commands issuedby C# form to firmware.
 I verify that firmware correctly reacts to these commands, switch protocol accordingly, and shows Protocol on LED display.
 Copilot:

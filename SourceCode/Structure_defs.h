@@ -91,7 +91,6 @@ typedef struct                      // this structure must be initialized, DO NO
 	float baud_rate;				// 0x01C baud rate, default is Baud_19200. //IK20250826 included 115200, thus, need Uint32, menu changes value based on a list of possible baud rates
 	Schar  BRate_index;				// IK202601714 index of baud rate in Baud_Rates[] array, used to set SysData.NV_UI.baud_rate and Existing.baud_rate. if -1, (negative), it is 0xFF -unprogrammed EEPROM
 	uint8  StartUpProtocol;			// 0x024 only valid values:    SETUP = 0x00,	DNP3 = 0x01,	MODBUS = 0x02,	ASCII_CMDS = 0x03,	ASCII_MENU = 0x04
-	//uint8  UART_parity;				// 0x025 only valid values 0 = NONE; 1 = EVEN; 2 = ODD
 	uint8  unit_type;				// 0x026 only valid values 24, 48, 125, 250
 	uint8  unit_index;				// 0x027 corresponds to unit_type, range (0...3), used to access array Alarm_Limits[]
 	uint16 host_address;			// 0x028 host address, not changed during operation
@@ -99,6 +98,7 @@ typedef struct                      // this structure must be initialized, DO NO
 	uint16 V4;						// 0x02C  4 mA voltage point (Voltage when current loop produces 4 mA or 0 mA)
 	uint16 V20;						// 0x02E 20 ma voltage point (Voltage when current loop produces 20 mA or 1 mA)
 	uint16 SavedStatusWord;			// 0x030 non-volatile user-chosen saved states as bits: buzzer on/off, latch on/off, 1 or 3 phase, current output I01 or I420
+	uint8  modbus_first_reg;		// IK2025501 added Modbus starting register to fix problem when first register becomes 3 when it should be 0 or 1
 	//uint8  buzzer;				// REPLACED with bit in SavedStatusWord, indicates whether buzzer is on or off
 	//uint8  phase;					// REPLACED with bit in SavedStatusWord, dealing with ripple created by battery charger type. =1 for single phase charger (120 Hz ripple), =3 for three phase charger (360 Hz ripple)
 	//uint8  latch_state;			// REPLACED with bit in SavedStatusWord, whether or not latch on some event or when condition clears, restore normal operation
@@ -244,10 +244,11 @@ typedef struct  { // RealTimeVars
 
 	//---- Modbus Variables ----
 	uint8  registers;							// ModBus: how many bytes are coming: 4*registers
-	uint16 first_register;						// if (Protocol == MODBUS) first_register = host_address;      //same location
-	uint16 device_register;
 	uint8  protocol_parity;						// == 0 No parity; == 1 UART_parity even; == 2 UART_parity odd
+	uint16 first_register;						// Modbus: starting register address
+	uint16 device_register;
 
+	uint16 host_address;						// DNP3: host/master address
 	volatile uint8 Host;
 //	volatile uint8 HostTx_StrLen; 				// the length of the string written tp the buffer, setting by main level output function like cputs(), reset by interrupt when transmitted
 //	volatile uint8 HostTxPtr_IN; 				// index of writing to buffer, increasing by main level output function like cputs(), reset by interrupt when transmitted

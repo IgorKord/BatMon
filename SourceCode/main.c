@@ -58,7 +58,7 @@ char FW_PartNumber[] = "826-509-A";	// IK20230706 must be in RAM and not the cha
 char FW_PartNumber[] = "826-501-A";	// IK20230706 must be in RAM and not the char* for printf
 #endif //#ifdef LAST_GASP
 
-char FW_Date[] = "28-Apr-2026";		// IK20230706 must be in RAM for printf
+char FW_Date[] = "01-May-2026";		// IK20230706 must be in RAM for printf
 #define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
 float FirmwareVersion;				// to be shown as float on LED, "3.0", initialization to 'FW_ver_float' in init()
 
@@ -148,7 +148,8 @@ struct twi_variables twi_send;
 // default values
 
 #define DEF_BAT_MONITOR_ADDR	2			// default Battery Monitor RS-485 address
-#define DEF_HOST_ADDR			3			// default host address/Modbus first reg
+#define DEF_HOST_ADDR			3			// default host address
+#define DEF_MODBUS_FIRST_REG	0			// default Modbus first reg
 #define DEF_INTER_CHAR			1041		// default inter char gap in micro s // ms
 #define DEF_DLL_TIMEOUT			1000		// default dll timeout in milli S // ms
 #define DEF_NUM_OF_POINTS		5			// IK20260205 CHANGED from 0x55 to regular 0x05  default number of input/analog points // 55 is coding for 5 channels
@@ -2188,6 +2189,10 @@ void Send_Setup_Msg (uint8 type)
 	{
 		bytes = sprintf((char*)&wrk_str[0], "\x1BRH%.0f\r", SysData.NV_UI.host_address);
 	}
+	if (type == SEND_MODBUS_FIRST_REG)
+	{
+		bytes = sprintf((char*)&wrk_str[0], "\x1BRF%.0f\r", SysData.NV_UI.modbus_first_reg);
+	}
 	if (type == SEND_METER_ADDR)
 	{
 		bytes = sprintf((char*)&wrk_str[0], "\x1BRM%.0f\r", SysData.NV_UI.meter_address);
@@ -2270,7 +2275,7 @@ void Send_Modbus_Msg(uint8 type)
 	case SEND_DATA:											// build address msg
 		wrk_str[0] = address & 0xFF;	//-!- K20240113 meter address is uint16, high byte was not sent
 		//IK20240115 ModBus has only 255 addresses.
-		wrk_str[1] = 0;	//SysData.NV_UI.meter_address >> 8;	//-!- K20240113 send higher byte
+		//IK20260501 do not overwrite [1], it is modbus identifier == 3! wrk_str[1] = 0;	//SysData.NV_UI.meter_address >> 8;	//-!- K20240113 send higher byte
 
 		wrk_str[2] = rt.registers * 4;						// how many bytes are coming
 
@@ -2470,7 +2475,7 @@ void Parse_Modbus_Msg(void)
 					send_modbus = SEND_CMD_ECHO;				// echo FC06 frame as success response
 					rt.operating_protocol = ASCII_CMDS;
 					//SaveToEE(SysData.NV_UI.StartUpProtocol);	// do not persist to EEPROM
-					display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message 
+					display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message
 				}
 				else if (rt.device_register == ModbusCmdSetDNPprotocol)	// register 0x33 = 51d: switch to DNP3 protocol
 				{
@@ -2510,10 +2515,11 @@ void Parse_Modbus_Msg(void)
 		if (broadcast == true)							// don't reply to Broadcast msgs
 			send_modbus = SEND_NOTHING;
 	}//END ADDRESS MATCH
-	else
+	else{
 		//debug = 11;
+	}
 	// --------------------- End of command checks ----------
-		ClearRxBuffer(0x00);						// at this point all parsing is done so clear out the buffer with nonsense
+	ClearRxBuffer(0x00);						// at this point all parsing is done so clear out the buffer with nonsense
 }
 
 /*********************************************************************/
@@ -2582,6 +2588,21 @@ void Parse_Setup_Msg(void)
 				}
 
 				SaveToEE(SysData.dll_retries);				// Store_Parameter(DLL_NUM_OF_RETRIES, SysData.dll_retries);//store this new value
+			}
+			break;
+		case 'F':								// IK20260501 new command "WF###" Starting register for modbus or host address for DNP
+			send_setup = SEND_MODBUS_FIRST_REG;				// first addr
+			if (rt.HostRxBuff[3] == 'W')					// is it a write?
+			{
+				if (Is_Numeric(&rt.HostRxBuff[5]) == true)	// can be converted into numeric
+				{
+					long tmp_long = atol(&rt.HostRxBuff[5]);
+					if ((tmp_long < 0) || (tmp_long > 255))
+						break;
+					else
+						SysData.NV_UI.modbus_first_reg = (uint8)tmp_long;
+				}
+				SaveToEE(SysData.NV_UI.modbus_first_reg);		// store this new value
 			}
 			break;
 		case 'G':							// "WG###" Inter character gap (used for Modbus), IK20250805 limited in Battery Monitor Setup to 65500 ms
@@ -3649,7 +3670,8 @@ void SetSysDataDefaultsInRAM(void)
 	Sp->NV_UI.BRate_index = DEF_BAUD_RATE_INDEX;						// baud rate, index of default Baud_19200 ==9
 	Sp->NV_UI.baud_rate = DEF_BAUD_RATE;								// baud rate, default Baud_19200
 	Sp->NV_UI.meter_address = DEF_BAT_MONITOR_ADDR;						// battery monitor address
-	Sp->NV_UI.host_address = DEF_HOST_ADDR;								// Modbus first register / DNP host address. NOT user selectable from the menu, but from the serial interface on Comm boards
+	Sp->NV_UI.host_address = DEF_HOST_ADDR;								// DNP host address. NOT user selectable from the menu, but from the serial interface on Comm boards
+	Sp->NV_UI.modbus_first_reg = DEF_MODBUS_FIRST_REG;					// Modbus first register NOT user selectable from the menu, but from the serial interface on Comm boards
 	Sp->NV_UI.unit_type = UNIT_125V;									//-!- BatMon_V_range type of unit (hardware - defined): if ((SysData.NV_UI.unit_type != 24) && (SysData.NV_UI.unit_type != 48) && (SysData.NV_UI.unit_type != 125) && (SysData.NV_UI.unit_type != 250)) SysData.NV_UI.unit_type = 125;
 	Sp->NV_UI.unit_index = index125;									// corresponds to unit_type, range (0...3), used to access array Alarm_Limits[]
 	Sp->NV_UI.V4 = 90;													// 0x028  2  // 4mA voltage point (SysData.NV_UI.V4)
@@ -4271,11 +4293,12 @@ void main(void)
 						UCSR0C = 0x26;									// make it even
 					if (rt.protocol_parity == ODD)						// ==2? is SysData.UART_parity odd?
 						UCSR0C = 0x36;									// make it odd
-					rt.first_register = SysData.NV_UI.host_address;		// same location
+					rt.first_register = SysData.NV_UI.modbus_first_reg;	// IK20260501 separate location
 				}
 				else if (rt.operating_protocol == DNP3) 					// init incoming buffer
 				{
 					UCSR0C = 0x06;										// no UART_parity, async, 1 stop
+					rt.host_address = SysData.NV_UI.host_address;		// DNP3 uses host address
 					memset(rt.HostRxBuff, 0xFF, HOST_RX_BUFF_LEN);		// so clear out the buffer with nonsense
 				}
 				else // (rt.operating_protocol == ASCII)
