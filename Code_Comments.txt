@@ -1,3 +1,17 @@
+20260505
+debugging DNP
+fixed frame size mismatch, now passing Parse_DNP_Msg()
+OK, the firmware buffer has full transmission now but DNP_App() does not stop on line 1519 1520
+					if (DNP_point_CmdCode == DNPcmdSetModbusProtocol) {
+						rt.operating_protocol = MODBUS;			// MODBUS is customer protocol
+
+Globals.h, line 1047 //IK20250205 new DNP and Modbus commands to control communication protocol
+#define ByteCmdSetAsciiProtocol     48  // Point 48 (0x30) - Exit DNP protocol, start ASCII_CMDS
+#define DNPcmdSetSetupProtocol      49  // Point 49 (0x31) - Exit DNP protocol, start SETUP
+#define DNPcmdSetModbusProtocol     50  // Point 50 (0x32) - Exit DNP protocol, start MODBUS
+#define ModbusCmdSetDNPprotocol     51	// = 0x33 Exit MODBUS protocol, start DNP3
+
+
 20260501
 fixed modbus communication : first_register supposed to be be 0, was mixed with DNP host address ==3
 

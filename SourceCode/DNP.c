@@ -1481,7 +1481,7 @@ void DNP_App(void)
 			iien2 = PARAMETER_ERROR;								// point out of range
 			if (object_string[obj_ptr + 2] == 0x17)					// Qualifier 17h ?
 			{
-				iien2 = PARAMETER_ERROR;							// point out of range
+				iien2 = PARAMETER_ERROR;							// preset in advance: point out of range - can be replaced later
 				// Check for calibration points:
 				// Point 39 - Battery voltage  Point 40 - Fault volts    Point 41 - Minus Gnd
 				// Point 42 - Ripple Current   Point 43 - Ripple Voltage Point 44 - V offset

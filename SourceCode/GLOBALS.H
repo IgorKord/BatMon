@@ -730,8 +730,8 @@ enum Display_Modes {	// -- used with display_mode --
 	/*21 0x15 */    ALARM_RIV,			 // "ALRV"
 	/*22 0x16 */    ALARM_RII,			 // "ALRI"
 	/*23 0x17 */    ALARM_HI_Z,			 // "ALHZ"
-	/*24 0x1A */    SELECT_PROTOCOL,	 // "PROT"
-	/*25 0x18 */    COMM_ADDR,			 // "ADDR"
+	/*24 0x18 */    SELECT_PROTOCOL,	 // "PROT"
+	/*25 0x1A */    COMM_ADDR,			 // "ADDR"
 	/*26 0x19 */    COMM_BAUD,			 // "BAUD"
 	/*27 0x1B */    AUTO_MAN_MODE,		 // "AUTO",
 
