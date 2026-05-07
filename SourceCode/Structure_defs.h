@@ -232,8 +232,7 @@ typedef struct  { // RealTimeVars
 
 	// used in DNP calibration, indicates which current loop setting is active
 	uint8 ripple_calibration_phase;				// CalibrateSinglePhase=127 is single phase calibration , 255 is 3-phase calibration, 0 means not in calibration mode
-	uint8 cal_4mA;								// calibrating 4 mA
-	uint8 cal_20mA;								// calibrating 20 mA
+	uint8 cal_20mA_eqT_4mA_eqF;					// calibrating 20 mA (high point); if false, calibrating 4 mA (low point)
 	uint8 i_cal_active;							// used in DNP calibration, indicates if current loop calibration is active
 	uint16 UBRR0_setting;						// IK20251217 to keep a mirror of UBRR0
 

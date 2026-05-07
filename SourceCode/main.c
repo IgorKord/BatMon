@@ -3040,13 +3040,13 @@ void CalibrationSteps(uint16 RawADCcounts)
 				(2.95f * SysData.CurrentOut_I420.Y2_highCalibrVal * (float)SysData.NV_UI.V4)) * ReciprocalDeltaV_f;
 		}
 		tmp_result = (a * (rt.OutData.measured.battery_voltage_f  * 0.001f) + b) * 65535;
-		if ((rt.i_cal_active == true) && (rt.cal_4mA == true))						// calibrating 0 or 4 ma
+		if ((rt.i_cal_active == true) && (rt.cal_20mA_eqT_4mA_eqF == FALSE))		// calibrating 0 or 4 ma (low point)
 		{
 			tmp_result = SysData.CurrentOut_I420.Y1_lowCalibrVal * 65535;
 			if (SysData.NV_UI.SavedStatusWord & CurOut_I420_eq0_I01_eq1_Bit)		// I01 == 1, I420 == 0
 				tmp_result = (SysData.CurrentOut_I420.Y1_lowCalibrVal * 1.135f) * 65535;
 		}
-		if ((rt.i_cal_active == true) && (rt.cal_20mA == true))						// calibrating 1 or 4ma
+		if ((rt.i_cal_active == true) && (rt.cal_20mA_eqT_4mA_eqF == TRUE))			// calibrating 1 or 20ma (high point)
 		{
 			tmp_result = SysData.CurrentOut_I420.Y2_highCalibrVal * 65535;
 			if (SysData.NV_UI.SavedStatusWord & CurOut_I420_eq0_I01_eq1_Bit)		// I01 == 1, I420 == 0
@@ -3368,8 +3368,7 @@ void Parse_Display_Data(void){
 	}
 	if (Display_Info.Status & DISP_STATE_LOmA_BIT)				// doing 4ma or 0ma?
 	{
-		rt.cal_4mA = true;
-		rt.cal_20mA = false;
+		rt.cal_20mA_eqT_4mA_eqF = FALSE;						// low point (4mA or 0mA)
 		if (I420_calibr_lock == I420calibUNLOCKED)				// if calibration not attempted
 		{
 			if (Display_Info.Status & DISP_STATE_0_1mA_BIT)
@@ -3380,8 +3379,7 @@ void Parse_Display_Data(void){
 	}
 	if (Display_Info.Status & DISP_STATE_HImA_BIT)				// doing 20 mA or 1 mA?
 	{
-		rt.cal_4mA = false;
-		rt.cal_20mA = true;
+		rt.cal_20mA_eqT_4mA_eqF = TRUE;							// high point (20mA or 1mA)
 		if (I420_calibr_lock == I420calibUNLOCKED)				// if calibration not attempted
 		{
 			if (Display_Info.Status & DISP_STATE_0_1mA_BIT)

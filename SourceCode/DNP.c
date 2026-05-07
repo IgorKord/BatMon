@@ -1507,83 +1507,83 @@ void DNP_App(void)
 					// IK20260212 Protocol switching from DNP commands
 					// ASCII and SETUP are temporary protocols - only update rt.operating_protocol (never persist to EEPROM)
 					// MODBUS is customer protocol - update both runtime and persistent storage
-					if (DNP_point_CmdCode == ByteCmdSetAsciiProtocol) {
-						rt.operating_protocol = ASCII_CMDS;		// ASCII is production/test only - runtime only
-						// Do NOT modify SysData.NV_UI.StartUpProtocol
-						display_mode = SELECT_PROTOCOL;			// Show change on display
-					}
-					else if (DNP_point_CmdCode == DNPcmdSetSetupProtocol) {
-						rt.operating_protocol = SETUP;			// SETUP is temporary - runtime only
-						// Do NOT modify SysData.NV_UI.StartUpProtocol
-						display_mode = SELECT_PROTOCOL;			// Show change on display
-					}
-					else if (DNP_point_CmdCode == DNPcmdSetModbusProtocol) {
-						rt.operating_protocol = MODBUS;			// MODBUS is customer protocol
-						SysData.NV_UI.StartUpProtocol = MODBUS;	// Update EEPROM variable
-						// Note: SaveToEE() should be called explicitly if persistence is desired
-						display_mode = SELECT_PROTOCOL;			// Show change on display
-                        send_dnp = SEND_NOTHING; //IK20260507 no output, without it, BM becomes in Rx/Tx cycle, LED blinking green / red
-					}
-					else if (DNP_point_CmdCode == CmdCalibrateVrange)			// 0x27 = 39D
-						tmp_cal_step = ADC_BATT_VOLTS;
-					else if (DNP_point_CmdCode == CmdCalibrateFaultV)			// 0x28 = 40D
-						tmp_cal_step = ADC_FAULT_VOLTS;
-					else if (DNP_point_CmdCode == CmdCalibrateMinusGround)		// 0x29 = 41D
-						tmp_cal_step = ADC_MINUS_GND_VOLTS;
-					else if (DNP_point_CmdCode == CmdCalibrateRipleCurrent)		// 0x2A = 42D
-						tmp_cal_step = ADC_RIPPLE_CURRENT;
-					else if (DNP_point_CmdCode == CmdCalibrateRippleVolt)		// 0x2B = 43D
-						tmp_cal_step = ADC_RIPPLE_VOLTAGE;
-					else if (DNP_point_CmdCode == CmdCalibrate1or3Phase)		// 0x2F = 47D
+					switch (DNP_point_CmdCode)
 					{
+					case ByteCmdSetAsciiProtocol:						// 0x30 = 48D
+						rt.operating_protocol = ASCII_CMDS;				// ASCII is production/test only - runtime only
+						// Do NOT modify SysData.NV_UI.StartUpProtocol
+						display_mode = SELECT_PROTOCOL;					// Show change on display
+						break;
+					case DNPcmdSetSetupProtocol:						// 0x31 = 49D
+						rt.operating_protocol = SETUP;					// SETUP is temporary - runtime only
+						// Do NOT modify SysData.NV_UI.StartUpProtocol
+						display_mode = SELECT_PROTOCOL;					// Show change on display
+						break;
+					case DNPcmdSetModbusProtocol:						// 0x32 = 50D
+						rt.operating_protocol = MODBUS;					// MODBUS is customer protocol
+						SysData.NV_UI.StartUpProtocol = MODBUS;			// Update EEPROM variable
+						// Note: SaveToEE() should be called explicitly if persistence is desired
+						display_mode = SELECT_PROTOCOL;					// Show change on display
+						send_dnp = SEND_NOTHING;						// IK20260507 no output, without it, BM becomes in Rx/Tx cycle, LED blinking green / red
+						break;
+					case CmdCalibrateVrange:							// 0x27 = 39D
+						tmp_cal_step = ADC_BATT_VOLTS;
+						break;
+					case CmdCalibrateFaultV:							// 0x28 = 40D
+						tmp_cal_step = ADC_FAULT_VOLTS;
+						break;
+					case CmdCalibrateMinusGround:						// 0x29 = 41D
+						tmp_cal_step = ADC_MINUS_GND_VOLTS;
+						break;
+					case CmdCalibrateRipleCurrent:						// 0x2A = 42D
+						tmp_cal_step = ADC_RIPPLE_CURRENT;
+						break;
+					case CmdCalibrateRippleVolt:						// 0x2B = 43D
+						tmp_cal_step = ADC_RIPPLE_VOLTAGE;
+						break;
+					case CmdCalibrate1or3Phase:							// 0x2F = 47D
 						tmp_cal_step = NOT_A_CALIBRATION;
 						rt.ripple_calibration_phase = (uint8)tmp_cal;
-					}
-					else if (DNP_point_CmdCode == CmdSetUnitVoltage)			// 0x2C = 44D
-					{
-						SysData.NV_UI.unit_type = (uint8)tmp_cal;			// value determines hi calibration pt
+						break;
+					case CmdSetUnitVoltage:								// 0x2C = 44D
+						SysData.NV_UI.unit_type = (uint8)tmp_cal;		// value determines hi calibration pt
 						SetCurrentLoopVoltagePoints();
 						__disable_interrupt();
-
 						SaveToEE(SysData.NV_UI.V4);
 						SaveToEE(SysData.NV_UI.V20);
 						SaveToEE(SysData.NV_UI.unit_type);
-						__enable_interrupt();								// enable global interrupts
-					}
-					else if (DNP_point_CmdCode == CmdSetPwmControl)			// 0x2D = 45D //PWM Command Instruction
-					{
-						if (tmp_cal == 0x01)								// doing low current PWM
+						__enable_interrupt();							// enable global interrupts
+						break;
+					case CmdSetPwmControl:								// 0x2D = 45D //PWM Command Instruction
+						if (tmp_cal == 0x01)							// doing low current PWM
 						{
-							rt.i_cal_active = true;
-							rt.cal_4mA = true;
-							rt.cal_20mA = false;
+							rt.i_cal_active = TRUE;
+							rt.cal_20mA_eqT_4mA_eqF = FALSE;						// low point (4mA)
 						}
-						else if (tmp_cal == 0x02)							// doing high current PWM
+						else if (tmp_cal == 0x02)						// doing high current PWM
 						{
-							rt.i_cal_active = true;
-							rt.cal_20mA = true;
-							rt.cal_4mA = false;
+							rt.i_cal_active = TRUE;
+							rt.cal_20mA_eqT_4mA_eqF = TRUE;				// high point (20mA)
 						}
-						else if (tmp_cal == 0x03)							// stop PWM adjustment all done
+						else if (tmp_cal == 0x03)						// stop PWM adjustment all done
 						{
-							rt.i_cal_active = false;
-							rt.cal_20mA = false;
-							rt.cal_4mA = false;
+							rt.i_cal_active = FALSE;
+							rt.cal_20mA_eqT_4mA_eqF = FALSE;
 							tmp_cal = 0;
-							timer.PWM_calibration = 5000;					// to store values in 3 seconds. See: if ((timer.PWM_calibration < 2000) && (timer.PWM_calibration > 0)) ... EEPROM_Write_float... //after 3 sec of not cal mode
+							timer.PWM_calibration = 5000;				// to store values in 3 seconds. See: if ((timer.PWM_calibration < 2000) && (timer.PWM_calibration > 0)) ... EEPROM_Write_float... //after 3 sec of not cal mode
 						}
-					}
-					else if ((DNP_point_CmdCode == CmdSetPwmValue)			// 0x2E = 46D  If a PWM value
-						&& (rt.i_cal_active == true))						// make it so
-					{
-						if (rt.cal_20mA == true)
-							SysData.CurrentOut_I420.Y2_highCalibrVal = (float)(tmp_cal * 0.00001f);	// IK20251110 it is duty cycle of PWM
-						if (rt.cal_4mA == true)
-							SysData.CurrentOut_I420.Y1_lowCalibrVal = (float)(tmp_cal * 0.00001f);		// IK20241205 replaced division / 100000 with multiplication);
-					}
-					else													// No handler for the DNP_point_CmdCode, error
-					{
-						send_dnp = ERROR_RESPONSE;							// = 4; confirm it
+						break;
+					case CmdSetPwmValue:								// 0x2E = 46D  If a PWM value
+						if (rt.i_cal_active == TRUE)					// make it so
+						{
+							if (rt.cal_20mA_eqT_4mA_eqF == TRUE)
+								SysData.CurrentOut_I420.Y2_highCalibrVal = (float)(tmp_cal * 0.00001f);	// IK20251110 it is duty cycle of PWM
+							else
+								SysData.CurrentOut_I420.Y1_lowCalibrVal = (float)(tmp_cal * 0.00001f);	// IK20241205 replaced division / 100000 with multiplication);
+						}
+						break;
+					default:											// No handler for the DNP_point_CmdCode, error
+						send_dnp = ERROR_RESPONSE;						// = 4; confirm it
 						return;
 					}
 

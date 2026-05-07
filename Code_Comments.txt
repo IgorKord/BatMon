@@ -1,3 +1,7 @@
+20260508
+Protocol switching via serial port is working
+
+
 20260505
 debugging DNP
 fixed frame size mismatch, now passing Parse_DNP_Msg()
