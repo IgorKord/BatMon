@@ -1,6 +1,12 @@
 20260508
-Protocol switching via serial port is working
+Protocol switching via serial port is working but:
+After restart,
+DNP->Modbus does not work first time by clicking on C# "Modbus radio batton"
+nor by by clicking on C# "ASCII radio batton"
+if make one DNP poll, then switch to modbus or ASCII works.
+Switch from modbus is not reliable, needs more testing
 
+Switch from ASCII to ModBus
 
 20260505
 debugging DNP

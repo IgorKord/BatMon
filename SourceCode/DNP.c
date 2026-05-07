@@ -1521,8 +1521,8 @@ void DNP_App(void)
 						break;
 					case DNPcmdSetModbusProtocol:						// 0x32 = 50D
 						rt.operating_protocol = MODBUS;					// MODBUS is customer protocol
-						SysData.NV_UI.StartUpProtocol = MODBUS;			// Update EEPROM variable
-						// Note: SaveToEE() should be called explicitly if persistence is desired
+						//SysData.NV_UI.StartUpProtocol = MODBUS;			// Update EEPROM variable
+						// Note: SaveToEE() should be called explicitly        if persistence is desired
 						display_mode = SELECT_PROTOCOL;					// Show change on display
 						send_dnp = SEND_NOTHING;						// IK20260507 no output, without it, BM becomes in Rx/Tx cycle, LED blinking green / red
 						break;

@@ -2484,23 +2484,24 @@ void Parse_Modbus_Msg(void)
 				if (rt.device_register == ByteCmdSetAsciiProtocol)		// register 0x30 = 48: switch to ASCII_CMDS protocol
 				{
 					// low byte of rt.registers carries the new protocol code (ignored here - register address selects protocol)
-					send_modbus = SEND_CMD_ECHO;				// echo FC06 frame as success response
+					send_modbus = MODBUS_SEND_NOTHING;		// echo FC06 frame as success response
 					rt.operating_protocol = ASCII_CMDS;
 					//SaveToEE(SysData.NV_UI.StartUpProtocol);	// do not persist to EEPROM
 					display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message
 				}
 				else if (rt.device_register == ModbusCmdSetDNPprotocol)	// register 0x33 = 51d: switch to DNP3 protocol
 				{
-					send_modbus = SEND_CMD_ECHO;				// echo FC06 frame as success response
-					SysData.NV_UI.StartUpProtocol = DNP3;		//-!- IK20260319 save to EEPROM, but do not switch protocol yet
-					SaveToEE(SysData.NV_UI.StartUpProtocol);	// persist to EEPROM
-					display_mode = SELECT_PROTOCOL;		// Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
+					send_modbus = MODBUS_SEND_NOTHING;			// echo FC06 frame as success response
+					rt.operating_protocol = DNP3;				// IK20260508 switch protocol, but do not save to EEPROM yet
+					//SysData.NV_UI.StartUpProtocol = DNP3;
+					//SaveToEE(SysData.NV_UI.StartUpProtocol);	// persist to EEPROM   if persistence is desired
+					display_mode = SELECT_PROTOCOL;				// Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
 				}
 				else
-					send_modbus = ILLEGAL_ADDRESS;		// register not implemented
+					send_modbus = ILLEGAL_ADDRESS;			// register not implemented
 			}
 			else
-				send_modbus = SEND_NOTHING;				// bad CRC - no reply
+				send_modbus = MODBUS_SEND_NOTHING;			// bad CRC - no reply
 			break;
 
 		default:										// not any of above functions;
@@ -2517,15 +2518,15 @@ void Parse_Modbus_Msg(void)
 			//case POLL_CONTROLLER:							// Function 14 Poll Controller
 			//case FORCE_MULTIPLE_COILS:					// Function 15 Force Multiple Coils
 			//case PRESET_MULTIPLE_REGISTERS:				// Function 16 Preset Multiple Regs
-			if (msg == ModBusGOOD)						// good msg but this function
-				send_modbus = NOT_SUPPORTED_MODBUS;		// is not a supported in this product
+			if (msg == ModBusGOOD)							// good msg but this function
+				send_modbus = NOT_SUPPORTED_MODBUS;			// is not a supported in this product
 			else
-				send_modbus = SEND_NOTHING;				// bad msg so don't reply
+				send_modbus = MODBUS_SEND_NOTHING;			// bad msg so don't reply
 			break;
-
 		}//END SWITCH STATEMENT
+
 		if (broadcast == true)							// don't reply to Broadcast msgs
-			send_modbus = SEND_NOTHING;
+			send_modbus = MODBUS_SEND_NOTHING;
 	}//END ADDRESS MATCH
 	else{
 		//debug = 11;
