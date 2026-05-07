@@ -1148,7 +1148,7 @@ void Send_DNP_Msg(uint16 type)
 		break;																	// so do nothing
 	}//end switch
 
-	send_dnp = 0;
+	send_dnp = SEND_NOTHING;
 	type = 0;
 	iien1 = iien1 & 0xBF;														// clear device trouble bit
 	if (all_stations_msg == false)
@@ -1179,7 +1179,7 @@ void DNP_App(void)
 	long tmp_cal;
 	Uchar DNP_point_CmdCode;
 
-	send_dnp = 0;   //init to send nothing
+	send_dnp = SEND_NOTHING;   //init to send nothing
 	if (obj_ptr == 0)
 		length--;												// forget the start of APP Layer
 
@@ -1199,7 +1199,7 @@ void DNP_App(void)
 	iien2 = BAD_FUNCTION;						// FUNCTION not implemented
 	//---------------------------  Confirm Reply  ---------------------
 	DNP_point_CmdCode = object_string[obj_ptr + 4];
-	if (rt.HostRxBuff[12] == CONFIRM)
+	if (rt.HostRxBuff[12] == CONFIRM) //==0
 	{
 		length = 0;												// only do this once
 		iien2 = GOOD_APDU;
@@ -1224,7 +1224,7 @@ void DNP_App(void)
 	}//end confirm
 
 	/*-----  Read   ---------------*/
-	if (rt.HostRxBuff[12] == READ)								// Read stuff ?
+	if (rt.HostRxBuff[12] == READ)								// Read stuff ?, == 1?
 	{
 		iien2 = OBJECT_UNKNOWN;									// object unknown for now
 		/*-------- Group 1 Read -----*/
@@ -1449,8 +1449,9 @@ void DNP_App(void)
 		} // end class 60
 	} // End READ Function
 	// ------ Write Function --------------
-	if (rt.HostRxBuff[12] == WRITE)									// WRITE stuff ?
+	if (rt.HostRxBuff[12] == WRITE)									// WRITE stuff ? == 2?
 	{
+		uint8 tmp_cal_step = NOT_A_CALIBRATION;
 		iien2 = OBJECT_UNKNOWN;										// object unknown for now
 		/*------ Write IIEN ------------------*/
 		if ((object_string[obj_ptr] == 80) && (object_string[obj_ptr + 1] == 0x01))
@@ -1479,7 +1480,7 @@ void DNP_App(void)
 		if ((object_string[obj_ptr] == 40) && (object_string[obj_ptr + 1] == 0x01))
 		{															// IIEN
 			iien2 = PARAMETER_ERROR;								// point out of range
-			if (object_string[obj_ptr + 2] == 0x17)					// Qualifier 17h ?
+			if (object_string[obj_ptr + 2] == 0x17)					// Qualifier 17h ? == 8 bit index
 			{
 				iien2 = PARAMETER_ERROR;							// preset in advance: point out of range - can be replaced later
 				// Check for calibration points:
@@ -1496,13 +1497,13 @@ void DNP_App(void)
 					(DNP_point_CmdCode <= DNPcmdSetModbusProtocol))
 				{
 					iien2 = GOOD_APDU;            //good function & object
-
+					// Convert received 4 bytes into long
 					tmp_cal = ((long)object_string[obj_ptr + 9]) << 24;
 					tmp_cal = tmp_cal + ((long)object_string[obj_ptr + 8] << 16);
 					tmp_cal = tmp_cal + ((long)object_string[obj_ptr + 7] << 8);
 					tmp_cal = tmp_cal + (long)object_string[obj_ptr + 6];
 
-					//-!- change protocol by DNP command needs testing
+					//-!- change protocol by DNP command
 					// IK20260212 Protocol switching from DNP commands
 					// ASCII and SETUP are temporary protocols - only update rt.operating_protocol (never persist to EEPROM)
 					// MODBUS is customer protocol - update both runtime and persistent storage
@@ -1511,37 +1512,35 @@ void DNP_App(void)
 						// Do NOT modify SysData.NV_UI.StartUpProtocol
 						display_mode = SELECT_PROTOCOL;			// Show change on display
 					}
-					if (DNP_point_CmdCode == DNPcmdSetSetupProtocol) {
+					else if (DNP_point_CmdCode == DNPcmdSetSetupProtocol) {
 						rt.operating_protocol = SETUP;			// SETUP is temporary - runtime only
 						// Do NOT modify SysData.NV_UI.StartUpProtocol
 						display_mode = SELECT_PROTOCOL;			// Show change on display
 					}
-					if (DNP_point_CmdCode == DNPcmdSetModbusProtocol) {
+					else if (DNP_point_CmdCode == DNPcmdSetModbusProtocol) {
 						rt.operating_protocol = MODBUS;			// MODBUS is customer protocol
 						SysData.NV_UI.StartUpProtocol = MODBUS;	// Update EEPROM variable
 						// Note: SaveToEE() should be called explicitly if persistence is desired
 						display_mode = SELECT_PROTOCOL;			// Show change on display
+                        send_dnp = SEND_NOTHING; //IK20260507 no output, without it, BM becomes in Rx/Tx cycle, LED blinking green / red
 					}
-
-					if (DNP_point_CmdCode == CmdCalibrateVrange)			// 0x27 = 39D
-						calibr_step = ADC_BATT_VOLTS;
-					if (DNP_point_CmdCode == CmdCalibrateFaultV)			// 0x28 = 40D
-						calibr_step = ADC_FAULT_VOLTS;
-					if (DNP_point_CmdCode == CmdCalibrateMinusGround)		// 0x29 = 41D
-						calibr_step = ADC_MINUS_GND_VOLTS;
-					if (DNP_point_CmdCode == CmdCalibrateRipleCurrent)		// 0x2A = 42D
-						calibr_step = ADC_RIPPLE_CURRENT;
-					if (DNP_point_CmdCode == CmdCalibrateRippleVolt)		// 0x2B = 43D
-						calibr_step = ADC_RIPPLE_VOLTAGE;
-					if (DNP_point_CmdCode == CmdCalibrate1or3Phase)	// 0x2F = 47D
+					else if (DNP_point_CmdCode == CmdCalibrateVrange)			// 0x27 = 39D
+						tmp_cal_step = ADC_BATT_VOLTS;
+					else if (DNP_point_CmdCode == CmdCalibrateFaultV)			// 0x28 = 40D
+						tmp_cal_step = ADC_FAULT_VOLTS;
+					else if (DNP_point_CmdCode == CmdCalibrateMinusGround)		// 0x29 = 41D
+						tmp_cal_step = ADC_MINUS_GND_VOLTS;
+					else if (DNP_point_CmdCode == CmdCalibrateRipleCurrent)		// 0x2A = 42D
+						tmp_cal_step = ADC_RIPPLE_CURRENT;
+					else if (DNP_point_CmdCode == CmdCalibrateRippleVolt)		// 0x2B = 43D
+						tmp_cal_step = ADC_RIPPLE_VOLTAGE;
+					else if (DNP_point_CmdCode == CmdCalibrate1or3Phase)		// 0x2F = 47D
 					{
-						calibr_step = NOT_A_CALIBRATION;
+						tmp_cal_step = NOT_A_CALIBRATION;
 						rt.ripple_calibration_phase = (uint8)tmp_cal;
 					}
-
-					if (DNP_point_CmdCode == CmdSetUnitVoltage)			// 0x2C = 44D
+					else if (DNP_point_CmdCode == CmdSetUnitVoltage)			// 0x2C = 44D
 					{
-						calibr_step = NOT_A_CALIBRATION;
 						SysData.NV_UI.unit_type = (uint8)tmp_cal;			// value determines hi calibration pt
 						SetCurrentLoopVoltagePoints();
 						__disable_interrupt();
@@ -1551,107 +1550,116 @@ void DNP_App(void)
 						SaveToEE(SysData.NV_UI.unit_type);
 						__enable_interrupt();								// enable global interrupts
 					}
-					if (DNP_point_CmdCode == CmdSetPwmControl)			// 0x2D = 45D //PWM Command Instruction
+					else if (DNP_point_CmdCode == CmdSetPwmControl)			// 0x2D = 45D //PWM Command Instruction
 					{
-						calibr_step = NOT_A_CALIBRATION;					// added 8/14/19
 						if (tmp_cal == 0x01)								// doing low current PWM
 						{
 							rt.i_cal_active = true;
 							rt.cal_4mA = true;
 							rt.cal_20mA = false;
 						}
-						if (tmp_cal == 0x02)								// doing high current PWM
+						else if (tmp_cal == 0x02)							// doing high current PWM
 						{
 							rt.i_cal_active = true;
 							rt.cal_20mA = true;
 							rt.cal_4mA = false;
 						}
-						if (tmp_cal == 0x03)								// stop PWM adjustment all done
+						else if (tmp_cal == 0x03)							// stop PWM adjustment all done
 						{
 							rt.i_cal_active = false;
 							rt.cal_20mA = false;
 							rt.cal_4mA = false;
-							rt.i_cal_active = false;
 							tmp_cal = 0;
 							timer.PWM_calibration = 5000;					// to store values in 3 seconds. See: if ((timer.PWM_calibration < 2000) && (timer.PWM_calibration > 0)) ... EEPROM_Write_float... //after 3 sec of not cal mode
 						}
 					}
-					if ((DNP_point_CmdCode == CmdSetPwmValue)			// 0x2E = 46D  If a PWM value
-						&& (rt.i_cal_active == true)) //make it so
+					else if ((DNP_point_CmdCode == CmdSetPwmValue)			// 0x2E = 46D  If a PWM value
+						&& (rt.i_cal_active == true))						// make it so
 					{
-						calibr_step = NOT_A_CALIBRATION;					// added 8/14/19
 						if (rt.cal_20mA == true)
 							SysData.CurrentOut_I420.Y2_highCalibrVal = (float)(tmp_cal * 0.00001f);	// IK20251110 it is duty cycle of PWM
 						if (rt.cal_4mA == true)
 							SysData.CurrentOut_I420.Y1_lowCalibrVal = (float)(tmp_cal * 0.00001f);		// IK20241205 replaced division / 100000 with multiplication);
 					}
+					else													// No handler for the DNP_point_CmdCode, error
+					{
+						send_dnp = ERROR_RESPONSE;							// = 4; confirm it
+						return;
+					}
 
+					if (tmp_cal_step == NOT_A_CALIBRATION) // IK20260203 allow calibration in ASCII mode || (SysData.NV_UI.StartUpProtocol != DNP3))
+					{
+						cal_status = 0;
+						timer.Calibration = 0;
+						return;
+					}
 					// **** if tmp_cal value is greater than unit type volts -> converted to mV; example (48 V -> 48000 mV)
 					// or for RV or RI tmp_cal is above 51 mV(or mA)
 					// it is concidered  high point calibration, indicated by cal_status bit 2 is set
 					if ((tmp_cal > ((long)SysData.NV_UI.unit_type * 1000)) // convert unit_type in Volts to mV
-						|| ((tmp_cal > 51) && ((calibr_step == ADC_RIPPLE_VOLTAGE) || (calibr_step == ADC_RIPPLE_CURRENT))))	// calibr_step= 5 or 6
+						|| ((tmp_cal > 51) && ((tmp_cal_step == ADC_RIPPLE_VOLTAGE) || (tmp_cal_step == ADC_RIPPLE_CURRENT))))	// tmp_cal_step= 5 or 6
 					{
-						if (calibr_step == ADC_BATT_VOLTS)
-							SysData.BatteryVolts.Y2_highCalibrVal = (float)tmp_cal;
-						if (calibr_step == ADC_FAULT_VOLTS)
-							SysData.FaultVolts.Y2_highCalibrVal = (float)tmp_cal;
-						if (calibr_step == ADC_MINUS_GND_VOLTS)
-							SysData.MinusGndVolts.Y2_highCalibrVal = (float)tmp_cal;
-
-						if (calibr_step == ADC_RIPPLE_CURRENT)						// can be here
+						switch (tmp_cal_step)
 						{
+						case ADC_BATT_VOLTS:
+							SysData.BatteryVolts.Y2_highCalibrVal = (float)tmp_cal;
+							break;
+						case ADC_FAULT_VOLTS:
+							SysData.FaultVolts.Y2_highCalibrVal = (float)tmp_cal;
+							break;
+						case ADC_MINUS_GND_VOLTS:
+							SysData.MinusGndVolts.Y2_highCalibrVal = (float)tmp_cal;
+							break;
+						case ADC_RIPPLE_CURRENT:
 							if (rt.ripple_calibration_phase == CalibrateSinglePhase) // 1 phase calibration == 127
 								SysData.RippleCurr1ph.Y2_highCalibrVal = (float)tmp_cal;	// 1-ph, set test mA received with cal command, example 120 mA
 							else           // can be not 127, means 0 or 255, where 0 means NOT_IN_CALIBRATION, and 255 means 3Phase_Calibration
 								SysData.RippleCurr3ph.Y2_highCalibrVal = (float)tmp_cal;
-						}
-						if (calibr_step == ADC_RIPPLE_VOLTAGE)						// can be here
-						{
+							break;
+						case ADC_RIPPLE_VOLTAGE:
 							if (rt.ripple_calibration_phase == CalibrateSinglePhase)
 								SysData.RippleVolts1ph.Y2_highCalibrVal = (float)tmp_cal * 0.001f;	// 1-ph, set test mV received with cal command coverted to Volts, example 500 mV
 							else
 								SysData.RippleVolts3ph.Y2_highCalibrVal = (float)tmp_cal * 0.001f;
+							break;
 						}
 						cal_status |= RECEIVED_EXT_HI_VALUE;						// = setBit(cal_status, Bit_1);
 						timer.Calibration = DEF_CALIBRATION_DELAY;					// give it 1.5s to get an ADC reading IK20250812 should be enough 1.5 sec.
 					}
 					else	/////////////////////////////////////////////////////// // is low cal
 					{
-						if (calibr_step == ADC_BATT_VOLTS)
-							SysData.BatteryVolts.Y1_lowCalibrVal = (float)tmp_cal;
-						if (calibr_step == ADC_FAULT_VOLTS)
-							SysData.FaultVolts.Y1_lowCalibrVal = (float)tmp_cal;
-						if (calibr_step == ADC_MINUS_GND_VOLTS)
-							SysData.MinusGndVolts.Y1_lowCalibrVal = (float)tmp_cal;
-						if (calibr_step == ADC_RIPPLE_CURRENT)
+						switch (tmp_cal_step)
 						{
+						case ADC_BATT_VOLTS:
+							SysData.BatteryVolts.Y1_lowCalibrVal = (float)tmp_cal;
+							break;
+						case ADC_FAULT_VOLTS:
+							SysData.FaultVolts.Y1_lowCalibrVal = (float)tmp_cal;
+							break;
+						case ADC_MINUS_GND_VOLTS:
+							SysData.MinusGndVolts.Y1_lowCalibrVal = (float)tmp_cal;
+							break;
+						case ADC_RIPPLE_CURRENT:
 							if (rt.ripple_calibration_phase == CalibrateSinglePhase) // 1-ph low cal
 								SysData.RippleCurr1ph.Y1_lowCalibrVal = (float)tmp_cal;
 							else
 								SysData.RippleCurr3ph.Y1_lowCalibrVal = (float)tmp_cal;	// 3-ph
-						}
-						if (calibr_step == ADC_RIPPLE_VOLTAGE)
-						{
+							break;
+						case ADC_RIPPLE_VOLTAGE:
 							if (rt.ripple_calibration_phase == CalibrateSinglePhase)
 								SysData.RippleVolts1ph.Y1_lowCalibrVal = (float)tmp_cal * 0.001f;	// tmp_cal == received with DNP command mV set on terminals, example: 49 [mV], saving as Volts
 							else
 								SysData.RippleVolts3ph.Y1_lowCalibrVal = (float)tmp_cal * 0.001f;
+							break;
 						}
 						cal_status |= RECEIVED_EXT_LO_VALUE;						// Low point value calibration RECEIVED, = setBit(cal_status, Bit_0);
 						// at this moment, cal_timer = 0;
 						timer.Calibration = DEF_CALIBRATION_DELAY;					// give it 1.5s to get an ADC reading
 					}
-					if ((calibr_step == NOT_A_CALIBRATION)) // IK20260203 allow calibration in ASCII mode || (SysData.NV_UI.StartUpProtocol != DNP3))
-					{
-						calibr_step = NOT_A_CALIBRATION;
-						cal_status = 0;
-						timer.Calibration = 0;
-					}
-					send_dnp = ERROR_RESPONSE;										// confirm it
 				} // status message.
 			} // end Qual = 17
 		} //end object 40 var 1
+		calibr_step = tmp_cal_step; // update global variable only after all checks are done
 	}//End Write
 
 	if (rt.HostRxBuff[12] == COLD_RESTART)
@@ -1706,6 +1714,28 @@ extern long SREG;
 #define TWINT                       Bit_7 // 0x80 TWI Interrpt Flag. SECOND DEFINITION TO COMPILE IN VS. The real one in hardware.h
 #define TIMING_INTERRUPT_SETTING    199 // IK20250925 changed from 124 to 199. 0x7C gives 1000 us TIMER 2 interrupt for all timing counters variables. SECOND DEFINITION TO COMPILE IN VS. The real one in hardware.h
 #endif //PC
+
+/// <summary>
+/// Waits for a message of specified length to arrive, with timeout protection.
+/// </summary>
+/// <param name="msg_length">The expected length of the message in bytes.</param>
+/// <returns>Non-zero if the expected number of bytes arrived; zero if timeout occurred.</returns>
+uint8 WaitForMsgArrival(uint8 msg_length)
+{
+	while ((num_of_inbytes <= msg_length) 		// wait till rest of msg is available
+			&& (timer.Generic != 0))			// or it times out
+    {
+        if (OCR2A != TIMING_INTERRUPT_SETTING)
+            timer.Generic = 0;
+        if ((TIMSK2 & 0x02) != 0x02)
+            timer.Generic = 0;
+        if ((SREG & 0x80) != TWINT)
+            timer.Generic = 0;
+    }
+    WATCHDOG_RESET();
+    return (num_of_inbytes == msg_length);
+}
+
 void Parse_DNP_Msg(void)
 {
 	uint16 received_crc;
@@ -1717,31 +1747,15 @@ void Parse_DNP_Msg(void)
 	WATCHDOG_RESET();
 	if (Existing.baud_rate <= (enum Baud_Rate_Setting)Baud_600)	// IK20250206 redefined enum - now it is the real BR, not the UBRR setting; this reverses < > logic.BR is BELOW 600. default Baud Rate is 19200
 		timer.Generic = 700;
-	do {																// while unless something barfs
-		if (OCR2A != TIMING_INTERRUPT_SETTING)
-			timer.Generic = 0;
-		if ((TIMSK2 & 0x02) != 0x02)
-			timer.Generic = 0;
-		if ((SREG & TWINT) == 0) // Bit_7
-			timer.Generic = 0;
-	} while ((num_of_inbytes < 10) && (timer.Generic != 0));			// get the header
-	WATCHDOG_RESET();
+	WaitForMsgArrival(10);											// get the header
 
 	// --------- Get Length ------------------
 	length = rt.HostRxBuff[2];
 	dnp_length = length;
 	if (length <= 50) // IK20250812 expected incoming transmission is not longer than 50 bytes
-		//{
-		//	if (length < 10) // IK20250812 if length is less than 10, it is not a valid DNP message
-		//		return; // return from Parse_DNP_Msg, no valid DNP message
-		//}
-		//else
-		//{
-		//	length = 0; // reset length to zero, so that it will be ignored
-		//	return; // return from Parse_DNP_Msg, no valid DNP message
-		//}
 	{
-		//--------- Get Control Byte ------------
+		WaitForMsgArrival(dnp_length);
+		  //--------- Get Control Byte ------------
 		control = rt.HostRxBuff[3];
 		// --------- Get Destination Address -----
 		destination = rt.HostRxBuff[5] << 8;
@@ -1818,18 +1832,7 @@ void Parse_DNP_Msg(void)
 							wait_length = length + 8;
 						else
 							wait_length = length + 6;
-
-						while ((num_of_inbytes <= wait_length) &&
-							(timer.Generic != 0))						// wait till rest of msg is available
-						{
-							if (OCR2A != TIMING_INTERRUPT_SETTING)
-								timer.Generic = 0;
-							if ((TIMSK2 & 0x02) != 0x02)
-								timer.Generic = 0;
-							if ((SREG & 0x80) != TWINT)
-								timer.Generic = 0;
-						}
-						WATCHDOG_RESET();
+						WaitForMsgArrival(wait_length);
 						if (length > 5)
 						{
 							if (length >= 21)
@@ -1855,7 +1858,7 @@ void Parse_DNP_Msg(void)
 												}
 												obj_ptr = 0;				// set to point at first object
 												length -= 7;				// forget the DLL,transport
-												send_dnp = 0;
+												// IK20260507 it is set in the DNP_App() send_dnp = 0;
 												DNP_App();					// go do app layer
 											} // end good FCB
 											else
@@ -1878,7 +1881,7 @@ void Parse_DNP_Msg(void)
 											}
 											obj_ptr = 0;					// set to point at first object
 											length -= 7;					// forget the DLL,transport
-											send_dnp = 0;
+											// IK20260507 it is set in the DNP_App() send_dnp = 0;
 											DNP_App();						// go do app layer
 										} // end good FCB
 										else
@@ -1907,7 +1910,7 @@ void Parse_DNP_Msg(void)
 										}
 										obj_ptr = 0;								// set to point at first object
 										length -= 7;								// forget the DLL,transport
-										send_dnp = 0;
+										// IK20260507 it is set in the DNP_App() send_dnp = 0;
 										DNP_App();									// go do app layer
 									} // rcv'd expected FCB
 									else
@@ -1932,18 +1935,7 @@ void Parse_DNP_Msg(void)
 							wait_length = length + 8;
 						else
 							wait_length = length + 6;
-
-						while ((num_of_inbytes <= (wait_length)) &&
-							(timer.Generic != 0))									// wait here till rest of msg
-						{															// is available
-							if (OCR2A != TIMING_INTERRUPT_SETTING)
-								timer.Generic = 0;
-							if ((TIMSK2 & 0x02) != 0x02)
-								timer.Generic = 0;
-							if ((SREG & TWINT) == 0)
-								timer.Generic = 0;
-						}
-						WATCHDOG_RESET();
+						WaitForMsgArrival(wait_length);
 						if (rt.HostRxBuff[12] == 0)									// CONFIRM
 							timer.Generic = 1;
 
@@ -1965,7 +1957,7 @@ void Parse_DNP_Msg(void)
 										{
 											obj_ptr = 0;			// set to point at first object
 											length -= 7;			// forget the DLL,transport
-											send_dnp = 0;
+											// IK20260507 it is set in the DNP_App() send_dnp = 0;
 											DNP_App();				// go do app layer
 										}
 									}//end length greater than 21
@@ -1973,7 +1965,7 @@ void Parse_DNP_Msg(void)
 									{
 										obj_ptr = 0;				// set to point at first object
 										length -= 7;				// forget the DLL,transport
-										send_dnp = 0;
+										// IK20260507 it is set in the DNP_App() send_dnp = 0;
 										DNP_App();					// go do app layer
 									}
 								} // end good crc 21
@@ -1989,7 +1981,7 @@ void Parse_DNP_Msg(void)
 									//debug = 0;
 									obj_ptr = 0;					// set to point at first object
 									length -= 7;					// forget the DLL & Transport
-									send_dnp = 0;
+									// IK20260507 it is set in the DNP_App() send_dnp = 0;
 									DNP_App();						// go do app layer
 								}
 							}
@@ -2011,6 +2003,6 @@ void Parse_DNP_Msg(void)
 	// ---------- End of command checks -------
 	rt.HostRxBuffPtr = 0;											// init rt.HostRxBuffPtr
 	if (DNPbroadcast == true)										// if sent as Broadcast
-		send_dnp = 0;												// do not reply
+		send_dnp = SEND_NOTHING;									// do not reply
 	ClearRxBuffer(0xFF);						// at this point all parsing is done so clear out the buffer with nonsense
 } // end Parse_DNP_Msg()

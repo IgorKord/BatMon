@@ -43,7 +43,7 @@ Response delay = 30ms
 Interchar timeout 1041 ms
 first channel address = 0 (this should be used on Simulation screen)
 parity = none
-number of active cannnels = 5
+number of active channels = 5
 ----------------------------------------
 FW v 3.0 - DNP 3 works.
 Modbus is not.

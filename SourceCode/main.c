@@ -58,7 +58,7 @@ char FW_PartNumber[] = "826-509-A";	// IK20230706 must be in RAM and not the cha
 char FW_PartNumber[] = "826-501-A";	// IK20230706 must be in RAM and not the char* for printf
 #endif //#ifdef LAST_GASP
 
-char FW_Date[] = "01-May-2026";		// IK20230706 must be in RAM for printf
+char FW_Date[] = "09-May-2026";		// IK20230706 must be in RAM for printf
 #define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
 float FirmwareVersion;				// to be shown as float on LED, "3.0", initialization to 'FW_ver_float' in init()
 
@@ -1387,6 +1387,28 @@ uint8 TWI_Wait(void) //IK20250915 this is causing WDT interrupt / reset
 	return TWSR & TWSR_STATUS_MASK; // & 0xF8
 }
 
+/// <summary>
+/// Wait for TWI bus ready state with timeout
+/// </summary>
+/// <returns>true if TWI ready, false if timeout</returns>
+uint8 TWI_WaitReady(void)
+{
+	while (((TWSR & TWSR_STATUS_MASK) != TWSR_STATUS_MASK) && (timer.TWI_hangup != 0)) {
+		__no_operation();
+	}
+	return (timer.TWI_hangup != 0);
+}
+
+/// <summary>
+/// Simple delay - wait for timer.Generic to expire
+/// </summary>
+void WaitForTimer(void)
+{
+	while (timer.Generic != 0) {
+		_NOP();
+	}
+}
+
 /*********************************************************************/
 /*                W R I T E   T W I                                  */
 /*********************************************************************/
@@ -1414,10 +1436,7 @@ void TWI_Write(uint8 DestADR, uint8 type, uint8 msg_low, uint8 msg_high)
 #else // for PC simulation
 	timer.TWI_hangup = 0;
 #endif
-	while (((TWSR & TWSR_STATUS_MASK) != TWSR_STATUS_MASK) && (timer.TWI_hangup != 0)) {
-		__no_operation();
-	}
-	if (timer.TWI_hangup == 0)					// wait here till ready
+	if (!TWI_WaitReady())						// wait here till ready
 	{
 		twi.s.error = TWI_NOT_READY;			// if not then error
 		TWI_Reset();
@@ -1595,11 +1614,7 @@ void TWI_Read (uint8 dest_ADR)
 	twi.s.error = TWI_OK;
 	clearBit(TWCR, TWIE); // TWCR &= 0xFE;      // shut off interrupt
 	timer.TWI_hangup = TWI_TIMEOUT_ms;
-	while (((TWSR & TWSR_STATUS_MASK) != TWSR_STATUS_MASK) && (timer.TWI_hangup != 0))
-	{
-		__no_operation();
-	}	//wait here till TWI is ready
-	if (timer.TWI_hangup == 0)
+	if (!TWI_WaitReady())	//wait here till TWI is ready
 	{
 		twi.s.error = TWI_NOT_READY;            // if not then error
 		TWI_Reset();
@@ -2243,7 +2258,7 @@ int Add_ModBus_BinaryLongToWorkString(int start_pos,long value)
 
    Inputs:  exception_code - Modbus exception code:
 			0x01 = Illegal function
-			0x02 = Illegal address  
+			0x02 = Illegal address
 			0x03 = Illegal data
 			0x04 = Device failure
 			0x06 = Device busy
@@ -2364,7 +2379,7 @@ void Send_Modbus_Msg(uint8 type)
 /*********************************************************************/
 /* Description: This function is called by the top level if the
 				RS232 interrupt routine has built a complete message.
-				this function will parse the incoming message a perform
+				this function will parse the incoming message and perform
 				the correct operation and response as described in the
 				MODBUS RTU specification and the Electroswitch SDS
 				document.
@@ -2387,11 +2402,9 @@ void Parse_Modbus_Msg(void)
 
 	if (Existing.baud_rate >= Baud_9600)			// IK20250206 redefined enum - now it is the real BR, not the UBRR setting; this reverses < > logic.
 		timer.Generic = 2;
-	if (Existing.baud_rate <= Baud_600)			// IK20250206 redefined enum - now it is the real BR, not the UBRR setting; this reverses < > logic.
+	if (Existing.baud_rate <= Baud_600)				// IK20250206 redefined enum - now it is the real BR, not the UBRR setting; this reverses < > logic.
 		timer.Generic = 600;
-	while (timer.Generic != 0) {						// kill some time for more chars
-		_NOP();
-	};
+	WaitForTimer();									// kill some time for more chars
 
 	msg = ModBusGOOD;
 	broadcast = false;
