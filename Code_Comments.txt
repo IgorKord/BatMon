@@ -1,3 +1,6 @@
+20260511
+Protocol switching via serial port is working
+
 20260508
 Protocol switching via serial port is working but:
 After restart,

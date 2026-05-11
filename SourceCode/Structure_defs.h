@@ -308,7 +308,7 @@ typedef struct 	// Encapsulate into structure to keep timer variables together
 	volatile uint16 IO_update;
 	volatile long   start_up_ms;		// determines how long to be in the start up mode
 	//-!- IK20250623 WAS IT A TEST VARIABLE? it does not checked in firmware !?! used in DNP answer TIME_DELAY_RESPONSE. sent out when TIME_DELAY_RESPONSE DNP command is received.
-	// always increasing, set to a value by DNP SysData.NV_UI.StartUpProtocol: in DNP command 'COLD_RESTART' it set to 90000 before answering, and set to 1-2-4-16 if baud is 19200-9600-4800-1200
+	// always increasing, set to a value by DNP3 protocol: in DNP command 'COLD_RESTART' it set to 90000 before answering, and set to 1-2-4-16 if baud is 19200-9600-4800-1200
 //	volatile uint16 RT_correction;		// IK20250925 not needed if OCR2A is set to 199. Was increasing 0 to 575 and reset. It caused to skip all timers decrement once in 576 ms
 	volatile uint16 TWI_lockup;			// detects lockup
 	volatile uint16 TWI_request;		// counter to synchronize (read from and update display board) LCD, buttons, blinking of status LED  etc.

@@ -58,7 +58,7 @@ char FW_PartNumber[] = "826-509-A";	// IK20230706 must be in RAM and not the cha
 char FW_PartNumber[] = "826-501-A";	// IK20230706 must be in RAM and not the char* for printf
 #endif //#ifdef LAST_GASP
 
-char FW_Date[] = "09-May-2026";		// IK20230706 must be in RAM for printf
+char FW_Date[] = "11-May-2026";		// IK20230706 must be in RAM for printf
 #define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
 float FirmwareVersion;				// to be shown as float on LED, "3.0", initialization to 'FW_ver_float' in init()
 
@@ -958,7 +958,7 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 	//ISR_TxOutputHandler(); // output to UART
 
 	/********************* Do General Timer Updating ********/
-	timer.time_keep++;					// always increasing, set to a value by DNP SysData.NV_UI.StartUpProtocol
+	timer.time_keep++;					// always increasing, set to a value by DNP-3 Protocol
 	timer.extender++;
 
 	if (timer.ModBus_100us != 0)
@@ -1198,7 +1198,7 @@ INTERRUPT void USART0_RX_interrupt(void)
 #endif	/******TEST SIGNAL********************/
 	}
 
-	else if (SysData.NV_UI.StartUpProtocol == DNP3)
+	else if (rt.operating_protocol == DNP3)
 	{
 		if (msg_status == MSG_DONE)                 // msg started yet ?
 		{
@@ -1225,9 +1225,9 @@ INTERRUPT void USART0_RX_interrupt(void)
 			rt.HostRxBuffPtr = 0;
 		rt.HostRxBuff[rt.HostRxBuffPtr] = uart_byte;                 // store the new char in Q
 		//timer.CommChHoldOff = 20;                         // msgs coming in so hold
-	} // end of if (SysData.NV_UI.StartUpProtocol == DNP)
+	} // end of if (rt.operating_protocol == DNP3)
 
-	else if (SysData.NV_UI.StartUpProtocol == MODBUS)
+	else if (rt.operating_protocol == MODBUS)
 	{
 		/*----------- Frame Error Check ---------*/
 		if (UCSR0A & FRAME_ERROR_BIT)				// if frame error detected
@@ -1255,7 +1255,7 @@ INTERRUPT void USART0_RX_interrupt(void)
 		rt.HostRxBuffPtr++;
 		if (rt.HostRxBuffPtr >= 50)									// if at end of Q wrap around
 			rt.HostRxBuffPtr = 0;
-	} // end of if (SysData.NV_UI.StartUpProtocol == MODBUS)
+	} // end of if (rt.operating_protocol == MODBUS)
 } // end of INTERRUPT void USART0_RX_interrupt(void)
 
 /*-------------------------- functions  -----------------------------*/
@@ -1264,7 +1264,7 @@ INTERRUPT void USART0_RX_interrupt(void)
 /*               C A L C    D  N P    C R C                        */
 /*******************************************************************/
 /*
-DESCRIPTION: this routine calculates the CCITT CRC for the DNP SysData.NV_UI.StartUpProtocol.
+DESCRIPTION: this routine calculates the CCITT CRC for the DNP-3 Protocol.
 		Polynomial = X15+X13+X10+X9+X7+X5+X4+X3+X2+1
 		0x0A6BC (polynomial generator)
 
@@ -1299,7 +1299,7 @@ void Calc_DNPCRC( uint8 * p, uint16 count)
 /***************************************************************************
 			C A L C    M O D B U S   C R C
 ****************************************************************************
-DESCRIPTION: this routine calculates the CCITT CRC for the Modbus RTU SysData.NV_UI.StartUpProtocol.
+DESCRIPTION: this routine calculates the CCITT CRC for the Modbus RTU Protocol.
 			Polynomial = X15 + X13 + 1
 
 Inputs:
@@ -2050,7 +2050,7 @@ void Send_232(uint8 chars_to_send)
 	uint8 wt;
 #ifndef PC
 	WATCHDOG_RESET();
-	if (SysData.NV_UI.StartUpProtocol == SETUP)
+	if (rt.operating_protocol == SETUP)
 		timer.CommChHoldOff = 5;
 	else
 		timer.CommChHoldOff = SysData.xmt_delay;// set by SysData.xmt_delay
@@ -2114,7 +2114,7 @@ void Send_232(uint8 chars_to_send)
 /*                 S E N D   S E T U P    M S G                     */
 /********************************************************************/
 /*  DESCRIPTION: This routine builds the various messages to be sent
-				 while in the setup SysData.NV_UI.StartUpProtocol.
+				 while in the setup Protocol.
 				 It then sets the "send" variable to send nothing so
 				 the message is only sent once.
 
@@ -2368,7 +2368,7 @@ void Send_Modbus_Msg(uint8 type)
 	default:												// none of the above
 		break;												// so do nothing
 	}
-	send_modbus = SEND_NOTHING;								// reset send msg type
+	send_modbus = MODBUS_SEND_NOTHING;						// reset send msg type
 	// IK20231214 not checked //meter_status = meter_status & 0xFD;          //clr dev trouble bit
 	comm_state = RCVANDXMT;								// in enum UART_Events
 }
@@ -2408,7 +2408,7 @@ void Parse_Modbus_Msg(void)
 
 	msg = ModBusGOOD;
 	broadcast = false;
-	send_modbus = SEND_NOTHING;
+	send_modbus = MODBUS_SEND_NOTHING;
 	// ---------------- Check address first -------------
 
 	// ---------------- Is it intended for this CIM -----
@@ -2461,7 +2461,7 @@ void Parse_Modbus_Msg(void)
 				}
 			}
 			else										// doesn't implement for this function.
-				send_modbus = SEND_NOTHING;				// send no reply cause msg was bad
+				send_modbus = MODBUS_SEND_NOTHING;		// send no reply cause msg was bad
 			break;
 
 		case DIAGNOSTICS:								// Function 8 Diagnostics
@@ -2475,7 +2475,7 @@ void Parse_Modbus_Msg(void)
 					send_modbus = NOT_SUPPORTED_MODBUS;	// so send not supported
 			}
 			else										// msg wasn't good so don't
-				send_modbus = SEND_NOTHING;				// reply
+				send_modbus = MODBUS_SEND_NOTHING;		// reply
 			break;
 
 		case PRESET_SINGLE_REGISTER:					// IK20260302 Function 6 Write Single Register
@@ -2558,7 +2558,7 @@ void Parse_Setup_Msg(void)
 	if ((rt.HostRxBuff[3] == 'R') || (rt.HostRxBuff[3] == 'W'))	// Handle the ones you can read or write
 	{
 		comm_state = RCV; // in enum UART_Events
-		timer.start_up_ms = 300000;							// keeps it in this SysData.NV_UI.StartUpProtocol for 5 more minutes
+		timer.start_up_ms = 300000;							// keeps it in this Setup protocol for 5 more minutes
 		switch (rt.HostRxBuff[4])							// get command
 		{
 		case 'C':								// "WC###"	// number of analog points
@@ -2583,7 +2583,7 @@ void Parse_Setup_Msg(void)
 					SysData.NV_UI.StartUpProtocol = tmpByte - '0';	// char '1' is conveted to binary 1 which is DNP3
 					SaveToEE(SysData.NV_UI.StartUpProtocol);		// char '2' is conveted to binary 2 which is Modbus
 				}
-				display_mode = SELECT_PROTOCOL;							// IK20260212 show change on display
+				display_mode = SELECT_PROTOCOL;				//-!- IK20260511 this will show on display "SETUP" based on rt.operating_protocol, but should show EEPROM-saved protocol
 				// SysData.NV_UI.StartUpProtocol = SysData.NV_UI.StartUpProtocol; // IK20260205 commented out because this would kick out of setup
 			}
 			break;
@@ -2750,7 +2750,7 @@ void Parse_Setup_Msg(void)
 		if (rt.HostRxBuff[3] == 'T')				// put in test mode?
 		{
 			//    test_mode = true; // IK20231214 not checked
-			timer.start_up_ms = 300000;				// keeps it in this SysData.NV_UI.StartUpProtocol for 5 more minutes
+			timer.start_up_ms = 300000;				// keeps it in this Setup protocol for 5 more minutes
 		}
 
 		if (rt.HostRxBuff[3] == 'X')				// exit test mode?
@@ -2760,7 +2760,7 @@ void Parse_Setup_Msg(void)
 		if (rt.HostRxBuff[3] == 'I')				// init to defaults?
 		{
 			send_setup = SEND_NOTHING;				// send nothing
-			timer.start_up_ms = 300000;				// keeps it in this SysData.NV_UI.StartUpProtocol for 5 more minutes
+			timer.start_up_ms = 300000;				// keeps it in this Setup protocol for 5 more minutes
 			Init_Parameters();						// Initialize to defaults
 		}
 	}
@@ -3696,7 +3696,7 @@ void SetSysDataDefaultsInRAM(void)
 																		// whether or not latch on some event or when condition clears, restore normal operation
 	rt.pulse = OFF;
 
-	Sp->NV_UI.StartUpProtocol = DNP3;									// SysData.NV_UI.StartUpProtocol byte, enum DNP or MODBUS or ASCII_CMDS or ASCII_MENU
+	Sp->NV_UI.StartUpProtocol = DNP3;									// SysData.NV_UI.StartUpProtocol byte, enum DNP or MODBUS
 	rt.protocol_parity = NONE;											// 0 == NONE; 1 == rt.UART_parity EVEN; 2 == rt.UART_parity ODD
 	Sp->dll_confirm = 0;												// dll confirm status
 	Sp->app_confirm = 0;												// Modbus UART_parity
@@ -4065,7 +4065,7 @@ TIMSK2 = 0x02
 
 	clearBit(XMT_ENABLE, XMT_ON); //IK20250523 set recieve mode
 	send_setup = SEND_NOTHING;
-	send_modbus = SEND_NOTHING;
+	send_modbus = MODBUS_SEND_NOTHING;
 	send_dnp = SEND_NOTHING;
 	__enable_interrupt();
 	restart_op = false;
@@ -4103,6 +4103,8 @@ void Delay_ms(uint16 Delay)
 	{
 #ifdef PC
 		Sleep(0);
+#else
+        __no_operation();
 #endif
 	}
 }
@@ -4340,21 +4342,24 @@ void main(void)
 			calibr_step = CALIBRATION_DONE;      // so end it.//added 8/14/19
 		}
 
-		if ((send_dnp != SEND_NOTHING) || (send_modbus != SEND_NOTHING) || (send_setup != SEND_NOTHING))
+		//if ((send_dnp != SEND_NOTHING) || (send_modbus != SEND_NOTHING) || (send_setup != SEND_NOTHING))
 		{
-			if (SysData.NV_UI.StartUpProtocol == DNP3)
+			if ((rt.operating_protocol == DNP3) && (send_dnp != SEND_NOTHING))
 				Send_DNP_Msg(send_dnp);            //yeh go send it
-			if (SysData.NV_UI.StartUpProtocol == MODBUS)
+            else send_dnp = SEND_NOTHING;
+			if ((rt.operating_protocol == MODBUS) && (send_modbus != MODBUS_SEND_NOTHING))
 				Send_Modbus_Msg(send_modbus);      //yeh go send it
-			if (SysData.NV_UI.StartUpProtocol == SETUP)
+            else send_modbus = MODBUS_SEND_NOTHING;
+			if ((rt.operating_protocol == SETUP) && (send_setup != SEND_NOTHING))
 				Send_Setup_Msg(send_setup);        //yeh go send it
+            else send_setup = SEND_NOTHING;
 		}
 
 		if (
 // never			(measurement_ID != 0) &&
 //            (timer.ADC_ms == 0) &&
 #ifndef PC
-			(SysData.NV_UI.StartUpProtocol != SETUP) && 	//-!- IK20250304 enable measurement during setup?
+			(rt.operating_protocol != SETUP) && 	//-!- IK20250304 enable measurement during setup?
 #endif
 			 (msg_status == MSG_DONE))
 		{
@@ -4540,7 +4545,7 @@ void main(void)
 		if (UBRR0 != rt.UBRR0_setting)		// Baud register or baud rate changed
 		{
 			Set_USART_UBBRregister((Uint32)Existing.baud_rate);					// set UART to new baud rate
-			if (SysData.NV_UI.StartUpProtocol == ASCII_CMDS) // if ASCII protocol send sign-on message
+			if (rt.operating_protocol == ASCII_CMDS) // if ASCII protocol send sign-on message
 			{
 				Print_FW_Version();
 				SendMsgToPC("\r\n>~OK");
