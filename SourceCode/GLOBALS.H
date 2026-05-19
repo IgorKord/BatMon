@@ -1112,6 +1112,9 @@ uint16 PutStr(const char* Str);
 uint16 CopyConstString(const char FL* str_f_ptr, char* dest);
 void Set_USART_UBBRregister(Uint32 BaudRate); // IK20250206
 uint16 Calculate_USART_UBRRregister(Uint32 BaudRate) ;
+Uint32 Set_BaudRate(uint8 BR_index);
+void Save_BaudRate_To_EEPROM(uint8 BR_index);
+void Set_protocol_settings(uint8 protocol_index);
 void Set_and_Save_New_BaudRate(uint8 BR_index);
 void Init_UART(void);
 void SetASCIIandSignMsg(void);

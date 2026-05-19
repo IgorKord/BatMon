@@ -1510,20 +1510,18 @@ void DNP_App(void)
 					switch (DNP_point_CmdCode)
 					{
 					case ByteCmdSetAsciiProtocol:						// 0x30 = 48D
-						rt.operating_protocol = ASCII_CMDS;				// ASCII is production/test only - runtime only
-						// Do NOT modify SysData.NV_UI.StartUpProtocol
-						display_mode = SELECT_PROTOCOL;					// Show change on display
+						Set_protocol_settings(ASCII_CMDS);				// Set protocol, baud rate, and show on display
+						// ASCII is production/test only - Do NOT modify SysData.NV_UI.StartUpProtocol
 						break;
 					case DNPcmdSetSetupProtocol:						// 0x31 = 49D
-						rt.operating_protocol = SETUP;					// SETUP is temporary - runtime only
-						// Do NOT modify SysData.NV_UI.StartUpProtocol
-						display_mode = SELECT_PROTOCOL;					// Show change on display
+						Set_protocol_settings(SETUP);					// Set protocol, baud rate, and show on display
+						// SETUP is temporary - Do NOT modify SysData.NV_UI.StartUpProtocol
 						break;
 					case DNPcmdSetModbusProtocol:						// 0x32 = 50D
-						rt.operating_protocol = MODBUS;					// MODBUS is customer protocol
+						Set_protocol_settings(MODBUS);					// Set protocol, baud rate, and show on display
+						// MODBUS is customer protocol
 						//SysData.NV_UI.StartUpProtocol = MODBUS;			// Update EEPROM variable
 						// Note: SaveToEE() should be called explicitly        if persistence is desired
-						display_mode = SELECT_PROTOCOL;					// Show change on display
 						send_dnp = SEND_NOTHING;						// IK20260507 no output, without it, BM becomes in Rx/Tx cycle, LED blinking green / red
 						break;
 					case CmdCalibrateVrange:							// 0x27 = 39D

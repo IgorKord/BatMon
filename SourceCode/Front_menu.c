@@ -244,37 +244,39 @@ void ChangeProtocol(Schar direction)
 	if (direction > 0) // UP button: increment protocol
 	{
 		if (rt.operating_protocol == SETUP) {
-			rt.operating_protocol = DNP3;
 			SysData.NV_UI.StartUpProtocol = DNP3;		// Persist customer protocol
 			SaveToEE(SysData.NV_UI.StartUpProtocol);
 			timer.start_up_ms = 0;						// Stop SETUP timeout
+			Set_protocol_settings(DNP3);				// Set protocol, baud rate, and show on display
 		}
 		else if (rt.operating_protocol == DNP3) {
-			rt.operating_protocol = MODBUS;
 			SysData.NV_UI.StartUpProtocol = MODBUS;		// Persist customer protocol
 			SaveToEE(SysData.NV_UI.StartUpProtocol);
+			Set_protocol_settings(MODBUS);				// Set protocol, baud rate, and show on display
 		}
 		else if (rt.operating_protocol == MODBUS) {
-			rt.operating_protocol = ASCII_CMDS;			// ASCII is temporary, no EEPROM save
+			Set_protocol_settings(ASCII_CMDS);			// Set protocol, baud rate, and show on display
+			// ASCII is temporary, no EEPROM save
 		}
 		// else if ASCII_CMDS: stay at maximum (no wrap-around)
 	}
 	else if (direction < 0) // DOWN button: decrement protocol
 	{
 		if (rt.operating_protocol == ASCII_CMDS) {
-			rt.operating_protocol = MODBUS;
 			SysData.NV_UI.StartUpProtocol = MODBUS;		// Persist customer protocol
 			SaveToEE(SysData.NV_UI.StartUpProtocol);
+			Set_protocol_settings(MODBUS);				// Set protocol, baud rate, and show on display
 		}
 		else if (rt.operating_protocol == MODBUS) {
-			rt.operating_protocol = DNP3;
 			SysData.NV_UI.StartUpProtocol = DNP3;		// Persist customer protocol
 			SaveToEE(SysData.NV_UI.StartUpProtocol);
+			Set_protocol_settings(DNP3);				// Set protocol, baud rate, and show on display
 		}
 		else if (rt.operating_protocol == DNP3) {
-			rt.operating_protocol = SETUP;				// SETUP is temporary
 			timer.TWI_lockup = 13000;					// Initialize SETUP timeout
 			timer.start_up_ms = 6000;					// SETUP protocol for 6 seconds
+			Set_protocol_settings(SETUP);				// Set protocol, baud rate, and show on display
+			// SETUP is temporary, no EEPROM save
 			//main loop will set baudrate, line ~4230
 			//Existing.BRate_index = Baud_9600_i;
 			//Set_BaudRate(Existing.BRate_index);			// it also sets Existing.baud_rate = Baud_9600;

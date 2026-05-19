@@ -1420,9 +1420,8 @@ void SwitchToDNP(void)
 {
 	cputs("Switching to DNP3\r\n");
 	Delay_ms(100);
-	rt.operating_protocol = DNP3;           // temporary
+	Set_protocol_settings(DNP3); // Set protocol, baud rate, and show on display
 	//SysData.NV_UI.StartUpProtocol = DNP3; // no change in EEPROM
-	display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
 }
 
 /*************************************************************/
@@ -1431,9 +1430,8 @@ void SwitchToModBus(void)
 {
 	cputs("Switching to ModBus\r\n");
 	Delay_ms(100);
-	rt.operating_protocol = MODBUS;           // temporary
+	Set_protocol_settings(MODBUS); // Set protocol, baud rate, and show on display
 	//SysData.NV_UI.StartUpProtocol = MODBUS; // no change in EEPROM
-	display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
 }
 
 /*********************************************************************/

@@ -58,7 +58,7 @@ char FW_PartNumber[] = "826-509-A";	// IK20230706 must be in RAM and not the cha
 char FW_PartNumber[] = "826-501-A";	// IK20230706 must be in RAM and not the char* for printf
 #endif //#ifdef LAST_GASP
 
-char FW_Date[] = "11-May-2026";		// IK20230706 must be in RAM for printf
+char FW_Date[] = "20-May-2026";		// IK20230706 must be in RAM for printf
 #define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
 float FirmwareVersion;				// to be shown as float on LED, "3.0", initialization to 'FW_ver_float' in init()
 
@@ -498,6 +498,46 @@ void Set_USART_UBBRregister(Uint32 BaudRate) // IK20250206
 	rt.UBRR0_setting = Calculate_USART_UBRRregister(BaudRate);
 	if (UBRR0 != rt.UBRR0_setting) // overwrite if setting is different
 		UBRR0 = rt.UBRR0_setting;
+}
+
+/// <summary>
+/// This function switches the operating protocol and sets correct baudrate:
+/// for ASCII it is 115200
+/// for SETUP it is 9600
+/// for DNP3 or Modbus the baud rate is determined by the NV_UI settings SysData.NV_UI.baud_rate and SysData.NV_UI.BRate_index
+/// </summary>
+/// <param name="protocol_index"> Desired protocol (SETUP, DNP3, MODBUS, or ASCII_CMDS)</param>
+void Set_protocol_settings(uint8 protocol_index)
+{
+	// Validate protocol index is in valid range
+	if (protocol_index > ASCII_CMDS) {
+		return;  // Invalid protocol, do nothing
+	}
+
+	// Set the operating protocol
+	rt.operating_protocol = protocol_index;
+
+	// Set appropriate baud rate for the protocol
+	switch (protocol_index)
+	{
+		case DNP3:
+		case MODBUS:
+			// Restore saved user baud rate when leaving ASCII
+			Set_BaudRate(SysData.NV_UI.BRate_index);
+			break;
+		case ASCII_CMDS:
+			// Force ASCII to 115200 baud
+			Set_BaudRate(ASCII_BR_INDX);
+			break;
+		case SETUP:
+			// Force SETUP to 9600 baud
+			Set_BaudRate(Baud_9600_i);
+			break;
+		default:
+			// Should not reach here due to range check above
+			break;
+	}
+	display_mode = SELECT_PROTOCOL;					// Show change on display
 }
 
 // IK 20230614 extracted to a function to recover TWI if it is timed out
@@ -2481,13 +2521,13 @@ void Parse_Modbus_Msg(void)
 		case PRESET_SINGLE_REGISTER:					// IK20260302 Function 6 Write Single Register
 			if (msg == ModBusGOOD)						// CRC check passed
 			{
-				if (rt.device_register == ByteCmdSetAsciiProtocol)		// register 0x30 = 48: switch to ASCII_CMDS protocol
+				if (rt.device_register == ByteCmdSetAsciiProtocol)	// register 0x30 = 48: switch to ASCII_CMDS protocol
 				{
 					// low byte of rt.registers carries the new protocol code (ignored here - register address selects protocol)
-					send_modbus = MODBUS_SEND_NOTHING;		// echo FC06 frame as success response
+					send_modbus = MODBUS_SEND_NOTHING;			// echo FC06 frame as success response
 					rt.operating_protocol = ASCII_CMDS;
 					//SaveToEE(SysData.NV_UI.StartUpProtocol);	// do not persist to EEPROM
-					display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message
+					display_mode = SELECT_PROTOCOL;				// Front_menu.c::DisplayPrepare() will show LED message
 				}
 				else if (rt.device_register == ModbusCmdSetDNPprotocol)	// register 0x33 = 51d: switch to DNP3 protocol
 				{

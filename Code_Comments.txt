@@ -1,3 +1,14 @@
+20260519 adding baudrate change to the protocol.
+C# should do together with FW:
+1.	ASCII_button_CheckedChanged - Added baud rate change to 115200
+2.	DNPButton_CheckedChanged - Added baud rate change to 19200
+3.	ModbusButton_CheckedChanged - Added baud rate change to 19200
+
+what firmware & C# does:
+FW:  rate did not change when protocol switched from ASCII to DNP3.(register UBBR = 0x10 with 8 samples per byte.)
+the setting has been changed in SysData.NV_UI.baud_rate (=19200) SysData.NV_UI.BRate_index (=x09)
+C#: baudrate ALSO has not been changed, so test poll shows correct data at 115200
+
 20260511
 Protocol switching via serial port is working
 
