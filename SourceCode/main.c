@@ -496,7 +496,7 @@ uint16 Calculate_USART_UBRRregister(Uint32 BaudRate) // IK20250206
 void Set_USART_UBBRregister(Uint32 BaudRate) // IK20250206
 {
 	rt.UBRR0_setting = Calculate_USART_UBRRregister(BaudRate);
-	if (UBRR0 != rt.UBRR0_setting) // overwrite if setting is different
+//IK20260603 	if (UBRR0 != rt.UBRR0_setting) // overwrite if setting is different
 		UBRR0 = rt.UBRR0_setting;
 }
 
@@ -1101,65 +1101,7 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 
 /********************************************************************/
 /*                   U A R T   R E C E I V E   I N T E R R U P T    */
-/********************************************************************/
-/*  DESCRIPTION:  This interrupt is driven from the UART. When a
-	character in RX register UDR0 is ready this interrupt is generated.
-	The character is moved into rt.HostRxBuff[256] circular Que.
-	if there is no msg started then the routine looks
-	for a start sequence of a 05 hex followed by a 64H
-	The top level will monitor this and will call the
-	routine that will then process the message.
-	The SETUP protocol:
-	initial token: three chars: Enter, Enter, ESC = 0x0d, 0x0d, 0x1b
-	following by 4th char:
-	Either 'W' if it is set command (i.e. Write)
-	Or     'R' if it is get command (i.e. Read)
-	following by 5th char associated with a variable
-	following by 6th char '\r' for requests or more chars for set command
-	comand always ends with final '\r'
-
-ON PC SIDE:
-		private void InitManualMode() {
-			//Create Commands and Send them, then update Values
-			//Function is called from Timer exept when in ASCII mode
-			List<string> commands = new List<string>();
-			string reply;
-			string formatted_command;
-
-			commands.Add("RC"); // Analog Points
-			commands.Add("RG"); // Inter Char Timeout
-			commands.Add("RM"); // Meter Addr
-			commands.Add("RR"); // Baud Rate
-			commands.Add("RW"); // Response Delay
-			commands.Add("RH"); // Host Addr
-
-			foreach (string command in commands) {
-				formatted_command = "\r\r\u001b" + command; // Format Command
-
-				reply = Send_Command(formatted_command); // Send Command, Receive Reply
-				if (reply == null) {
-					return;
-				} else {
-					if (int.TryParse(reply, out int tstInt) != true) return;
-					switch (command) // Update all Global Variables with Updated Information
-					{
-						case "RC":
-							analog_points = tstInt; break;
-						case "RG":
-							inter_character_timeout = reply; break;
-						case "RM":
-							meter_address = reply; break;
-						case "RR":
-							baud_rate = reply; break;
-						case "RW":
-							response_time = reply; break;
-						case "RH":
-							source_addr = reply; break;
-					}
-				}
-			}
-			UpdateManualMode(); // Update GUI Application
-		}
+/******************************************************************** /
 
 
 	Inputs:     UDR0 (UART0 Data register)
@@ -3995,6 +3937,7 @@ void init(void)
 	// It will be activated after timer.start_up_ms expires
 
 	// Initialize UART with SETUP protocol settings
+    Existing.BRate_index = Baud_9600_i;
 	Init_UART();
 	// Start the 6-second startup timer
 	timer.start_up_ms = 6000;                    // 6 seconds in SETUP mode
@@ -4297,10 +4240,10 @@ void main(void)
 				msg_status = MSG_DONE;							// tell all that its done
 				num_of_inbytes = 0;								// reset number of incoming bytes
 			}
-			// Just in case recovery
+#ifdef JUST_IN_CASE_RECOVERY_BR 			// Just in case recovery
 			Existing.BRate_index = Baud_9600_i;
 			Set_BaudRate(Existing.BRate_index);					// it also sets Existing.baud_rate = Baud_9600;
-
+#endif // JUST_IN_CASE_RECOVERY_BR
 
 			//timer.TWI_lockup = 13000;							// keep this board from timing out, 13 sec
 			TWI_Write(ALARM_WRITE, TWI_MSG_ALARMS, 0, 0);		// Also, Send TWI stuff
@@ -4322,7 +4265,7 @@ void main(void)
 				}
 
 				// Now activate the stored protocol
-				rt.operating_protocol = SysData.NV_UI.StartUpProtocol;
+				rt.operating_protocol = SysData.NV_UI.StartUpProtocol; // this also means the code setting BR below runs only once
 
 				// Set appropriate baud rate for the protocol
 				if (rt.operating_protocol == DNP3 || rt.operating_protocol == MODBUS)
@@ -4386,13 +4329,13 @@ void main(void)
 		{
 			if ((rt.operating_protocol == DNP3) && (send_dnp != SEND_NOTHING))
 				Send_DNP_Msg(send_dnp);            //yeh go send it
-            else send_dnp = SEND_NOTHING;
+			else send_dnp = SEND_NOTHING;
 			if ((rt.operating_protocol == MODBUS) && (send_modbus != MODBUS_SEND_NOTHING))
 				Send_Modbus_Msg(send_modbus);      //yeh go send it
-            else send_modbus = MODBUS_SEND_NOTHING;
+			else send_modbus = MODBUS_SEND_NOTHING;
 			if ((rt.operating_protocol == SETUP) && (send_setup != SEND_NOTHING))
 				Send_Setup_Msg(send_setup);        //yeh go send it
-            else send_setup = SEND_NOTHING;
+			else send_setup = SEND_NOTHING;
 		}
 
 		if (
@@ -4580,10 +4523,12 @@ void main(void)
 		// IK20251217 comment: below "Just in case" repair settings to the correct values
 
 		//-- Set up COMMS ---
-		UCSR0A = UCSR0A_SETTINGS;	// default set a RX reset (0x20) and double speed mode (0x02) flags, to get 2.4% accuracy at 115200 baud
-		UCSR0B = 0x98;										// enable rcv & xmt,
 		if (UBRR0 != rt.UBRR0_setting)		// Baud register or baud rate changed
 		{
+			UCSR0A = UCSR0A_SETTINGS;	// default set a RX reset (0x20) and double speed mode (0x02) flags, to get 2.4% accuracy at 115200 baud
+			UCSR0B = 0x98;										// enable rcv & xmt,
+#ifdef JUST_IN_CASE_RECOVERY_BR 			// Just in case recovery
+#endif // JUST_IN_CASE_RECOVERY_BR
 			Set_USART_UBBRregister((Uint32)Existing.baud_rate);					// set UART to new baud rate
 			if (rt.operating_protocol == ASCII_CMDS) // if ASCII protocol send sign-on message
 			{
