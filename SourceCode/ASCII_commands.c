@@ -1148,7 +1148,7 @@ void SetGetAddress(uint8 host_0_or_meter_1)	// 0 for host, 1 for meter
 	uint16 MaxAddress = 65000;
 	uint16 address_value;
 	char protocol_str[5] = {0};
-	uint8 protocol_specified = 0;
+//	uint8 protocol_specified = 0;
 
 	// Get current address value
 	if (host_0_or_meter_1 == 0)
@@ -1159,7 +1159,7 @@ void SetGetAddress(uint8 host_0_or_meter_1)	// 0 for host, 1 for meter
 	// Check if protocol is specified in command (position 4 is '>')
 	if (temp_Inp_str[CMD_LEN] == '>')
 	{
-		protocol_specified = 1;
+//		protocol_specified = 1;
 		param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //"dnp3" or "modb" starting 1 byte after '>'
 
 		// Validate protocol and determine max address
@@ -1329,6 +1329,26 @@ void SetGetRipCURRthreshold(void)
 }
 
 /*************************************************************/
+// exit ASCII RCI Protocol and swith to DNP immediately
+void SwitchToDNP(void)
+{
+	cputs("Switching to DNP3\r\n>~OK\r\n");
+	Delay_ms(100);
+	Set_protocol_settings(DNP3); // Set protocol, baud rate, and show on display
+	//SysData.NV_UI.StartUpProtocol = DNP3; // no change in EEPROM
+}
+
+/*************************************************************/
+// exit ASCII RCI Protocol and swith to ModBus immediately
+void SwitchToModBus(void)
+{
+	cputs("Switching to ModBus\r\n>~OK\r\n");
+	Delay_ms(100);
+	Set_protocol_settings(MODBUS); // Set protocol, baud rate, and show on display
+	//SysData.NV_UI.StartUpProtocol = MODBUS; // no change in EEPROM
+}
+
+/*************************************************************/
 // Protocol change from ASCII mode:
 // This Protocol command when read from parameters file and sent to controller, SHOULD NOT change acting protocol, or inport parameters would fail - the rest of commands would not be recognized and processed
 // Obviously, to execute this ASCII command, acting protocol rt.operating_protocol must be ASCII
@@ -1345,6 +1365,11 @@ void SetGetProtocol(void)
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //IK20260224 "now>" or "DNP3" or "SETUP"  or "ModBus" starting 1 bytes after command
 	if (temp_Inp_str[CMD_LEN] == '>')
 	{
+
+		// SETUP is startup protocol on power-on - never saved to EEPROM
+		// DNP3 or MODBUS - normal customer protocols that persist to EEPROM
+		// When restoring from parameter file (expo), protocol change must NOT affect runtime
+		// so remaining ASCII commands can be processed. Protocol takes effect on next reboot.
 		uint8 change_now = 0;
 		if (param == (('n' + 256 * 'o') + ('w' + 256 * '>') * 65536))
 		{
@@ -1356,82 +1381,54 @@ void SetGetProtocol(void)
 		//MODBUS = 0x02,
 		//ASCII_CMDS = 0x03,
 		{
-			uint8 ProtCode = -1; // invalid
 			if (param == (('d' + 256 * 'n') + ('p' + 256 * '3') * 65536))
 			{
-				ProtCode = DNP3; // set to 0x01
+				if (change_now == 0)	// if '>now>' not used: save to EEPROM only, do NOT change runtime
+				{
+					SysData.NV_UI.StartUpProtocol = DNP3;	// Update RAM copy of variable
+					SaveToEE(SysData.NV_UI.StartUpProtocol);	// Update EEPROM variable
+					// Do NOT update rt.operating_protocol - keeps ASCII active so remaining commands work
+				}
+				else
+					SwitchToDNP();      // will send ">~OK\r\n" then switch
 			}
 			else if (param == (('m' + 256 * 'o') + ('d' + 256 * 'b') * 65536))
 			{
-				ProtCode = MODBUS; // set to 0x02
+				if (change_now == 0)	// if '>now>' not used: save to EEPROM only, do NOT change runtime
+				{
+					SysData.NV_UI.StartUpProtocol = MODBUS;	// Update RAM copy of variable
+					SaveToEE(SysData.NV_UI.StartUpProtocol);	// Update EEPROM variable
+					// Do NOT update rt.operating_protocol - keeps ASCII active so remaining commands work
+				}
+				else
+					SwitchToModBus();      // will send ">~OK\r\n" then switch
 			}
 			//else if (param == (('a' + 256 * 's') + ('c' + 256 * 'i') * 65536))	// IK20260205 excluded setting ASCII from ASCII ("Setup DNP3 ModBus ASCII");
 			//{
-			//	ProtCode = ASCII_CMDS;	// set to 0x03
+			//	SwitchToASCII_CMDS();
 			//}
 			else if (param == (('s' + 256 * 'e') + ('t' + 256 * 'u') * 65536))
 			{
-				ProtCode = SETUP;	// set to 0x00
+				cputs("Switching to Setup\r\n>~OK\r\n");
+				Delay_ms(100);
+				Set_protocol_settings(SETUP); // Set protocol, baud rate, and show on display
 			}
 			else {
 				Send_RCI_Param_Error_as_FlashConst(">now >DNP3 >ModBus >Setup");
 				return;
-			}
-			SendMsgToPC(">~OK"); // return OK to PC App working in ASCII protocol so it understands successfull finish
-			Delay_ms(100);
-
-			// SETUP is startup protocol on power-on - never saved to EEPROM
-			// DNP3 or MODBUS - normal customer protocols that persist to EEPROM
-			// When restoring from parameter file (expo), protocol change must NOT affect runtime
-			// so remaining ASCII commands can be processed. Protocol takes effect on next reboot.
-			if (ProtCode == SETUP) {
-				rt.operating_protocol = SETUP;				// Only update runtime protocol
-				// Do NOT modify SysData.NV_UI.StartUpProtocol - leave it unchanged
-			}
-			else {
-				// DNP3 or MODBUS - normal customer protocols
-				if (change_now == 0) {						// if '>now>' not used: save to EEPROM only, do NOT change runtime
-					SysData.NV_UI.StartUpProtocol = ProtCode;	// Update RAM copy of variable
-					SaveToEE(SysData.NV_UI.StartUpProtocol);	// Update EEPROM variable
-					// Do NOT update rt.operating_protocol - keeps ASCII active so remaining commands work
-				}
-				else {										// if '>now>' used: update runtime immediately (testing only, not for parameter files)
-					rt.operating_protocol = ProtCode;
-					// Do NOT modify SysData.NV_UI.StartUpProtocol - leave it unchanged
-				}
 			}
 		}
 		display_mode = SELECT_PROTOCOL; // Front_menu.c::DisplayPrepare() will show LED message and switch protocol
 	}
 	else // ? -- get command //-!-IK20260911 extend for now? or in EEPROM?
 	{
-		uint8 ProtocolIndex = SysData.NV_UI.StartUpProtocol / PROTOCOL_SELECTION_INC_DEC; // 0->0; 0x11->1; 0x22->2, 0x33->3, 0x44->4)
+		uint8 ProtocolIndex = SysData.NV_UI.StartUpProtocol; // 0->0; 0x11->1; 0x22->2, 0x33->3, 0x44->4)
 		Put_CMD_as_chars();
 		PutChar('>');
 		if (ProtocolIndex < 4)
 			cputs(ProtocolNames[ProtocolIndex]);
 		Send_verbose_comment_as_FlashConst("StartUp protocol");
 	}
-}
-
-/*************************************************************/
-// exit ASCII RCI Protocol and swith to DNP immediately
-void SwitchToDNP(void)
-{
-	cputs("Switching to DNP3\r\n");
-	Delay_ms(100);
-	Set_protocol_settings(DNP3); // Set protocol, baud rate, and show on display
-	//SysData.NV_UI.StartUpProtocol = DNP3; // no change in EEPROM
-}
-
-/*************************************************************/
-// exit ASCII RCI Protocol and swith to ModBus immediately
-void SwitchToModBus(void)
-{
-	cputs("Switching to ModBus\r\n");
-	Delay_ms(100);
-	Set_protocol_settings(MODBUS); // Set protocol, baud rate, and show on display
-	//SysData.NV_UI.StartUpProtocol = MODBUS; // no change in EEPROM
 }
 
 /*********************************************************************/

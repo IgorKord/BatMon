@@ -799,7 +799,7 @@ enum Protocols	// IK20251230 CHANGED to regular number
    ASCII_CMDS = 0x03,	// 51d
    ASCII_MENU = 0x04	// 68d not implemented
 };
-#define PROTOCOL_SELECTION_INC_DEC  (DNP3 - SETUP) //
+//#define PROTOCOL_SELECTION_INC_DEC  (DNP3 - SETUP) //
 
 /*---------  Calibration States --------------*/
 //**** if tmp_cal value is greater than unit type volts -> converted to mV; example (48 V -> 48000 mV)

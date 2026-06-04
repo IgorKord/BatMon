@@ -2467,15 +2467,14 @@ void Parse_Modbus_Msg(void)
 				{
 					// low byte of rt.registers carries the new protocol code (ignored here - register address selects protocol)
 					send_modbus = MODBUS_SEND_NOTHING;			// echo FC06 frame as success response
-					rt.operating_protocol = ASCII_CMDS;
+					Set_protocol_settings(ASCII_CMDS);
 					//SaveToEE(SysData.NV_UI.StartUpProtocol);	// do not persist to EEPROM
 					display_mode = SELECT_PROTOCOL;				// Front_menu.c::DisplayPrepare() will show LED message
 				}
 				else if (rt.device_register == ModbusCmdSetDNPprotocol)	// register 0x33 = 51d: switch to DNP3 protocol
 				{
 					send_modbus = MODBUS_SEND_NOTHING;			// echo FC06 frame as success response
-					rt.operating_protocol = DNP3;				// IK20260508 switch protocol, but do not save to EEPROM yet
-					//SysData.NV_UI.StartUpProtocol = DNP3;
+					Set_protocol_settings(DNP3);				// Set protocol, baud rate, and show on display
 					//SaveToEE(SysData.NV_UI.StartUpProtocol);	// persist to EEPROM   if persistence is desired
 					display_mode = SELECT_PROTOCOL;				// Front_menu.c::DisplayPrepare() will show LED message and change SysData.NV_UI.StartUpProtocol
 				}
