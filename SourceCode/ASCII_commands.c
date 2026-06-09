@@ -379,7 +379,8 @@ void Print_System_Info(Schar PrintType)
 {
 #define N_ALARMS  (sizeof(AlarmNames)/sizeof(AlarmNames[0]))
 	uint8 i;
-	gotoxy(1, 1);
+	if (PrintType != REALTIME_SNAPSHOT)
+		gotoxy(1, 1);
 
 	if (PrintType == FULL_SNAPSHOT) {
 		// Header
@@ -424,23 +425,24 @@ void Print_System_Info(Schar PrintType)
 
 		cputs("\r\nProtocol| ");
 		cputs(
-			(SysData.NV_UI.StartUpProtocol == DNP3) ? "DNP-3 " :
+			(SysData.NV_UI.StartUpProtocol == DNP3)   ? "DNP-3 " :
 			(SysData.NV_UI.StartUpProtocol == MODBUS) ? "MODBUS" : "NotSet");
-		printf(" |Adr%4.0f| Baud = %5.0f |TxDelay =%3u ms| InterCharGap=%4u ms\r\n",
+		printf("|Adr%4.0f| Baud = %5.0f |TxDelay =%3u ms| InterCharGap=%4u ms\r\n",
 			SysData.NV_UI.meter_address,
 			Existing.baud_rate,
 			SysData.xmt_delay,
 			SysData.inter_char_gap
 		);
-		print_line_80chars();
+		//print_line_80chars();
+		print_table_separator_80chars();
 	}
 
 	if (PrintType != REALTIME_SNAPSHOT)  // print static line
-		cputs(" SIGNAL |BatVolt|+Bus V |-Bus V |VgndFlt|mV ripp|mA ripp|mA Iout|AlarmWord");
-	PrintNewLine();
+		cputs(" SIGNAL |BatVolt|+Bus V |-Bus V |VgndFlt|mV ripp|mA ripp|mA Iout|AlarmWord\r\n");
 
 	// Row: Measured values
 	SendRTdata();
+	if (PrintType == REALTIME_SNAPSHOT) return;
 
 	if (PrintType == FULL_SNAPSHOT) {
 		print_table_separator_80chars();
@@ -453,31 +455,29 @@ void Print_System_Info(Schar PrintType)
 		printf("Low Lim |       | %5.1f |       |       |       | %5.1f |\r\n",
 			SysData.NV_UI.low_bat_threshold_V_f,
 			SysData.NV_UI.ripple_I_threshold_mA_f);
-		print_line_80chars();
+		//print_line_80chars();
+		print_table_separator_80chars();
 	}
 
-	if (PrintType != REALTIME_SNAPSHOT)  // print static line
-	{
-		cputs(" ALARMS | ");
-		if (PrintType == FULL_SNAPSHOT) {
-			printf("grace period % 4.1f sec | Buzzer: ", SysData.NV_UI.alarm_delay_sec_f);
-			cputs(TEXT_EN[((SysData.NV_UI.SavedStatusWord & Buzzer_ON_eq1_Bit) != 0)]);
-			cputs("      |  Latch: ");
-			cputs(TEXT_EN[((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) != 0)]);
-			PrintNewLine();
+	cputs(" ALARMS | ");
+	if (PrintType == FULL_SNAPSHOT) {
+		printf("grace period % 4.1f sec | Buzzer: ", SysData.NV_UI.alarm_delay_sec_f);
+		cputs(TEXT_EN[((SysData.NV_UI.SavedStatusWord & Buzzer_ON_eq1_Bit) != 0)]);
+		cputs("      |  Latch: ");
+		cputs(TEXT_EN[((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) != 0)]);
+		PrintNewLine();
 
-			print_table_separator_80chars();
-			cputs("Condition BatHi ");
-		}
-		else // BRIEF_SNAPSHOT
-		{
-			cputs("BatHi ");
-		}
-		for (i = 1; i < N_ALARMS; i++) // creates "| BatHi | BatLo | + GF  | - GF  | mVrip | mArip |  AC   |  HiZ  | E-Bat"
-		{
-			cputs("| ");
-			cputs(AlarmNames[i]);
-		}
+		print_table_separator_80chars();
+		cputs("Condition BatHi ");
+	}
+	else // BRIEF_SNAPSHOT
+	{
+		cputs("BatHi ");
+	}
+	for (i = 1; i < N_ALARMS; i++) // creates "| BatHi | BatLo | + GF  | - GF  | mVrip | mArip |  AC   |  HiZ  | E-Bat"
+	{
+		cputs("| ");
+		cputs(AlarmNames[i]);
 	}
 	PrintNewLine();
 	printf("Enabled?");
@@ -499,9 +499,11 @@ void Print_System_Info(Schar PrintType)
 		cputs(OkFail(active));
 	}
 	PrintNewLine();
-	if (PrintType == FULL_SNAPSHOT) print_table_separator_80chars();
-	else // if (PrintType == BRIF_SNAPSHOT) || REALTIME_SNAPSHOT
+	if (PrintType == FULL_SNAPSHOT) {
+		//print_table_separator_80chars();
+		print_line_80chars();
 		Show_ADCcounts_and_Volts();
+	}
 }
 
 void Print_System_Snapshot(void) //"w" command
@@ -512,6 +514,11 @@ void Print_System_Snapshot(void) //"w" command
 void Print_System_Brief(void) //"b" or "brif" command
 {
 	Print_System_Info(BRIF_SNAPSHOT);
+}
+
+void Print_Real_Time(void) //"real" command
+{
+	Print_System_Info(REALTIME_SNAPSHOT);
 }
 
 /***************************************************************/
@@ -1875,6 +1882,7 @@ const t_rci_commands rci[] =
 	/*+*/	"s\0\0\0",	(void*)&Print_Status,			// "s"  Print status BYTE (see "stat" command)
 	/*+*/	"w\0\0\0",	(void*)&Print_System_Snapshot,	// "w": Print system information (same as "info" command)
 	/*+*/	"b\0\0\0",	(void*)&Print_System_Brief,		// "b": Print brief information: measurements and alarms
+	/*+*/	"real",		(void*)&Print_Real_Time,		// "real": Print real-time information
 	/*+*/	"brif",		(void*)&Print_System_Brief,		// "brif": Print brief information: measurements and alarms
 	/*+*/	"d\0\0\0",	(void*)&SendRTdata,				// "d": Print measurements and alarm word
 	/*+*/	"data",		(void*)&SendRTdata,				// "data": Print measurements and alarm word
