@@ -1,3 +1,16 @@
+20260624 debugging export/import.
+UBRR0L = 0x10 default fot 115200, UART in double speed mode
+0x0F: BM accepts comand (vers) but BM output on PC shown corrupted
+0x10: BM output reads good on PC, sending param file to BM produses about 15 errors (Unrecognized command)
+0x11: BM output reads good on PC, sending param file to BM produses about 13 errors (Unrecognized command)
+0x12: BM not accepting comand (vers)
+
+Test sending param back to BM:
+1. echo must be disabled, i.e. if in param file "echo>verbose" do not send it orsend it last.
+2. even with 0 between chars delay, no errors, upload takes 1.3 sec
+3. intentionally misspel command - BM correctly returns ">~Unrecognized command"
+4. co-debugged with C#, works
+
 20260604 debugged protocol switching.
 sometimes modbus->DNP does not switch (20%), but switch to ASCII and from ASCII works.
 
