@@ -618,8 +618,8 @@ void Send_to_STATUS_LEDs() {
 void Get_Buttons() {
 	//uint8 buttons_lowByte = 0;
 	//uint8 buttons_highByte = 0;
-	//TWI_Write(DISPLAY_WRITE_TWI_ADR, TWI_GET_FRONT_BUTTONS, 0, 0);
-	//TWI_Read(DISPLAY_READ);               //get info from display board
+	//TWI_Write(DISPLAY_WRITE_ADR, TWI_GET_FRONT_BUTTONS, 0, 0);
+	//TWI_Read(DISPLAY_READ_ADR);               //get info from display board
 
 	uint8  buttonsHits = Display_Info.buttons_hits; // to avid message in IAR:	Warning[Pa082]: undefined behavior: the order of volatile accesses is undefined in this statement
 	if (twi.s.error > 0) {

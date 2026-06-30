@@ -1,6 +1,6 @@
 /********************************************************************/
 /*                        COPYRIGHT NOTICE                          */
-/*           Copyright (s) 2025 Electroswitch Corporation           */
+/*           Copyright (s) 2026 Electroswitch Corporation           */
 /*                        180 King Avenue                           */
 /* Unauthorized use or duplication of this software is prohibited   */
 /********************************************************************/
@@ -1474,9 +1474,9 @@ void TWI_Write(uint8 DestADR, uint8 type, uint8 msg_low, uint8 msg_high)
 		return;
 	}
 
-	if ((DestADR == DISPLAY_WRITE_TWI_ADR)
-		|| (DestADR == ALARM_WRITE)
-		|| (DestADR == TWI_ADR_WRITE_IO))
+	if ((DestADR == DISPLAY_WRITE_ADR)
+		|| (DestADR == RELAY_WRITE_ADR)
+		|| (DestADR == IO_WRITE_ADR))
 	{											// these boards need more bytes to be sent
 #ifndef PC
 		timer.TWI_hangup = TWI_TIMEOUT_ms;//200
@@ -1493,7 +1493,7 @@ void TWI_Write(uint8 DestADR, uint8 type, uint8 msg_low, uint8 msg_high)
 			TWI_Reset();
 			return;
 		}
-		if (DestADR != TWI_ADR_WRITE_IO)		// IO Write does not send this byte
+		if (DestADR != IO_WRITE_ADR)		// IO Write does not send this byte
 		{
 #ifndef PC
 			timer.TWI_hangup = TWI_TIMEOUT_ms;//200
@@ -1702,19 +1702,19 @@ void Write_Numeric_Display(char* num_str)
 	char chr1st = *p_str; p_str++;
 	char chr2nd = *p_str; p_str++;
 	//-!- IK20250102 check for End of String '\0'?
-	TWI_Write(DISPLAY_WRITE_TWI_ADR, DISPLAY_UPPER_STR_01, chr1st, chr2nd);
+	TWI_Write(DISPLAY_WRITE_ADR, DISPLAY_UPPER_STR_01, chr1st, chr2nd);
 	chr1st = *p_str; p_str++;
 	chr2nd = *p_str; p_str++;
-	TWI_Write(DISPLAY_WRITE_TWI_ADR, DISPLAY_UPPER_STR_23, chr1st, chr2nd);
+	TWI_Write(DISPLAY_WRITE_ADR, DISPLAY_UPPER_STR_23, chr1st, chr2nd);
 	chr1st = *p_str; p_str++;
 	chr2nd = *p_str; p_str++;
-	TWI_Write(DISPLAY_WRITE_TWI_ADR, DISPLAY_UPPER_STR_45, chr1st, chr2nd);
+	TWI_Write(DISPLAY_WRITE_ADR, DISPLAY_UPPER_STR_45, chr1st, chr2nd);
 	chr1st = *p_str; p_str++;
 	chr2nd = *p_str; p_str++;
-	TWI_Write(DISPLAY_WRITE_TWI_ADR, DISPLAY_UPPER_STR_67, chr1st, chr2nd);
+	TWI_Write(DISPLAY_WRITE_ADR, DISPLAY_UPPER_STR_67, chr1st, chr2nd);
 	chr1st = *p_str; p_str++;
 	chr2nd = *p_str; //num_str++;
-	TWI_Write(DISPLAY_WRITE_TWI_ADR, DISPLAY_UPPER_STR_89, chr1st, chr2nd);
+	TWI_Write(DISPLAY_WRITE_ADR, DISPLAY_UPPER_STR_89, chr1st, chr2nd);
 }
 
 void Write_ASCII_Display(char* str)
@@ -1733,16 +1733,16 @@ void Write_ASCII_Display(char* str)
 	//-!- IK20250102 check for End of String '\0'?
 	char chr1st = *p_str; p_str++;
 	char chr2nd = *p_str; p_str++;
-	TWI_Write(DISPLAY_WRITE_TWI_ADR, DISPLAY_LOWER_STR_01, chr1st, chr2nd);
+	TWI_Write(DISPLAY_WRITE_ADR, DISPLAY_LOWER_STR_01, chr1st, chr2nd);
 	chr1st = *p_str; p_str++;
 	chr2nd = *p_str; p_str++;
-	TWI_Write(DISPLAY_WRITE_TWI_ADR, DISPLAY_LOWER_STR_23, chr1st, chr2nd);
+	TWI_Write(DISPLAY_WRITE_ADR, DISPLAY_LOWER_STR_23, chr1st, chr2nd);
 	chr1st = *p_str; p_str++;
 	chr2nd = *p_str; p_str++;
-	TWI_Write(DISPLAY_WRITE_TWI_ADR, DISPLAY_LOWER_STR_45, chr1st, chr2nd);
+	TWI_Write(DISPLAY_WRITE_ADR, DISPLAY_LOWER_STR_45, chr1st, chr2nd);
 	chr1st = *p_str; p_str++;
 	chr2nd = *p_str; //str++;
-	TWI_Write(DISPLAY_WRITE_TWI_ADR, DISPLAY_LOWER_STR_67, chr1st, chr2nd);
+	TWI_Write(DISPLAY_WRITE_ADR, DISPLAY_LOWER_STR_67, chr1st, chr2nd);
 }
 
 void Write_ASCII_Display_FlashString(char FL * str_f_ptr) {
@@ -1763,7 +1763,7 @@ void Write_LEDs_OnDisplayBoard (uint8 LED_Buzz_bits)
 	// #define DISP_LED_Pulse_ON_BIT          Bit_2	// in Display_Info.Status. Use 68 to turn on, 64 to turn all LEDs off
 	// #define DISP_Buzzer_ON_BIT             Bit_3	// in Display_Info.Status. Use 72 to turn on, 64 to turn all LEDs and Buzzer off
 	// the tx/Rx LED is controlled directly by Comm board
-	TWI_Write(DISPLAY_WRITE_TWI_ADR, TWI_SET_DISPLAY_LEDs, LED_Buzz_bits, 0);
+	TWI_Write(DISPLAY_WRITE_ADR, TWI_SET_DISPLAY_LEDs, LED_Buzz_bits, 0);
 #ifdef PC // for simulation only
 	if (LED_Buzz_bits >= LEDsControlledByCommBrd) // if value is more than 64 - easier to test firmware setting 107 to turn all LESs on or 0 to disable overwrite
 	{
@@ -2881,7 +2881,7 @@ uint16 result;
 #endif // #ifdef TIME_TESTING
 		memset(twi.buffer, 0xEE, 4);		// clear buffer
 		// send TWI command Start conversion
-		TWI_Write(A_TO_D_WRITE, 0x88, NULL_BYTE, NULL_BYTE);	// Set ADC 15sps for 16 bits
+		TWI_Write(ADC_WRITE_ADR, 0x88, NULL_BYTE, NULL_BYTE);	// Set ADC 15sps for 16 bits
 		ADC_Status = ADC_WAIT_CONVERSION;
 #ifndef PC
 		timer.ADC_ms = 125; // IK20251118 changed from 120 to 125, some more time margin; tried settng conversion delay 100 ms and shown battery voltage does not follow supply voltage
@@ -2904,7 +2904,7 @@ uint16 result;
 #endif // #ifdef TIME_TESTING
 			// program is here when timer.ADC_ms reaches zero
 			// get result from ADC via TWI
-			TWI_Read(A_TO_D_READ);								// TWI_Read updates twi.buffer
+			TWI_Read(ADC_READ_ADR);								// TWI_Read updates twi.buffer
 			result = (twi.buffer[BYTE_1] * 256) + twi.buffer[BYTE_2];
 			if(measurement_ID < 8 )
 				rt.ADC_buff[measurement_ID] = result;
@@ -4107,9 +4107,9 @@ uint8 ReadButtons() {
 	//#endif // #ifdef TIME_TESTING
 
 #ifndef PC
-	TWI_Write(DISPLAY_WRITE_TWI_ADR, TWI_GET_FRONT_BUTTONS, 0, 0);
+	TWI_Write(DISPLAY_WRITE_ADR, TWI_GET_FRONT_BUTTONS, 0, 0);
 	// Display board answers with something like this:	TWI_Write(TWI_SEND_FRONT_BUTTONS, 0x11, 0x22); // IK20250114 test send 2-bytes of buttons states: [0]=0x0C=12D; [1]=0x11=17D; [2]=0x22=34D
-	TWI_Read(DISPLAY_READ);               //get info from display board
+	TWI_Read(DISPLAY_READ_ADR);               //get info from display board
 	if (twi.s.error > 0) {
 		return 0x80; // upper bit set - receiving error
 	}
@@ -4245,10 +4245,10 @@ void main(void)
 #endif // JUST_IN_CASE_RECOVERY_BR
 
 			//timer.TWI_lockup = 13000;							// keep this board from timing out, 13 sec
-			TWI_Write(ALARM_WRITE, TWI_MSG_ALARMS, 0, 0);		// Also, Send TWI stuff
-			TWI_Read(ALARM_READ);								// to keep other boards from timing out and resetting
+			TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, 0, 0);		// Also, Send TWI stuff
+			TWI_Read(RELAY_READ_ADR);								// to keep other boards from timing out and resetting
 
-			//TWI_Write(DISPLAY_WRITE_TWI_ADR, TWI_BATT_VOLTS, 0, 0);	// and resetting
+			//TWI_Write(DISPLAY_WRITE_ADR, TWI_BATT_VOLTS, 0, 0);	// and resetting
 
 			//---------> this executes ONCE after initial 6 seconds in SETUP protocol if there is no commands arrive <-------------------------------------------
 			if (timer.start_up_ms == 0)
@@ -4355,22 +4355,22 @@ void main(void)
 				// update display and set next measurement
 				if (measurement_ID == ADC_BATT_VOLTS)			// if == 1 just got battery volts then send it
 				{
-					//TWI_Write(DISPLAY_WRITE_TWI_ADR, TWI_BATT_VOLTS, rt.battery_deciVolts & 255, rt.battery_deciVolts >> 8);//to the display board
+					//TWI_Write(DISPLAY_WRITE_ADR, TWI_BATT_VOLTS, rt.battery_deciVolts & 255, rt.battery_deciVolts >> 8);//to the display board
 					measurement_ID = ADC_FAULT_VOLTS;			// = 2
 				}												// send low first then high byte
 				else if (measurement_ID == ADC_FAULT_VOLTS)		// if == 2 just got fault volts then send it
 				{
-					//TWI_Write(DISPLAY_WRITE_TWI_ADR, TWI_FAULT_VOLTS, rt.gnd_fault_deciVolts & 255, rt.gnd_fault_deciVolts >> 8);  //to the display board
+					//TWI_Write(DISPLAY_WRITE_ADR, TWI_FAULT_VOLTS, rt.gnd_fault_deciVolts & 255, rt.gnd_fault_deciVolts >> 8);  //to the display board
 					measurement_ID = ADC_MINUS_GND_VOLTS;		// = 3
 				}
 				else if (measurement_ID == ADC_MINUS_GND_VOLTS)	// if == 3
 				{
-					//TWI_Write(DISPLAY_WRITE_TWI_ADR, TWI_MINUS_GND_VOLTS, rt.minus_gnd_deciVolts & 255, rt.minus_gnd_deciVolts >> 8);//to the display board
+					//TWI_Write(DISPLAY_WRITE_ADR, TWI_MINUS_GND_VOLTS, rt.minus_gnd_deciVolts & 255, rt.minus_gnd_deciVolts >> 8);//to the display board
 					measurement_ID = ADC_RIPPLE_CURRENT;		// = 5
 				}
 				else if (measurement_ID == ADC_RIPPLE_CURRENT)	// if == 5 just got ripple current then send it
 				{
-					//TWI_Write(DISPLAY_WRITE_TWI_ADR, TWI_RIPPLE_CURRENT, rt.ripple_milliAmpers & 255, rt.ripple_milliAmpers >> 8);//to the display board
+					//TWI_Write(DISPLAY_WRITE_ADR, TWI_RIPPLE_CURRENT, rt.ripple_milliAmpers & 255, rt.ripple_milliAmpers >> 8);//to the display board
 					measurement_ID = ADC_RIPPLE_VOLTAGE;		// = 6
 				}
 				else if (measurement_ID == ADC_RIPPLE_VOLTAGE)	// if == 6 just got ripple volts then send it
@@ -4397,18 +4397,18 @@ void main(void)
 			{
 				if (cal_status != CALIBRATION_DONE)														// if calibrating shut off pulse
 					clearBit(Display_Info.Status, DISP_STATE_PulseON_BIT);
-				TWI_Write(ALARM_WRITE, TWI_MSG_ALARMS, Display_Info.alarm_status, Display_Info.Status);
-				TWI_Read(ALARM_READ);
+				TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.alarm_status, Display_Info.Status);
+				TWI_Read(RELAY_READ_ADR);
 				relay_board_status = twi.buffer[BYTE_2];												// get AC power fail bit
 				{
 					float t_f = SysData.NV_UI.alarm_delay_sec_f * 0.1f;
 					uint16 delay_deci_sec = (uint16)(t_f);
 					tmp_byte = delay_deci_sec >> 8; // msg_high
-					TWI_Write(ALARM_WRITE, TWI_ALARM_DELAY, delay_deci_sec & 0xFF, tmp_byte );
+					TWI_Write(RELAY_WRITE_ADR, TWI_ALARM_DELAY, delay_deci_sec & 0xFF, tmp_byte );
 				}
 #ifdef LAST_GASP
 				tmp_byte = Display_Info.alarm_status >> 8;
-				TWI_Write(ALARM_WRITE, SEND_TWI_ALARMS2, tmp_byte, NULL_BYTE);							// send 2nd byte of alarms
+				TWI_Write(RELAY_WRITE_ADR, SEND_TWI_ALARMS2, tmp_byte, NULL_BYTE);							// send 2nd byte of alarms
 #endif // #ifdef LAST_GASP
 				measurement_ID = IO_DATA;
 			}//end RELAY_DATA
@@ -4418,7 +4418,7 @@ void main(void)
 				if ((io_update == true)								// only do when necessary i.e. changed (change is detected by main() )
 					|| (timer.IO_update == 0))						// and occasionally, once in 1 sec
 				{
-					TWI_Write(TWI_ADR_WRITE_IO, 3, 0, 0);			// config for outputs
+					TWI_Write(IO_WRITE_ADR, 3, 0, 0);			// config for outputs
 					// IK20250228 added serial control to ripple voltage amplifier hardware gain
 					if (rt.ripple_calibration_phase == CalibrateSinglePhase)
 						tmp_byte = 0x00;							// single phase
@@ -4431,7 +4431,7 @@ void main(void)
 						else
 							tmp_byte = 0x00;						// single phase
 					}
-					TWI_Write(TWI_ADR_WRITE_IO, 1, tmp_byte, 0);	// set outputs
+					TWI_Write(IO_WRITE_ADR, 1, tmp_byte, 0);	// set outputs
 					io_update = false;
 					timer.IO_update = 1000; //every 1.0 sec
 				}
@@ -4443,8 +4443,8 @@ void main(void)
 		if (restart_op == true)                 //restart request
 		{
 #ifndef PC
-			TWI_Write(DISPLAY_WRITE_TWI_ADR, RESTART, 0, 0);		// reset display board
-			TWI_Write(ALARM_WRITE, RESTART, 0, 0);					// reset relay board
+			TWI_Write(DISPLAY_WRITE_ADR, RESTART, 0, 0);		// reset display board
+			TWI_Write(RELAY_WRITE_ADR, RESTART, 0, 0);					// reset relay board
 			while (1) { _NOP(); };									// reset myself
 #endif // PC
 		}

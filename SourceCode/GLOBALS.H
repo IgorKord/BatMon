@@ -156,33 +156,33 @@ extern float FirmwareVersion;     //Version 3.0
 #define ADC_RIPPLE_CURRENT     5 // = TWI_RIPPLE_CURRENT
 #define ADC_RIPPLE_VOLTAGE     6 // = TWI_RIPPLE_VOLTAGE
 // IK20250102 TWI message types
-#define TWI_BATT_VOLTS         ADC_BATT_VOLTS      // 1 if (calibr_step == TWI_BATT_VOLTS); if (measurement_ID == TWI_BATT_VOLTS); TWI_Write(DISPLAY_WRITE, TWI_BATT_VOLTS, 0, 0); //Comm writes to the display board
-#define TWI_FAULT_VOLTS        ADC_FAULT_VOLTS     // 2 if (calibr_step == TWI_FAULT_VOLTS); if (measurement_ID == TWI_FAULT_VOLTS); TWI_Write(DISPLAY_WRITE, TWI_FAULT_VOLTS, gnd_fault_deciVolts & 255, gnd_fault_deciVolts >> 8); //Comm writes to the display board
-#define TWI_MINUS_GND_VOLTS    ADC_MINUS_GND_VOLTS // 3 if (calibr_step == TWI_MINUS_GND_VOLTS); if (measurement_ID == TWI_MINUS_GND_VOLTS); TWI_Write(DISPLAY_WRITE, TWI_MINUS_GND_VOLTS, minus_gnd_deciVolts & 255, minus_gnd_deciVolts >> 8); //to the display board
+#define TWI_BATT_VOLTS         ADC_BATT_VOLTS      // 1 if (calibr_step == TWI_BATT_VOLTS); if (measurement_ID == TWI_BATT_VOLTS); TWI_Write(DISPLAY_WRITE_ADR, TWI_BATT_VOLTS, 0, 0); //Comm writes to the display board
+#define TWI_FAULT_VOLTS        ADC_FAULT_VOLTS     // 2 if (calibr_step == TWI_FAULT_VOLTS); if (measurement_ID == TWI_FAULT_VOLTS); TWI_Write(DISPLAY_WRITE_ADR, TWI_FAULT_VOLTS, gnd_fault_deciVolts & 255, gnd_fault_deciVolts >> 8); //Comm writes to the display board
+#define TWI_MINUS_GND_VOLTS    ADC_MINUS_GND_VOLTS // 3 if (calibr_step == TWI_MINUS_GND_VOLTS); if (measurement_ID == TWI_MINUS_GND_VOLTS); TWI_Write(DISPLAY_WRITE_ADR, TWI_MINUS_GND_VOLTS, minus_gnd_deciVolts & 255, minus_gnd_deciVolts >> 8); //to the display board
 #define TWI_ALARM_VOLTS        4  // 4 not used in RelayBoardFW nor CommBoardFW
-#define TWI_RIPPLE_CURRENT     ADC_RIPPLE_CURRENT  // 5 if (calibr_step == TWI_RIPPLE_CURRENT); if (measurement_ID == TWI_RIPPLE_CURRENT); TWI_Write(DISPLAY_WRITE, TWI_RIPPLE_CURRENT, ripple_i & 255, ripple_i >> 8); //Comm writes to the display board
-#define TWI_RIPPLE_VOLTAGE     ADC_RIPPLE_VOLTAGE // 6 if (calibr_step == TWI_RIPPLE_VOLTAGE); if (measurement_ID == TWI_RIPPLE_VOLTAGE); TWI_Write(DISPLAY_WRITE, TWI_RIPPLE_VOLTAGE, ripple_v & 255, ripple_v >> 8); //Comm writes to the display board
+#define TWI_RIPPLE_CURRENT     ADC_RIPPLE_CURRENT  // 5 if (calibr_step == TWI_RIPPLE_CURRENT); if (measurement_ID == TWI_RIPPLE_CURRENT); TWI_Write(DISPLAY_WRITE_ADR, TWI_RIPPLE_CURRENT, ripple_i & 255, ripple_i >> 8); //Comm writes to the display board
+#define TWI_RIPPLE_VOLTAGE     ADC_RIPPLE_VOLTAGE // 6 if (calibr_step == TWI_RIPPLE_VOLTAGE); if (measurement_ID == TWI_RIPPLE_VOLTAGE); TWI_Write(DISPLAY_WRITE_ADR, TWI_RIPPLE_VOLTAGE, ripple_v & 255, ripple_v >> 8); //Comm writes to the display board
 
 #define TWI_EXTRA_ANALOG_CH     7       //-!- IK20240319 who is setting it? if (measurement_ID == TWI_EXT_ANALOG)
 #define TWI_SETUP_ADC           8 // if (ADC_Status == TWI_SETUP_ADC)
 #define TWI_START_CONVERSION    9 // if (ADC_Status == TWI_START_CONVERSION)
-#define TWI_DISPLAY_BD_STATUS   10 // Comm writes: TWI_Write(DISPLAY_WRITE, TWI_DISPLAY_BD_STATUS, relay_board_status, unit_type); then reads: TWI_Read(DISPLAY_READ); then alarm_status = twi.buffer[BYTE_2]; alarm_status2 = alarm_status;
+#define TWI_DISPLAY_BD_STATUS   10 // Comm writes: TWI_Write(DISPLAY_WRITE_ADR, TWI_DISPLAY_BD_STATUS, relay_board_status, unit_type); then reads: TWI_Read(DISPLAY_READ_ADR); then alarm_status = twi.buffer[BYTE_2]; alarm_status2 = alarm_status;
 #define TWI_GET_FRONT_BUTTONS   11 // IK20250106 - Display board reports status of the buttons
 #define TWI_SEND_FRONT_BUTTONS  12 // 0x0C IK20250106 - return status of front board buttons to Comm board
 #define TWI_SET_DISPLAY_LEDs    13 // 0x0D IK20250106 - command to Display board to turn ON / OFF LEDs
 
-#define TWI_MSG_ALARMS          14 // 0x0E if (send_type == TWI_ALARMS) { TWI_Write(DISPLAY_WRITE, TWI_DISPLAY_BD_STATUS, relay_board_status, unit_type);...
-#define TWI_ALARM_DELAY         15 // 0x0F Comm writes if (measurement_ID == RELAY_DATA)(...TWI_Write(ALARM_WRITE, ALARM_DELAY, tmp_word, tmp_byte);
+#define TWI_MSG_ALARMS          14 // 0x0E if (send_type == TWI_ALARMS) { TWI_Write(DISPLAY_WRITE_ADR, TWI_DISPLAY_BD_STATUS, relay_board_status, unit_type);...
+#define TWI_ALARM_DELAY         15 // 0x0F Comm writes if (measurement_ID == RELAY_DATA)(...TWI_Write(RELAY_WRITE_ADR, ALARM_DELAY, tmp_word, tmp_byte);
 #define TWI_MSG_DISPLAY_BAUD    16 // used in CommBoard
-#define TWI_MSG_COMM_ADDRESS    17 // if (send_type == TWI_COMM_ADDRESS) { ... TWI_Write(DISPLAY_WRITE, TWI_COMM_ADDRESS, tmp_byte, meter_address);
+#define TWI_MSG_COMM_ADDRESS    17 // if (send_type == TWI_COMM_ADDRESS) { ... TWI_Write(DISPLAY_WRITE_ADR, TWI_COMM_ADDRESS, tmp_byte, meter_address);
 
 #define RESTART_CMD             19 // not used in CommBoard
 #define SEND_TWI_ALARMS         TWI_ALARMS
 //#define SEND_TWI_ALARMS2        1
 
 //#define SEND_VIA_TWI_BAUD_RATE  TWI_MSG_DISPLAY_BAUD //-!- IK20240319 mixed local identifier and between-the-boards TWI identifier
-#define DISPLAY_DATA            20 // if (measurement_ID != DISPAY_DATA) { ... TWI_Write(A_TO_D_WRITE, 0x88, NULL_BYTE, NULL_BYTE);
-#define RELAY_DATA              21 // if (measurement_ID != RELAY_DATA)  && (measurement_ID != IO_DATA) { ... TWI_Write(A_TO_D_WRITE, 0x88, NULL_BYTE, NULL_BYTE);
+#define DISPLAY_DATA            20 // if (measurement_ID != DISPAY_DATA) { ... TWI_Write(ADC_WRITE_ADR, 0x88, NULL_BYTE, NULL_BYTE);
+#define RELAY_DATA              21 // if (measurement_ID != RELAY_DATA)  && (measurement_ID != IO_DATA) { ... TWI_Write(ADC_WRITE_ADR, 0x88, NULL_BYTE, NULL_BYTE);
 #define IO_DATA                 22 // if (measurement_ID != IO_DATA)
 #define DISPLAY_UPPER_STR_01    32 // IK20250102 - send Display board a string to be shown on upper 5-digits 7-segments LED, left-most position 1 & 2 - index 0 and index 1
 #define DISPLAY_UPPER_STR_23    33 // IK20250102 - send Display board a string to be shown on upper 5-digits 7-segments LED, position 3 and pos 4 - index 2 and index 3
@@ -196,8 +196,8 @@ extern float FirmwareVersion;     //Version 3.0
 #define DISPLAY_LOWER_STR_67    43 // IK20250103 - send Display board a string WITH DOTS to be shown on lower 4-symbols 14-segments LED, positions 7 & 8, - index 6 and index 7
 
 
-#define DISPLAY_WRITE_TWI_ADR   DISPLAY_WRITE       // 0x40 = 64D
-#define TWI_ADR_WRITE_IO        IO_WRITE            // 0x82 = 130D
+//#define DISPLAY_WRITE_ADR   DISPLAY_WRITE_ADR       // 0x40 = 64D
+//#define IO_WRITE_ADR        IO_WRITE_ADR            // 0x82 = 130D
 
 #define ADC_EXTRA_ANALOG_CH     TWI_EXTRA_ANALOG_CH // = 7   //-!- IK20240319 who is setting it? if (measurement_ID == TWI_EXT_ANALOG)
 #define ADC_SETUP               TWI_SETUP_ADC       // = 8   // setting multiplexer and waiting timer.ADC_ms
@@ -841,14 +841,14 @@ enum RS485_CMD_RCVd_Status
 /*---------  Board Addresses --------*/
 enum Board_Addresses
 {
-	ALARM_WRITE = 0x10,		// Write address of relay board, used only in main() to send relay states to relay board
-	ALARM_READ = 0x11,		// Read address of relay board, returns AC_lost. Also, Send TWI stuff to keep other boards from timing out and resetting
-	DISPLAY_WRITE = 0x40,	// IK20241226 used only in main() to send something to Display board
-	DISPLAY_READ = 0x41,	// IK20241226 used after TWI_Write(DISPLAY_WRITE,xxxx
-	IO_WRITE = 0x82,		// IK20250417 used to set up analog switch and change transfer function of voltage ripple preamp for 1 Phase (Off) or 3 Phase (On)
-	IO_READ = 0x83,			// IK20240122 Display board does not communicate with Relay board
-	A_TO_D_WRITE = 0xD0,	// used in Measure() -> TWI_Write(A_TO_D_WRITE, 0x88, NULL_BYTE, NULL_BYTE);     //15sps for 16 bits
-	A_TO_D_READ = 0xD1,		// used in Measure() -> TWI_Read(A_TO_D_READ);
+	RELAY_WRITE_ADR = 0x10,		// Write address of relay board, used only in main() to send relay states to relay board
+	RELAY_READ_ADR = 0x11,		// Read address of relay board, returns AC_lost. Also, Send TWI stuff to keep other boards from timing out and resetting
+	DISPLAY_WRITE_ADR = 0x40,	// IK20241226 used only in main() to send something to Display board
+	DISPLAY_READ_ADR = 0x41,	// IK20241226 used after TWI_Write(DISPLAY_WRITE_ADR,xxxx
+	IO_WRITE_ADR = 0x82,		// IK20250417 used to set up analog switch and change transfer function of voltage ripple preamp for 1 Phase (Off) or 3 Phase (On)
+	IO_READ_ADR = 0x83,			// IK20240122 Display board does not communicate with Relay board
+	ADC_WRITE_ADR = 0xD0,		// used in Measure() -> TWI_Write(ADC_WRITE_ADR, 0x88, NULL_BYTE, NULL_BYTE);     //15sps for 16 bits
+	ADC_READ_ADR = 0xD1,		// used in Measure() -> TWI_Read(ADC_READ_ADR);
 };
 
 /*---------  TWI RCV'd Bytes --------*/
