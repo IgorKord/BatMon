@@ -1,3 +1,11 @@
+20260714
+todo:
+1. implement TWI_RESTART_CMD to restart relay and display boards
+2. create command to read relay board firmware version
+3. create command to read display board firmware version
+4. create or modify command to read relay board status
+5. create or modify command to set relay board relays and LEDs
+
 20260624 debugging export/import.
 UBRR0L = 0x10 default fot 115200, UART in double speed mode
 0x0F: BM accepts comand (vers) but BM output on PC shown corrupted

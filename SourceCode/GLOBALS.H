@@ -176,7 +176,7 @@ extern float FirmwareVersion;     //Version 3.0
 #define TWI_MSG_DISPLAY_BAUD    16 // used in CommBoard
 #define TWI_MSG_COMM_ADDRESS    17 // if (send_type == TWI_COMM_ADDRESS) { ... TWI_Write(DISPLAY_WRITE_ADR, TWI_COMM_ADDRESS, tmp_byte, meter_address);
 
-#define RESTART_CMD             19 // not used in CommBoard
+#define TWI_RESTART_CMD         19 // not used in CommBoard
 #define SEND_TWI_ALARMS         TWI_ALARMS
 //#define SEND_TWI_ALARMS2        1
 
