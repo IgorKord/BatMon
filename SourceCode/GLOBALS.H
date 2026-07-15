@@ -8,7 +8,7 @@
 * Last Saved Revision $Author:  $
 *
 * Original Author:  Igor Kordunsky
-* Date: 18-Jan-2024
+* Date: 18-July-2024
 *
 * File Description: All global variables, macros and function definitions
 *
@@ -225,6 +225,7 @@ extern float FirmwareVersion;     //Version 3.0
 
 #define  If_int16_is_negative(var)   if (var & 0x8000)   //check to see if negative number
 
+#define TWI_SET_RELAY_K1_BIT	Bit_12	// 0x1000 send to Relay board relay status in Display_Info.Relay_status, bit 12 = K1, bit 13 = K2, bit 14 = K3, bit 15 = K4
 
 // define only one option!
 // #define  GENERIC		// all variants customized by settings
@@ -354,10 +355,6 @@ typedef unsigned int        uint16;
 typedef int                  int16;
 #endif
 
-//typedef const char * const  ConstStrPtrConst; //this line causes compiler to create wrong code, when menu does not select names.
-// Int16 -32768....+32767
-
-
 #ifndef NO_EXT_VAR // all extern definitions
   #define EXT_VAR extern
 #else
@@ -419,14 +416,12 @@ typedef int                  int16;
 
 //IK20231205 moved 'literals' from "main.c"
 #define INCREMENT           1
-#define DECREMENT           -1
+#define DECREMENT          -1
 #define FALSE               0
 #define TRUE                1
 #define false               0
 #define true                1
 #define NULL_BYTE           0
-//#define OK                  1
-//#define NOT_OK              0
 #define GREEN               1
 #define RED                 2
 #define NONE                0
@@ -434,40 +429,16 @@ typedef int                  int16;
 #define ODD                 2
 #define ON                  1
 #define OFF                 0
-//#define INACTIVE            0
-//#define ACTIVE              1
-//#define ENABLED             1
-//#define DISABLED            0
 #define I420calibUNLOCKED   0	// this state is checked: if (I420_calibr_lock == I420calibUNLOCKED)
 #define I420calibLOCKED     1	// this state is set during calibration
 #define ModBusGOOD          1
 #define ModBusBAD           0
-//#define FAILED              0 // not used in ATMEL, but defined in VS and causes compilation error
-//#define PASSED              1
-//#define NOT_READ            5
-//#define READ_DONE           6
-//#define READY               6
-//#define NOT_READY           5
-//#define CLEAR               0
 #define BTN_PRESSED			1	//IK20251230 need for PC simulation: case WM_LBUTTONDOWN: >>>> Display_Info.ButtonStateChanged = BTN_PRESSED;
 #define BTN_RELEASED		2	//IK20251230 need for PC simulation: case WM_LBUTTONDBLCLK: >>>> Display_Info.ButtonStateChanged = BTN_RELEASED;
 #define SET		1
 #define CLR		0
 #define CaRet               0x0D // === '\r' IK20230601 replaced CR with CaRet because Visual Studio C has this defined and redefinition causes errors
 #define LF                  0x0A // === '\n'
-//#define RESTART_MONITOR     0x99
-
-//#define OCTET_DATA          0x17
-//#define TWO_OCTET_DATA      0x28
-//#define DLL_NUM_OF_RETRIES  2
-//#define RECEIVED            0x33
-//#define NOT_RECEIVED        0x66
-//#define APP_ERROR           1
-//#define ADDR_CLR            0
-//#define ALL_CALL            1
-//#define MY_ADDR             2
-//#define NO_POINT            255
-//#define CENTER              0
 
 #define FULL_SNAPSHOT       TRUE
 #define BRIF_SNAPSHOT       FALSE
@@ -558,7 +529,6 @@ typedef int                  int16;
 
 #define DISP_BRD_I_CAL_MODE (DISP_STATE_LOmA_BIT | DISP_STATE_HImA_BIT)
 #define DISP_BRD_CAL_MODE   (DISP_BRD_I_CAL_MODE | DISP_STATE_VoltCal_BIT)
-
 
 
 // used with 'relay_board_status' and 'disabled_alarms'

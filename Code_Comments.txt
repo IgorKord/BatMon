@@ -1,3 +1,6 @@
+20260715 in process:
+5. created function to set relay board relays and LEDs based on bit matrix
+
 20260714
 todo:
 1. implement TWI_RESTART_CMD to restart relay and display boards

@@ -1019,7 +1019,12 @@ void Excitation_Pulse(void)
 }
 
 /*************************************************************/
-// Alarm set/get: 'alarm rv>enab', 'alarm rv>disa'; 'alarm ri>enab', 'alarm ri>disa'; 'alarm ac>enab', 'alarm ac>disa'; 'alarm hz>enab', 'alarm hz>disa'
+
+/// <summary>
+/// Set or get the status of alarms, disabled when bit is set in SysData.NV_UI.disabled_alarms, enabled when bit is cleared. 
+/// Alarm set/get: 'alarm rv>enab', 'alarm rv>disa'; 'alarm ri>enab', 'alarm ri>disa'; 'alarm ac>enab', 'alarm ac>disa'; 'alarm hz>enab', 'alarm hz>disa'
+/// </summary>
+/// <param name=""></param>
 void SetGetAlarm(void)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
@@ -1031,33 +1036,33 @@ void SetGetAlarm(void)
 		if (alarm_type == ((' ' + 256 * 'r') + ('v' + 256 * '>') * 65536))
 		{
 			if (param == (('e' + 256 * 'n') + ('a' + 256 * 'b') * 65536))
-				setBit(Display_Info.alarm_status, Alarm_Ripple_Voltage_Bit);
+				clearBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Voltage_Bit);
 			else if (param == (('d' + 256 * 'i') + ('s' + 256 * 'a') * 65536))
-				clearBit(Display_Info.alarm_status, Alarm_Ripple_Voltage_Bit);
+				setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Voltage_Bit);
 			else goto Exception;
 		}
 		else if (alarm_type == ((' ' + 256 * 'r') + ('i' + 256 * '>') * 65536))
 		{
 			if (param == (('e' + 256 * 'n') + ('a' + 256 * 'b') * 65536))
-				setBit(Display_Info.alarm_status, Alarm_Ripple_Current_Bit);
+				clearBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Current_Bit);
 			else if (param == (('d' + 256 * 'i') + ('s' + 256 * 'a') * 65536))
-				clearBit(Display_Info.alarm_status, Alarm_Ripple_Current_Bit);
+				setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Current_Bit);
 			else goto Exception;
 		}
 		else if (alarm_type == ((' ' + 256 * 'a') + ('c' + 256 * '>') * 65536))
 		{
 			if (param == (('e' + 256 * 'n') + ('a' + 256 * 'b') * 65536))
-				setBit(Display_Info.alarm_status, Alarm_AC_Loss_Bit);
+				clearBit(SysData.NV_UI.disabled_alarms, Alarm_AC_Loss_Bit);
 			else if (param == (('d' + 256 * 'i') + ('s' + 256 * 'a') * 65536))
-				clearBit(Display_Info.alarm_status, Alarm_AC_Loss_Bit);
+				setBit(SysData.NV_UI.disabled_alarms, Alarm_AC_Loss_Bit);
 			else goto Exception;
 		}
 		else if (alarm_type == ((' ' + 256 * 'h') + ('z' + 256 * '>') * 65536))
 		{
 			if (param == (('e' + 256 * 'n') + ('a' + 256 * 'b') * 65536))
-				setBit(Display_Info.alarm_status, Alarm_High_Impedance_Bit);
+				clearBit(SysData.NV_UI.disabled_alarms, Alarm_High_Impedance_Bit);
 			else if (param == (('d' + 256 * 'i') + ('s' + 256 * 'a') * 65536))
-				clearBit(Display_Info.alarm_status, Alarm_High_Impedance_Bit);
+				setBit(SysData.NV_UI.disabled_alarms, Alarm_High_Impedance_Bit);
 			else goto Exception;
 		}
 		else Send_RCI_Param_Error_as_FlashConst("rv ri ac hz enab disa only");
@@ -1074,9 +1079,9 @@ void SetGetAlarm(void)
 			//if (alarm_status & Alarm_Ripple_Voltage_Bit) {//
 			//cputs("rv>");
 			printf("%s", (char*)&alarm_type[ctr][0]);
-			if (Display_Info.alarm_status & alarm_bit[ctr])
-				cputs("enabled");
-			else cputs("disabled");
+			if (SysData.NV_UI.disabled_alarms & alarm_bit[ctr])
+				cputs("disabled");
+			else cputs("enabled");
 			Send_verbose_comment_as_FlashConst("Current status not EEPROM-saved");
 			if (ctr < 3) PrintNewLine();
 		}

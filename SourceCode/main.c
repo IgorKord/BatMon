@@ -4576,6 +4576,65 @@ void main(void)
 	}
 } // main() end
 
+// IK20260715 alarm bits to relays mapping look up table
+// Inputs: 9 alarm bits 0-8 (potentially up to 16), 
+// Outputs: relay bits 0-3, each relay can be mapped to any alarm bit
+#define BVH		Alarm_BatVoltageHIGH_Bit	// Bit_0 
+#define BVL		Alarm_BatVoltageLOW_Bit		// Bit_1 
+#define PGF		Alarm_PlusGND_FAULT_Bit		// Bit_2 
+#define MGF		Alarm_MinusGND_FAULT_Bit	// Bit_3 
+#define RVH		Alarm_Ripple_Voltage_Bit	// Bit_4 
+#define RCL		Alarm_Ripple_Current_Bit	// Bit_5 
+#define ACL		Alarm_AC_Loss_Bit			// Bit_6 
+#define HIZ		Alarm_High_Impedance_Bit	// Bit_7 
+#define BCL		Alarm_BatVoltCRITICAL_Bit	// Bit_8 
+//uint8 Relay_mapping[4][NUM_ALARMS] =  
+//{
+//// alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ, BCL
+//	/* K1 */	0,	0,	1,	0,	0,	0,	0,	0,	0,	// Relay 1 (K1) maps to Alarm_PlusGND_FAULT_Bit (PGF)
+//	/* K2 */	0,	0,	0,	1,	0,	0,	0,	0,	0,	// Relay 2 (K2) maps to Alarm_MinusGND_FAULT_Bit (MGF)
+//	/* K3 */	1,	0,	0,	0,	0,	0,	0,	0,	0,	// Relay 3 (K3) maps to Alarm_BatVoltageHIGH_Bit (BVH)
+//	/* K4 */	0,	0,	0,	0,	1,	1,	0,	1,	0,	// Relay 4 (K4) maps to RVV, RIV, HIZ alarms (RVH,RCL,HIZ)
+//};
+uint16 Relay_MASK[4] =  
+{
+// alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ, BCL
+	/* K1*/(0|	0|	0|PGF|	0|	0|	0|	0|	0|	0),	// Relay 1 (K1) maps to Alarm_PlusGND_FAULT_Bit (PGF)
+	/* K2*/(0|	0|	0|	0|MGF|	0|	0|	0|	0|	0),	// Relay 2 (K2) maps to Alarm_MinusGND_FAULT_Bit (MGF)
+	/* K3*/(0|BVH|	0|	0|	0|	0|	0|	0|	0|	0),	// Relay 3 (K3) maps to Alarm_BatVoltageHIGH_Bit (BVH)
+	/* K4*/(0|	0|	0|	0|	0|RVH|RCL|	0|HIZ|	0)	// Relay 4 (K4) maps to RVV, RIV, HIZ alarms (RVH,RCL,HIZ)
+};
+
+//-!- IK20260715 need to add inversion, K4 is closed when there is no alarm, K1-K3 are open when there is no alarm
+uint8 Relay_invert[4] = { 0, 0, 0, 1 }; // K1-K3 are not inverted, K4 is inverted
+
+uint16 ExtLED_MASK[6] =  
+{
+// alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ, BCL
+	/* L0*/(0|	0|	0|PGF|	0|	0|	0|	0|	0|	0),	// ExtLED 0 maps to Alarm_PlusGND_FAULT_Bit (PGF)
+	/* L1*/(0|	0|	0|	0|MGF|	0|	0|	0|	0|	0),	// ExtLED 1 maps to Alarm_MinusGND_FAULT_Bit (MGF)
+	/* L2*/(0|BVH|	0|	0|	0|	0|	0|	0|	0|	0),	// ExtLED 2 maps to Alarm_BatVoltageHIGH_Bit (BVH)
+	/* L3*/(0|	0|BVL|	0|	0|	0|	0|	0|	0|	0),	// ExtLED 3 maps to Alarm_BatVoltageLOW_Bit (BVL)
+	/* L4*/(0|	0|	0|	0|	0|RVH|RCL|	0|HIZ|	0),	// ExtLED 4 maps to RVV, RIV, HIZ alarms (RVH,RCL,HIZ)
+	/* L5*/(0|	0|	0|	0|	0|	0|	0|ACL|	0|	0),	// ExtLED 5 maps to Alarm_AC_Loss_Bit (ACL)
+};
+
+void Create_Relay_Brd_setting(void) {
+	uint8 Relay_byte = 0;
+	uint8 LED_byte = 0;
+	uint8 out_index;
+	for (out_index = 0; out_index < 6; out_index++) {
+		if (Display_Info.alarm_status & ExtLED_MASK[out_index]) LED_byte |= (1 << out_index);
+	}
+	for (out_index = 0; out_index < 4; out_index++) {
+		if (Display_Info.alarm_status & Relay_MASK[out_index]) Relay_byte |= (1 << out_index);
+	}
+	for (out_index = 0; out_index < 4; out_index++) {
+		if (Relay_invert[out_index]) Relay_byte ^= (1 << out_index);
+	}
+	Display_Info.Relays_state = Relay_byte;
+	Display_Info.ExtLED_state = LED_byte;
+}
 
 
 extern void Do_Front_menu(void);
