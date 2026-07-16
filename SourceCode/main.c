@@ -4576,18 +4576,6 @@ void main(void)
 	}
 } // main() end
 
-// IK20260715 alarm bits to relays mapping look up table
-// Inputs: 9 alarm bits 0-8 (potentially up to 16), 
-// Outputs: relay bits 0-3, each relay can be mapped to any alarm bit
-#define BVH		Alarm_BatVoltageHIGH_Bit	// Bit_0 
-#define BVL		Alarm_BatVoltageLOW_Bit		// Bit_1 
-#define PGF		Alarm_PlusGND_FAULT_Bit		// Bit_2 
-#define MGF		Alarm_MinusGND_FAULT_Bit	// Bit_3 
-#define RVH		Alarm_Ripple_Voltage_Bit	// Bit_4 
-#define RCL		Alarm_Ripple_Current_Bit	// Bit_5 
-#define ACL		Alarm_AC_Loss_Bit			// Bit_6 
-#define HIZ		Alarm_High_Impedance_Bit	// Bit_7 
-#define BCL		Alarm_BatVoltCRITICAL_Bit	// Bit_8 
 //uint8 Relay_mapping[4][NUM_ALARMS] =  
 //{
 //// alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ, BCL
@@ -4624,10 +4612,10 @@ void Create_Relay_Brd_setting(void) {
 	uint8 LED_byte = 0;
 	uint8 out_index;
 	for (out_index = 0; out_index < 6; out_index++) {
-		if (Display_Info.alarm_status & ExtLED_MASK[out_index]) LED_byte |= (1 << out_index);
+		if (Display_Info.alarm_status & SysData.ExtLED_MASK[out_index]) LED_byte |= (1 << out_index);
 	}
 	for (out_index = 0; out_index < 4; out_index++) {
-		if (Display_Info.alarm_status & Relay_MASK[out_index]) Relay_byte |= (1 << out_index);
+		if (Display_Info.alarm_status & SysData.Relay_MASK[out_index]) Relay_byte |= (1 << out_index);
 	}
 	for (out_index = 0; out_index < 4; out_index++) {
 		if (Relay_invert[out_index]) Relay_byte ^= (1 << out_index);

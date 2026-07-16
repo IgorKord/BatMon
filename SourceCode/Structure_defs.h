@@ -88,29 +88,30 @@ typedef struct                      // this structure must be initialized, DO NO
 	float ripple_I_threshold_mA_f;	// 0x014 ripple current in mAmperes, menu changes value by 1 mA increments/decrements
 	float alarm_delay_sec_f;		// 0x018 grace period delay from event is triggered until alarm is set, menu changes value by 1 sec increments/decrements
 	float meter_address;			// 0x020 battery monitor address, menu changes value by 1 increment/decrement. If hold longer, changes by 10, even longer - by 100
-	float baud_rate;				// 0x01C baud rate, default is Baud_19200. //IK20250826 included 115200, thus, need Uint32, menu changes value based on a list of possible baud rates
+	float baud_rate;				// 0x024 baud rate, default is Baud_19200. //IK20250826 included 115200, thus, need Uint32, menu changes value based on a list of possible baud rates
 	Schar  BRate_index;				// IK202601714 index of baud rate in Baud_Rates[] array, used to set SysData.NV_UI.baud_rate and Existing.baud_rate. if -1, (negative), it is 0xFF -unprogrammed EEPROM
-	uint8  StartUpProtocol;			// 0x024 only valid values:    SETUP = 0x00,	DNP3 = 0x01,	MODBUS = 0x02,	ASCII_CMDS = 0x03,	ASCII_MENU = 0x04
-	uint8  unit_type;				// 0x026 only valid values 24, 48, 125, 250
-	uint8  unit_index;				// 0x027 corresponds to unit_type, range (0...3), used to access array Alarm_Limits[]
-	uint16 host_address;			// 0x028 host address, not changed during operation
-	uint16 disabled_alarms;			// 0x02A the bit == 1 disables a partcular alarm, Two bytes to include Last Gasp bit 8
-	uint16 V4;						// 0x02C  4 mA voltage point (Voltage when current loop produces 4 mA or 0 mA)
-	uint16 V20;						// 0x02E 20 ma voltage point (Voltage when current loop produces 20 mA or 1 mA)
-	uint16 SavedStatusWord;			// 0x030 non-volatile user-chosen saved states as bits: buzzer on/off, latch on/off, 1 or 3 phase, current output I01 or I420
-	uint8  modbus_first_reg;		// IK2025501 added Modbus starting register to fix problem when first register becomes 3 when it should be 0 or 1
+	uint8  StartUpProtocol;			// 0x028 only valid values:    SETUP = 0x00,	DNP3 = 0x01,	MODBUS = 0x02,	ASCII_CMDS = 0x03,	ASCII_MENU = 0x04
+	uint8  unit_type;				// 0x02A only valid values 24, 48, 125, 250
+	uint8  unit_index;				// 0x02B corresponds to unit_type, range (0...3), used to access array Alarm_Limits[]
+	uint16 host_address;			// 0x02C host address, not changed during operation
+	uint16 disabled_alarms;			// 0x02E the bit == 1 disables a partcular alarm, Two bytes to include Last Gasp bit 8
+	uint16 V4;						// 0x030  4 mA voltage point (Voltage when current loop produces 4 mA or 0 mA)
+	uint16 V20;						// 0x032 20 ma voltage point (Voltage when current loop produces 20 mA or 1 mA)
+	uint16 SavedStatusWord;			// 0x034 non-volatile user-chosen saved states as bits: buzzer on/off, latch on/off, 1 or 3 phase, current output I01 or I420
+	uint8  modbus_first_reg;		// 0x036 IK2025501 added Modbus starting register to fix problem when first register becomes 3 when it should be 0 or 1
 	//uint8  buzzer;				// REPLACED with bit in SavedStatusWord, indicates whether buzzer is on or off
 	//uint8  phase;					// REPLACED with bit in SavedStatusWord, dealing with ripple created by battery charger type. =1 for single phase charger (120 Hz ripple), =3 for three phase charger (360 Hz ripple)
 	//uint8  latch_state;			// REPLACED with bit in SavedStatusWord, whether or not latch on some event or when condition clears, restore normal operation
 	//uint8  true_1mA_false_20mA;	// REPLACED with bit in SavedStatusWord, type of current output: 1 mA or 20 mA, used in CurrentOut_I420 calibration
-}SettingsStruct;
+	uint8  extra_bytes[9];			// 0x037  9 // future use
+}SettingsStruct;	// sizeof = 0x040 = 64 bytes, 0x00 to 0x03F
 
 // using pointer to Calibr2points to access members directly by name: float param = BatteryVolts.Y1_lowCalibrVal; param = BatteryVolts.Y2_highCalibrVal
 // using pointer to Calibration to access members as array: float param = ((CalPtr)BatteryVolts)->Coord[1]; param = ((CalPtr)BatteryVolts->Coord[3];
 
 typedef struct 	//size of SysData should be less, than 2048 - size of EEPROM block
 {
-									// adr    offset size
+									//address size
 	uint16 Data_Valid;				// 0x000  2  // should not be FF
 #define DATA_VALID_OFFSET       0
 	uint16 FWversion;				// 0x002  2  // FW version, 0030
@@ -137,12 +138,14 @@ typedef struct 	//size of SysData should be less, than 2048 - size of EEPROM blo
 	Calibr2points RippleCurr1ph;	// 0x080  16 // Y1 X1 Y2 X2 single phase ripple current calibration
 	Calibr2points RippleCurr3ph;	// 0x090  16 // Y1 X1 Y2 X2 three phase ripple current calibration
 	Calibr2points CurrentOut_I420;	// 0x0A0  16 // NU X1 NU X2 current loop calibration, value in PWM register to get 4 mA or 20 mA
-	SettingsStruct   NV_UI;			// 0x0B0 // Non Volatile User Interface settings controlled by user
-	float Bat_Cal_Offset_Volts_f;	// 0x0C0  4 IK20251029 offset rarely changes, only by user from front panel CALibration menu. Typically, operator with sertified calibrated meter measures battery voltage and adjusts offset to match displayed voltage to his meter.
-#define EXTRA_FLOATS_NUM			4
-	float extra_floats[EXTRA_FLOATS_NUM];	// 0x0C4  4*EXTRA_FLOATS_NUM  // future use
-	//--- if EXTRA_FLOATS_NUM = 7 next address is  0x0E0
-}SYS_SPECIFIC_DATA;
+	SettingsStruct   NV_UI;			// 0x0B0  64 // Non Volatile User Interface settings controlled by user
+	float Bat_Cal_Offset_Volts_f;	// 0x0F0  4 IK20251029 offset rarely changes, only by user from front panel CALibration menu. 
+	//Typically, operator with sertified calibrated meter measures battery voltage and adjusts offset to match displayed voltage to his meter.
+#define EXTRA_FLOATS_NUM			3	//--- if EXTRA_FLOATS_NUM = 3 next address is  0x100
+	float extra_floats[EXTRA_FLOATS_NUM];	// 0xF4  3*EXTRA_FLOATS_NUM  // future use
+	uint16 Relay_MASK[4];			// 0x100  8  // relay control lookup table
+	uint16 ExtLED_MASK[6];			// 0x108  12 // external LED control lookup table
+}SYS_SPECIFIC_DATA; // sizeof = 0x114 = 276 bytes, 0x000 to 0x113
 extern SYS_SPECIFIC_DATA SysData; //IK20250620 defined in main.c
 
 #ifdef PC
@@ -194,6 +197,19 @@ extern __eeprom  SYS_SPECIFIC_DATA EEPROM_SysData;// located in EEPROM @ EE_SYS_
 #define SendRealTimeData_eq1_Bit        Bit_14	// 0x4000  Set this bit in ASCII_CMDS mode to periodically send into to serial port
 //#define Command_Executing_eq1_Bit       Bit_14	// 0x4000  Set this bit if command needs time to run and not finishing immediately
 #define EE_DATA_0_NO_DATA_1_Bit         Bit_15	// 0x8000 in rt.OperStatusWord. If EEPROM has no valid data after upgrade, status LED will blink yellow
+
+// IK20260715 alarm bits to relays mapping look up table
+// Inputs: 9 alarm bits 0-8 (potentially up to 16), 
+// Outputs: relay bits 0-3, each relay can be mapped to any alarm bit
+#define BVH		Alarm_BatVoltageHIGH_Bit	// Bit_0
+#define BVL		Alarm_BatVoltageLOW_Bit		// Bit_1
+#define PGF		Alarm_PlusGND_FAULT_Bit		// Bit_2
+#define MGF		Alarm_MinusGND_FAULT_Bit	// Bit_3
+#define RVH		Alarm_Ripple_Voltage_Bit	// Bit_4
+#define RCL		Alarm_Ripple_Current_Bit	// Bit_5
+#define ACL		Alarm_AC_Loss_Bit			// Bit_6
+#define HIZ		Alarm_High_Impedance_Bit	// Bit_7
+#define BCL		Alarm_BatVoltCRITICAL_Bit	// Bit_8
 
 
 #define   CharAvailableFlag             Bit_0	// maybe make it as a whole lower byte, use add instead of set, process chars subtracting it until it is zero

@@ -1090,6 +1090,83 @@ void SetGetAlarm(void)
 Exception:
 	Send_RCI_Param_Error_as_FlashConst("rv ri ac hz enab disa only");
 }
+/// <summary>
+/// Relays set/get: 'Relay? returns Set command syntax 'relay=H' in hexadecimal format. Setting in flash is updated after 'save' command.
+/// relay? returns current state of relays: relay=H.
+/// relay=H changes state of relays, where H is a hexadecimal value representing the state of four relays. 
+/// Each bit in H corresponds to a relay, with 1 indicating the relay is on and 0 indicating it is off. 
+/// The changes will be sent to relay board via TWI and take effect immediately but can be overwritten if alarm condition persists.
+/// relay#=XXXX sets lookup table for relay control, where # is the relay number (1-4) and XXXX is a 16-bit hexadecimal value representing 
+/// the conditions under which the relay should be activated; command changes uint16 Relay_MASK[4].
+/// based on alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ,BCL defined in structure_defs.h, 
+/// the relay control logic can be configured to activate relays based on specific alarm conditions.
+/// </summary>
+/// <param name=""></param>
+void SetGetRelays(void)
+{
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	Uint32 alarm_type = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //starting at 5 bytes after command
+	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 5]); //starting at 5 bytes after command
+
+	if (temp_Inp_str[CMD_LEN + 4] == '>')
+	{
+		if (alarm_type == ((' ' + 256 * 'r') + ('v' + 256 * '>') * 65536))
+		{
+			if (param == (('e' + 256 * 'n') + ('a' + 256 * 'b') * 65536))
+				clearBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Voltage_Bit);
+			else if (param == (('d' + 256 * 'i') + ('s' + 256 * 'a') * 65536))
+				setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Voltage_Bit);
+			else goto Exception;
+		}
+		else if (alarm_type == ((' ' + 256 * 'r') + ('i' + 256 * '>') * 65536))
+		{
+			if (param == (('e' + 256 * 'n') + ('a' + 256 * 'b') * 65536))
+				clearBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Current_Bit);
+			else if (param == (('d' + 256 * 'i') + ('s' + 256 * 'a') * 65536))
+				setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Current_Bit);
+			else goto Exception;
+		}
+		else if (alarm_type == ((' ' + 256 * 'a') + ('c' + 256 * '>') * 65536))
+		{
+			if (param == (('e' + 256 * 'n') + ('a' + 256 * 'b') * 65536))
+				clearBit(SysData.NV_UI.disabled_alarms, Alarm_AC_Loss_Bit);
+			else if (param == (('d' + 256 * 'i') + ('s' + 256 * 'a') * 65536))
+				setBit(SysData.NV_UI.disabled_alarms, Alarm_AC_Loss_Bit);
+			else goto Exception;
+		}
+		else if (alarm_type == ((' ' + 256 * 'h') + ('z' + 256 * '>') * 65536))
+		{
+			if (param == (('e' + 256 * 'n') + ('a' + 256 * 'b') * 65536))
+				clearBit(SysData.NV_UI.disabled_alarms, Alarm_High_Impedance_Bit);
+			else if (param == (('d' + 256 * 'i') + ('s' + 256 * 'a') * 65536))
+				setBit(SysData.NV_UI.disabled_alarms, Alarm_High_Impedance_Bit);
+			else goto Exception;
+		}
+		else Send_RCI_Param_Error_as_FlashConst("rv ri ac hz enab disa only");
+	}
+	else // ? -- get command
+	{
+		int ctr;
+		char alarm_type[4][4] = { "rv>", "ri>", "ac>", "hz>" };
+		int alarm_bit[4] = { Alarm_Ripple_Voltage_Bit, Alarm_Ripple_Current_Bit, Alarm_AC_Loss_Bit, Alarm_High_Impedance_Bit };
+		for (ctr = 0; ctr <= 3; ctr++)
+		{
+			Put_CMD_as_chars(); //this prints "alar"
+			PutTwoChars(256 * 'm' + ' ');// this prints "m "; so output is "alarm "
+			//if (alarm_status & Alarm_Ripple_Voltage_Bit) {//
+			//cputs("rv>");
+			printf("%s", (char*)&alarm_type[ctr][0]);
+			if (SysData.NV_UI.disabled_alarms & alarm_bit[ctr])
+				cputs("disabled");
+			else cputs("enabled");
+			Send_verbose_comment_as_FlashConst("Current status not EEPROM-saved");
+			if (ctr < 3) PrintNewLine();
+		}
+	}
+	return;
+Exception:
+	Send_RCI_Param_Error_as_FlashConst("rv ri ac hz enab disa only");
+}
 
 void SetGetStatus(uint16 Status_bit)
 {
@@ -1916,6 +1993,7 @@ const t_rci_commands rci[] =
 														// Set / Get one-phase (120 Hz) or 3-phase (360 Hz) charger. Calibration parameters have 2 sets for 120 or 360 Hz
 	/*+*/	"alar",		(void*)&SetGetAlarm,			// Alarm set/get: 'alarm rv>enab', 'alarm rv>disa'; 'alarm ri>enab', 'alarm ri>disa'; 'alarm ac>enab', 'alarm ac>disa'; 'alarm hz>enab', 'alarm hz>disa'
 	/*+*/	"dela",		(void*)&SetGetDelay,			// Delay set/get: 'delay? returns Set command syntax 'delay=XX.X' in seconds. Setting in flash is updated after 'save' command.
+	/*+*/	"rela",		(void*)&SetGetRelays,			// Relays set/get: 'Relay? returns Set command syntax 'relay=H' in hexadecimal format. Setting in flash is updated after 'save' command.
 	/*+*/	"buzz",		(void*)&SetGetBuzzer,			// Buzzer set/get: 'buzz>on', 'buzz>off' - set right now; 'buzz>enab', 'buzz>disa' - set/get setting in flash after 'save' command.
 	/*+*/	"latc",		(void*)&SetGetLatch,			// Get 'latc[h?]' returns Set command syntax 'latch>enab', 'latch>disa'. Setting in flash is updated after 'save' command.
 
