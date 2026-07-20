@@ -1,3 +1,6 @@
+20260720 created"relay" command to set/get either relay state "relay=H" or "relay?" 
+or set relay mask "relay#=XXXX" or  "relay#?" to get relay mask
+
 20260715 in process:
 5. created function to set relay board relays and LEDs based on bit matrix
 

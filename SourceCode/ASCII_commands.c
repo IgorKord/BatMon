@@ -1105,67 +1105,50 @@ Exception:
 void SetGetRelays(void)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
-	Uint32 alarm_type = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //starting at 5 bytes after command
-	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 5]); //starting at 5 bytes after command
-
-	if (temp_Inp_str[CMD_LEN + 4] == '>')
+	int relay_num = temp_Inp_str[CMD_LEN + 1] - '0'; //fifth byte after command,the "#"; covert to integer 1-4 for relay number
+	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 3]); // relay setting starting at 7th byte
+	if (temp_Inp_str[CMD_LEN + 1] == '?') // relay? returns current state of relays: relay=H.
 	{
-		if (alarm_type == ((' ' + 256 * 'r') + ('v' + 256 * '>') * 65536))
-		{
-			if (param == (('e' + 256 * 'n') + ('a' + 256 * 'b') * 65536))
-				clearBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Voltage_Bit);
-			else if (param == (('d' + 256 * 'i') + ('s' + 256 * 'a') * 65536))
-				setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Voltage_Bit);
-			else goto Exception;
-		}
-		else if (alarm_type == ((' ' + 256 * 'r') + ('i' + 256 * '>') * 65536))
-		{
-			if (param == (('e' + 256 * 'n') + ('a' + 256 * 'b') * 65536))
-				clearBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Current_Bit);
-			else if (param == (('d' + 256 * 'i') + ('s' + 256 * 'a') * 65536))
-				setBit(SysData.NV_UI.disabled_alarms, Alarm_Ripple_Current_Bit);
-			else goto Exception;
-		}
-		else if (alarm_type == ((' ' + 256 * 'a') + ('c' + 256 * '>') * 65536))
-		{
-			if (param == (('e' + 256 * 'n') + ('a' + 256 * 'b') * 65536))
-				clearBit(SysData.NV_UI.disabled_alarms, Alarm_AC_Loss_Bit);
-			else if (param == (('d' + 256 * 'i') + ('s' + 256 * 'a') * 65536))
-				setBit(SysData.NV_UI.disabled_alarms, Alarm_AC_Loss_Bit);
-			else goto Exception;
-		}
-		else if (alarm_type == ((' ' + 256 * 'h') + ('z' + 256 * '>') * 65536))
-		{
-			if (param == (('e' + 256 * 'n') + ('a' + 256 * 'b') * 65536))
-				clearBit(SysData.NV_UI.disabled_alarms, Alarm_High_Impedance_Bit);
-			else if (param == (('d' + 256 * 'i') + ('s' + 256 * 'a') * 65536))
-				setBit(SysData.NV_UI.disabled_alarms, Alarm_High_Impedance_Bit);
-			else goto Exception;
-		}
-		else Send_RCI_Param_Error_as_FlashConst("rv ri ac hz enab disa only");
+		Put_CMD_as_chars();
+		printf("y=%X", Display_Info.Relays_state); //return to PC "relay=H"
+		return;
 	}
-	else // ? -- get command
+	else if (temp_Inp_str[CMD_LEN + 1] == '=') // relay=H changes state of relays, where H is a hexadecimal value representing the state of four relays. 
 	{
-		int ctr;
-		char alarm_type[4][4] = { "rv>", "ri>", "ac>", "hz>" };
-		int alarm_bit[4] = { Alarm_Ripple_Voltage_Bit, Alarm_Ripple_Current_Bit, Alarm_AC_Loss_Bit, Alarm_High_Impedance_Bit };
-		for (ctr = 0; ctr <= 3; ctr++)
+		char HexRstate = temp_Inp_str[CMD_LEN + 2];
+		int Rstate = ASCIIToHexChar(HexRstate);
+		if (Rstate < 0)// check if H is a valid hexadecimal digit (0-9, A-F)
 		{
-			Put_CMD_as_chars(); //this prints "alar"
-			PutTwoChars(256 * 'm' + ' ');// this prints "m "; so output is "alarm "
-			//if (alarm_status & Alarm_Ripple_Voltage_Bit) {//
-			//cputs("rv>");
-			printf("%s", (char*)&alarm_type[ctr][0]);
-			if (SysData.NV_UI.disabled_alarms & alarm_bit[ctr])
-				cputs("disabled");
-			else cputs("enabled");
-			Send_verbose_comment_as_FlashConst("Current status not EEPROM-saved");
-			if (ctr < 3) PrintNewLine();
+			Send_RCI_Param_Error_as_FlashConst("relay=H or relay?");
 		}
+		else
+		{
+			Display_Info.Relays_state = Rstate; //change state of relays, where H is a hexadecimal value representing the state of four relays.
+		}
+		return;
+	}
+	// Handle relay#=XXXX or relay#? commands
+	if (relay_num >= 1 && relay_num <= 4)
+	{
+		if (temp_Inp_str[CMD_LEN + 2] == '=') 
+		{
+			SysData.Relay_MASK[relay_num - 1] = param;
+		}
+		else if (temp_Inp_str[CMD_LEN + 2] == '?')
+		{
+			Put_CMD_as_chars();
+			printf("y%d=%04X", relay_num, SysData.Relay_MASK[relay_num - 1]); //relay#=XXXX
+		}
+		else
+		{
+			Send_RCI_Param_Error_as_FlashConst("relay#=XXXX or relay#?");
+		}
+	}
+	else
+	{
+		Send_RCI_Param_Error_as_FlashConst("range 1-4");
 	}
 	return;
-Exception:
-	Send_RCI_Param_Error_as_FlashConst("rv ri ac hz enab disa only");
 }
 
 void SetGetStatus(uint16 Status_bit)
