@@ -1096,17 +1096,11 @@ Exception:
 /// relays=H changes state of relays, where H is a hexadecimal value representing the state of four relays. 
 /// Each bit in H corresponds to a relay, with 1 indicating the relay is on and 0 indicating it is off. 
 /// The changes will be sent to relay board via TWI and take effect immediately but can be overwritten if alarm condition persists.
-/// relay#=XXXX sets lookup table for relay control, where # is the relay number (1-4) and XXXX is a 16-bit hexadecimal value representing 
-/// the conditions under which the relay should be activated; command changes uint16 Relay_MASK[4].
-/// based on alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ,BCL defined in structure_defs.h, 
-/// the relay control logic can be configured to activate relays based on specific alarm conditions.
 /// </summary>
 /// <param name=""></param>
 void SetGetRelays(void)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
-	int relay_num = temp_Inp_str[CMD_LEN + 1] - '0'; //fifth byte after command,the "#"; covert to integer 1-4 for relay number
-	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 3]); // relay setting starting at 7th byte
 	if (temp_Inp_str[CMD_LEN + 1] == 'S') {
 		if (temp_Inp_str[CMD_LEN + 2] != '=') // relays returns current state of relays: relays=H.
 		{
@@ -1129,10 +1123,24 @@ void SetGetRelays(void)
 			return;
 		}
 	}
-	// Handle relay#=XXXX or relay#? commands
+}
+
+/// <summary>
+/// rel#=XXXX sets lookup table for relay control, where # is the relay number (1-4) and XXXX is a 16-bit hexadecimal value representing 
+/// the conditions under which the relay should be activated; command changes uint16 Relay_MASK[4].
+/// based on alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ,BCL defined in structure_defs.h, 
+/// the relay control logic can be configured to activate relays based on specific alarm conditions.
+/// </summary>
+/// <param name=""></param>
+void SetGetRelayTriggers(void)
+{
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	int relay_num = temp_Inp_str[CMD_LEN + 1] - '0'; //fifth byte after command,the "#"; covert to integer 1-4 for relay number
+	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 3]); // relay setting starting at 7th byte
+	// Handle rel#=XXXX or rel#? commands
 	if (relay_num >= 1 && relay_num <= 4)
 	{
-		if (temp_Inp_str[CMD_LEN + 2] == '=') 
+		if (temp_Inp_str[CMD_LEN + 2] == '=')
 		{
 			SysData.Relay_MASK[relay_num - 1] = param;
 		}
@@ -1151,6 +1159,7 @@ void SetGetRelays(void)
 		Send_RCI_Param_Error_as_FlashConst("range 1-4");
 	}
 	return;
+
 }
 
 void SetGetExtLEDs() {
