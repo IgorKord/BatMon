@@ -267,7 +267,17 @@ extern HWND LedParent;
 #define LEDindx_ALARM	1
 #define LEDindx_TX_RX	2
 #define LEDindx_PULSE	3
+#ifdef PC
+#define LEDindx_EXT_PLS_GF	4  // External LED: +GND Fault
+#define LEDindx_EXT_MNS_GF	5  // External LED: -GND Fault
+#define LEDindx_EXT_HI_BAT	6  // External LED: High V bat
+#define LEDindx_EXT_LO_BAT	7  // External LED: Low V bat
+#define LEDindx_EXT_RI_RV_NZ	8  // External LED: RipI V HiZ
+#define LEDindx_EXT_AC_LOSS	9  // External LED: ACpwr Loss
+#define number_of_LEDs	10
+#else
 #define number_of_LEDs	4
+#endif
 
 extern HBRUSH* hbr_LEDcolor_ptr[number_of_LEDs];
 extern RECT* rect_LED[number_of_LEDs];
@@ -1093,7 +1103,7 @@ void SetCurrentLoopVoltagePoints();
 void Store_Event(uint8 EventType, uint8 PointState);
 void Parse_DNP_Msg(void);
 void Send_DNP_Msg(uint16 type);
-
+void Create_Relay_Board_setting(void);
 
 /* without redefining sprintf IAR gives warning
 	Warning[w6]: Type conflict for external/entry "SPRINT_F", in module "Front_menu" against external/entry in module "main" ; prototyped function vs K&R function   // In module Front_menu: //

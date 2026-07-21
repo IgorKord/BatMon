@@ -195,7 +195,7 @@ HBRUSH* hbr_LEDcolor_ptr[number_of_LEDs];
 //  colors array  pointers indexes      ColorOFF=0    ColorRED=1    ColorGREEN=2    ColorYELLOW=3
 HBRUSH* hbr_Color_ptr[Total_Colors] = { &hbr_LED_off, &hbr_LED_Red, &hbr_LED_Green, &hbr_LED_Yellow };
 
-#define FrontPanel_WIDTH	350	//nWidth The width, in device units, of the window.
+#define FrontPanel_WIDTH	465	// nWidth The width, in device units, of the window.
 #define FrontPanel_HEIGHT	370	// nHeight
 #define LED_size      14
 
@@ -216,11 +216,26 @@ HBRUSH* hbr_Color_ptr[Total_Colors] = { &hbr_LED_off, &hbr_LED_Red, &hbr_LED_Gre
 #define PULSE_LED_x2  (PULSE_LED_x1+LED_size)
 #define PULSE_LED_y2  (PULSE_LED_y1+LED_size)
 
+// External LEDs at X=144
+#define EXT_LED_BASE_x1  144
+#define EXT_PLS_GF_LED_y1  20
+#define EXT_MNS_GF_LED_y1  30
+#define EXT_HI_BAT_LED_y1  40
+#define EXT_LO_BAT_LED_y1  50
+#define EXT_RI_RV_NZ_LED_y1  60
+#define EXT_AC_LOSS_LED_y1  70
+#define EXT_LED_size  8
 
 RECT rctAutoLED = { AUTO_LED_x1, AUTO_LED_y1, AUTO_LED_x2, AUTO_LED_y2 };		// create Auto LED
 RECT rctAlarmLED = { ALARM_LED_x1, ALARM_LED_y1, ALARM_LED_x2, ALARM_LED_y2 };	// create Alarm LED
 RECT rctRxTxLED = { TX_RX_LED_x1, TX_RX_LED_y1, TX_RX_LED_x2, TX_RX_LED_y2 };	// create Tx/Rx LED
 RECT rctPulseLED = { PULSE_LED_x1, PULSE_LED_y1, PULSE_LED_x2, PULSE_LED_y2 };	// create Pulse LED
+RECT rctExtPlusGfLED = { EXT_LED_BASE_x1, EXT_PLS_GF_LED_y1, EXT_LED_BASE_x1+EXT_LED_size, EXT_PLS_GF_LED_y1+EXT_LED_size };
+RECT rctExtMinusGfLED = { EXT_LED_BASE_x1, EXT_MNS_GF_LED_y1, EXT_LED_BASE_x1+EXT_LED_size, EXT_MNS_GF_LED_y1+EXT_LED_size };
+RECT rctExtHiBatLED = { EXT_LED_BASE_x1, EXT_HI_BAT_LED_y1, EXT_LED_BASE_x1+EXT_LED_size, EXT_HI_BAT_LED_y1+EXT_LED_size };
+RECT rctExtLoBatLED = { EXT_LED_BASE_x1, EXT_LO_BAT_LED_y1, EXT_LED_BASE_x1+EXT_LED_size, EXT_LO_BAT_LED_y1+EXT_LED_size };
+RECT rctExtRiRvNzLED = { EXT_LED_BASE_x1, EXT_RI_RV_NZ_LED_y1, EXT_LED_BASE_x1+EXT_LED_size, EXT_RI_RV_NZ_LED_y1+EXT_LED_size };
+RECT rctExtAcLossLED = { EXT_LED_BASE_x1, EXT_AC_LOSS_LED_y1, EXT_LED_BASE_x1+EXT_LED_size, EXT_AC_LOSS_LED_y1+EXT_LED_size };
 //initialization: assign them in case WM_INITDIALOG:
 // to array of rectangles rect_LED
 RECT * rect_LED[number_of_LEDs]; // pointers to static rectangles
@@ -604,7 +619,11 @@ NumericState IsNumericGUI(const char* str)
 
 LRESULT CALLBACK EditBoxProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	switch (msg) {
-	case WM_CHAR:
+	case WM_GETDLGCODE:
+		// Tell Windows we want to handle the Enter key ourselves
+		return DLGC_WANTALLKEYS;
+
+	case WM_KEYDOWN:
 		if (wParam == VK_RETURN) {
 			char buf[64];
 			GetWindowText(hWnd, buf, sizeof(buf));
@@ -634,7 +653,40 @@ LRESULT CALLBACK EditBoxProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 					break;
 				}
 			}
-			return 0; // prevent ding
+			return 0; // prevent default dialog behavior
+		}
+		break;
+
+	case WM_KILLFOCUS:
+		// When user tabs away or clicks elsewhere, commit the value
+		{
+			char buf[64];
+			GetWindowText(hWnd, buf, sizeof(buf));
+
+			for (int i = 0; i < NUM_INPUT_FIELDS; i++) {
+				if (GetDlgItem(GetParent(hWnd), editControlIDs[i]) == hWnd) {
+					if (Is_Numeric(buf)) {
+						double value = atof(buf);
+						UserValue[i] = value;
+						inputState[i] = STATE_CONFIRMED;
+						// Convert back to string
+						char cleaned[64];
+						snprintf(cleaned, sizeof(cleaned), "%.10g", value);  // Compact format
+
+						// Avoid triggering EN_CHANGE
+						suppressChangeEvent = TRUE;
+						SetWindowText(hWnd, cleaned);
+						suppressChangeEvent = FALSE;
+
+						InvalidateRect(hWnd, NULL, TRUE);
+					}
+					else {
+						inputState[i] = STATE_INVALID;
+						InvalidateRect(hWnd, NULL, TRUE);
+					}
+					break;
+				}
+			}
 		}
 		break;
 	}
@@ -651,6 +703,8 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 {
 	static HBRUSH hbrBkcolor;
 	static HBRUSH hbrLEDcolor;
+	static HBRUSH hbrRelayOn;   // Red background for "ON"
+	static HBRUSH hbrRelayOff;  // Default background for "OFF"
 	static BOOL fDrawEllipse[4];   // TRUE if LED ellipse is drawn
 	char msg_str[50];
 	long CntrSnipValue;
@@ -674,6 +728,25 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 			for (int i = 0; i < number_of_LEDs; ++i) {
 				InvalidateRect(hDlg, rect_LED[i], FALSE);  // Repaint all LEDs
 			}
+			// Update external LED owner-draw controls
+			InvalidateRect(GetDlgItem(hDlg, IDC_EXT_LED_PLS_GF), NULL, FALSE);
+			InvalidateRect(GetDlgItem(hDlg, IDC_EXT_LED_MNS_GF), NULL, FALSE);
+			InvalidateRect(GetDlgItem(hDlg, IDC_EXT_LED_HI_BAT), NULL, FALSE);
+			InvalidateRect(GetDlgItem(hDlg, IDC_EXT_LED_LO_BAT), NULL, FALSE);
+			InvalidateRect(GetDlgItem(hDlg, IDC_EXT_LED_RI_RV_NZ), NULL, FALSE);
+			InvalidateRect(GetDlgItem(hDlg, IDC_EXT_LED_AC_LOSS), NULL, FALSE);
+
+			// Update relay status labels
+			SetDlgItemText(hDlg, IDC_RELAY_K1, (Display_Info.Relays_state & 0x01) ? "ON " : "OFF");
+			SetDlgItemText(hDlg, IDC_RELAY_K2, (Display_Info.Relays_state & 0x02) ? "ON " : "OFF");
+			SetDlgItemText(hDlg, IDC_RELAY_K3, (Display_Info.Relays_state & 0x04) ? "ON " : "OFF");
+			SetDlgItemText(hDlg, IDC_RELAY_K4, (Display_Info.Relays_state & 0x08) ? "ON " : "OFF");
+
+			// Force redraw to update background colors
+			InvalidateRect(GetDlgItem(hDlg, IDC_RELAY_K1), NULL, TRUE);
+			InvalidateRect(GetDlgItem(hDlg, IDC_RELAY_K2), NULL, TRUE);
+			InvalidateRect(GetDlgItem(hDlg, IDC_RELAY_K3), NULL, TRUE);
+			InvalidateRect(GetDlgItem(hDlg, IDC_RELAY_K4), NULL, TRUE);
 		}
 		// show holding button duration in real time
 		for (int i = 0; i <= BTN_INDEX_RESET; ++i)
@@ -722,6 +795,8 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 		LedParent = GetParent(hDlg);
 		SetTimer(hDlg, LED_UPDATE_TIMER_ID, LED_UPDATE_INTERVAL_MS, NULL); // 100ms timer
 		hbrBkcolor = CreateSolidBrush(RGB(255, 232, 232)); //pink
+		hbrRelayOn = CreateSolidBrush(RGB(255, 0, 0));     // Red for ON
+		hbrRelayOff = CreateSolidBrush(GetSysColor(COLOR_3DFACE)); // Default window background
 		CheckDlgButton(g_hToolbar, IDC_CHECK_10X, ten_times_faster);
 		// Create a larger font for LCD display
 		hFontLarge = CreateFont(
@@ -768,6 +843,12 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 		rect_LED[LEDindx_ALARM]  = &rctAlarmLED;
 		rect_LED[LEDindx_TX_RX]  = &rctRxTxLED;
 		rect_LED[LEDindx_PULSE]  = &rctPulseLED;
+		rect_LED[LEDindx_EXT_PLS_GF] = &rctExtPlusGfLED;
+		rect_LED[LEDindx_EXT_MNS_GF] = &rctExtMinusGfLED;
+		rect_LED[LEDindx_EXT_HI_BAT] = &rctExtHiBatLED;
+		rect_LED[LEDindx_EXT_LO_BAT] = &rctExtLoBatLED;
+		rect_LED[LEDindx_EXT_RI_RV_NZ] = &rctExtRiRvNzLED;
+		rect_LED[LEDindx_EXT_AC_LOSS] = &rctExtAcLossLED;
 
 		// initialize  array of ponters to colors
 		hbr_LED_off = CreateSolidBrush(RGB(127, 127, 127));
@@ -778,6 +859,13 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 		hbr_LEDcolor_ptr[LEDindx_ALARM] = hbr_Color_ptr[ColorRED];
 		hbr_LEDcolor_ptr[LEDindx_TX_RX] = hbr_Color_ptr[ColorGREEN];
 		hbr_LEDcolor_ptr[LEDindx_PULSE] = hbr_Color_ptr[ColorYELLOW];
+		// Initialize external LEDs to OFF (gray)
+		hbr_LEDcolor_ptr[LEDindx_EXT_PLS_GF] = hbr_Color_ptr[ColorOFF];
+		hbr_LEDcolor_ptr[LEDindx_EXT_MNS_GF] = hbr_Color_ptr[ColorOFF];
+		hbr_LEDcolor_ptr[LEDindx_EXT_HI_BAT] = hbr_Color_ptr[ColorOFF];
+		hbr_LEDcolor_ptr[LEDindx_EXT_LO_BAT] = hbr_Color_ptr[ColorOFF];
+		hbr_LEDcolor_ptr[LEDindx_EXT_RI_RV_NZ] = hbr_Color_ptr[ColorOFF];
+		hbr_LEDcolor_ptr[LEDindx_EXT_AC_LOSS] = hbr_Color_ptr[ColorOFF];
 
 		hbrValid = CreateSolidBrush(colorValid);
 		hbrInvalid = CreateSolidBrush(colorInvalid);
@@ -807,6 +895,28 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 			SetTextColor(hdc, RGB(255, 0, 0));
 			SetBkMode(hdc, TRANSPARENT);
 			return (LRESULT)hbrBkcolor;
+		}
+
+		// Handle relay status labels
+		if (hwndStatic == GetDlgItem(hDlg, IDC_RELAY_K1) ||
+			hwndStatic == GetDlgItem(hDlg, IDC_RELAY_K2) ||
+			hwndStatic == GetDlgItem(hDlg, IDC_RELAY_K3) ||
+			hwndStatic == GetDlgItem(hDlg, IDC_RELAY_K4))
+		{
+			char text[10];
+			GetWindowText(hwndStatic, text, sizeof(text));
+
+			// Set text color to white for better contrast on red background
+			if (strcmp(text, "ON ") == 0 || strcmp(text, "ON") == 0) {
+				SetTextColor(hdc, RGB(255, 255, 255)); // White text
+				SetBkColor(hdc, RGB(255, 0, 0));       // Red background
+				return (LRESULT)hbrRelayOn;
+			}
+			else {
+				SetTextColor(hdc, RGB(0, 0, 0));       // Black text
+				SetBkColor(hdc, GetSysColor(COLOR_3DFACE)); // Default background
+				return (LRESULT)hbrRelayOff;
+			}
 		}
 	}
 	break;
@@ -904,6 +1014,36 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 		HBRUSH hBrush;
 		COLORREF bgColor;
 
+		// Check if this is an external LED control
+		if (lpdis->CtlID >= IDC_EXT_LED_PLS_GF && lpdis->CtlID <= IDC_EXT_LED_AC_LOSS) {
+			// Determine LED index based on control ID
+			int ledIndex = -1;
+			int bitIndex = -1;
+			switch (lpdis->CtlID) {
+				case IDC_EXT_LED_PLS_GF: ledIndex = LEDindx_EXT_PLS_GF; bitIndex = 0; break;
+				case IDC_EXT_LED_MNS_GF: ledIndex = LEDindx_EXT_MNS_GF; bitIndex = 1; break;
+				case IDC_EXT_LED_HI_BAT: ledIndex = LEDindx_EXT_HI_BAT; bitIndex = 2; break;
+				case IDC_EXT_LED_LO_BAT: ledIndex = LEDindx_EXT_LO_BAT; bitIndex = 3; break;
+				case IDC_EXT_LED_RI_RV_NZ: ledIndex = LEDindx_EXT_RI_RV_NZ; bitIndex = 4; break;
+				case IDC_EXT_LED_AC_LOSS: ledIndex = LEDindx_EXT_AC_LOSS; bitIndex = 5; break;
+			}
+
+			if (ledIndex != -1 && bitIndex != -1) {
+				// Check bit in Display_Info.ExtLED_state
+				BOOL isOn = (Display_Info.ExtLED_state & (1 << bitIndex)) != 0;
+				hBrush = CreateSolidBrush(isOn ? RGB(255, 0, 0) : RGB(127, 127, 127)); // Red if on, gray if off
+
+				// Fill ellipse (circle LED)
+				HBRUSH hOldBrush = (HBRUSH)SelectObject(lpdis->hDC, hBrush);
+				HPEN hOldPen = (HPEN)SelectObject(lpdis->hDC, GetStockObject(BLACK_PEN));
+				Ellipse(lpdis->hDC, lpdis->rcItem.left, lpdis->rcItem.top, lpdis->rcItem.right, lpdis->rcItem.bottom);
+				SelectObject(lpdis->hDC, hOldBrush);
+				SelectObject(lpdis->hDC, hOldPen);
+				DeleteObject(hBrush);
+				return TRUE;
+			}
+		}
+
 		int btnIndex = -1;
 		switch (lpdis->CtlID)
 		{
@@ -962,6 +1102,8 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 		if (hbrValid) DeleteObject(hbrValid);
 		if (hbrInvalid) DeleteObject(hbrInvalid);
 		if (hbrPartial) DeleteObject(hbrPartial);
+		if (hbrRelayOn) DeleteObject(hbrRelayOn);
+		if (hbrRelayOff) DeleteObject(hbrRelayOff);
 
 		for (int i = 0; i < Total_Colors; ++i) {
 			if (hbr_Color_ptr[i] && *hbr_Color_ptr[i]) {

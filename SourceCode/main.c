@@ -3699,9 +3699,9 @@ void SetSysDataDefaultsInRAM(void)
 	Sp->FrontBoardBytes[ctr] = 0;						// 0x030  16  // future use
 
 	// Calibration floats start at 0x040
-	Sp->BatteryVolts.X1_lowADCcounts  = 13367;				// 0x040  4  // X1 Battery Voltage calibration, ADC counts
+	Sp->BatteryVolts.X1_lowADCcounts  = 14667;				// 0x040  4  // X1 Battery Voltage calibration, ADC counts
 	Sp->BatteryVolts.Y1_lowCalibrVal = 90.0f;				// 0x044  4  // Y1 Battery Voltage calibration, desired Volts = 90 V
-	Sp->BatteryVolts.X2_highADCcounts = 21736;				// 0x048  4  // X2 Battery Voltage calibration, ADC counts
+	Sp->BatteryVolts.X2_highADCcounts = 21436;				// 0x048  4  // X2 Battery Voltage calibration, ADC counts
 	Sp->BatteryVolts.Y2_highCalibrVal = 130.0f;				// 0x04C  4  // Y2 Battery Voltage calibration, desired Volts = 130 V
 
 	Sp->FaultVolts.X1_lowADCcounts  = 15947;				// 0x050  4  // X1 Fault Voltage calibration, ADC counts
@@ -4066,6 +4066,7 @@ TIMSK2 = 0x02
 		rt.HostRxBuff[i] = 0xFF;					// so clear out the buffer with nonsense
 	WATCHDOG_RESET();
 	iien1 = 0x80;									// set restart bit
+	Create_Relay_Board_setting();
 }
 
 /*************************************************************/
@@ -4607,7 +4608,7 @@ uint16 ExtLED_MASK[6] =
 	/* L5*/(0|	0|	0|	0|	0|	0|	0|ACL|	0|	0),	// ExtLED 5 maps to Alarm_AC_Loss_Bit (ACL)
 };
 
-void Create_Relay_Brd_setting(void) {
+void Create_Relay_Board_setting(void) {
 	uint8 Relay_byte = 0;
 	uint8 LED_byte = 0;
 	uint8 out_index;

@@ -1153,10 +1153,6 @@ void SetGetRelays(void)
 	return;
 }
 
-void SetGetExtLEDs() {
-
-}
-
 void SetGetStatus(uint16 Status_bit)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
@@ -1983,7 +1979,6 @@ const t_rci_commands rci[] =
 	/*+*/	"alar",		(void*)&SetGetAlarm,			// Alarm set/get: 'alarm rv>enab', 'alarm rv>disa'; 'alarm ri>enab', 'alarm ri>disa'; 'alarm ac>enab', 'alarm ac>disa'; 'alarm hz>enab', 'alarm hz>disa'
 	/*+*/	"dela",		(void*)&SetGetDelay,			// Delay set/get: 'delay? returns Set command syntax 'delay=XX.X' in seconds. Setting in flash is updated after 'save' command.
 	/*+*/	"rela",		(void*)&SetGetRelays,			// Relays set/get: 'Relay? returns Set command syntax 'relay=H' in hexadecimal format. Setting in flash is updated after 'save' command.
-	/*+*/	"eled",		(void*)&SetGetExtLEDs,			// External LEDs set/get: 'eled? returns Set command syntax 'eled=HH' in hexadecimal format. This is test command.
 	/*+*/	"buzz",		(void*)&SetGetBuzzer,			// Buzzer set/get: 'buzz>on', 'buzz>off' - set right now; 'buzz>enab', 'buzz>disa' - set/get setting in flash after 'save' command.
 	/*+*/	"latc",		(void*)&SetGetLatch,			// Get 'latc[h?]' returns Set command syntax 'latch>enab', 'latch>disa'. Setting in flash is updated after 'save' command.
 

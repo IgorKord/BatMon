@@ -52,7 +52,7 @@ END
 // Dialog
 //
 
-IDD_DIALOGBAR DIALOGEX 0, 0, 148, 143
+IDD_DIALOGBAR DIALOGEX 0, 0, 210, 140
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
 FONT 12, "MS Shell Dlg", 0, 0, 0x0
 BEGIN
@@ -79,7 +79,28 @@ BEGIN
     LTEXT           "Irip, mA",IDC_STATIC,83,108,34,8
     EDITTEXT        IDC_I_RIP,113,106,26,12,ES_NOHIDESEL
     LTEXT           "Set simulated values",IDC_STATIC,31,84,77,8
-END
+    LTEXT           "LEDs && Relays",IDC_STATIC,144,10,45,8
+    CONTROL         "",IDC_EXT_LED_PLS_GF,"Static",SS_OWNERDRAW,144,20,8,8
+    LTEXT           "+GND Fault",IDC_STATIC,155,20,40,8
+    CONTROL         "",IDC_EXT_LED_MNS_GF,"Static",SS_OWNERDRAW,144,30,8,8
+    LTEXT           "-GND Fault",IDC_STATIC,155,30,40,8
+    CONTROL         "",IDC_EXT_LED_HI_BAT,"Static",SS_OWNERDRAW,144,40,8,8
+    LTEXT           "High V bat",IDC_STATIC,155,40,40,8
+    CONTROL         "",IDC_EXT_LED_LO_BAT,"Static",SS_OWNERDRAW,144,50,8,8
+    LTEXT           "Low  V bat",IDC_STATIC,155,50,40,8
+    CONTROL         "",IDC_EXT_LED_RI_RV_NZ,"Static",SS_OWNERDRAW,144,60,8,8
+    LTEXT           "RipI V HiZ",IDC_STATIC,155,60,40,8
+    CONTROL         "",IDC_EXT_LED_AC_LOSS,"Static",SS_OWNERDRAW,144,70,8,8
+    LTEXT           "ACpwr Loss",IDC_STATIC,155,70,40,8
+    LTEXT           "Relay K1",IDC_STATIC,146,90,30,8
+    LTEXT           "OFF",IDC_RELAY_K1,180,90,14,8
+    LTEXT           "Relay K2",IDC_STATIC,146,100,30,8
+    LTEXT           "OFF",IDC_RELAY_K2,180,100,14,8
+    LTEXT           "Relay K3",IDC_STATIC,146,110,30,8
+    LTEXT           "OFF",IDC_RELAY_K3,180,110,14,8
+    LTEXT           "Relay K4",IDC_STATIC,146,120,30,8
+    LTEXT           "ON ",IDC_RELAY_K4,180,120,14,8
+    END
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -93,9 +114,9 @@ BEGIN
     IDD_DIALOGBAR, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 140
+        RIGHTMARGIN, 450
         TOPMARGIN, 7
-        BOTTOMMARGIN, 136
+        BOTTOMMARGIN, 147
     END
 END
 #endif    // APSTUDIO_INVOKED

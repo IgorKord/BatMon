@@ -18,6 +18,16 @@
 #define IDC_V_GND                       1013
 #define IDC_V_RIP                       1014
 #define IDC_I_RIP                       1015
+#define IDC_EXT_LED_PLS_GF              1016
+#define IDC_EXT_LED_MNS_GF              1017
+#define IDC_EXT_LED_HI_BAT              1018
+#define IDC_EXT_LED_LO_BAT              1019
+#define IDC_EXT_LED_RI_RV_NZ            1020
+#define IDC_EXT_LED_AC_LOSS             1021
+#define IDC_RELAY_K1                    1022
+#define IDC_RELAY_K2                    1023
+#define IDC_RELAY_K3                    1024
+#define IDC_RELAY_K4                    1025
 
 // Next default values for new objects
 // 
