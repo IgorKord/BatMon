@@ -1021,7 +1021,7 @@ void Excitation_Pulse(void)
 /*************************************************************/
 
 /// <summary>
-/// Set or get the status of alarms, disabled when bit is set in SysData.NV_UI.disabled_alarms, enabled when bit is cleared. 
+/// Set or get the status of alarms, disabled when bit is set in SysData.NV_UI.disabled_alarms, enabled when bit is cleared.
 /// Alarm set/get: 'alarm rv>enab', 'alarm rv>disa'; 'alarm ri>enab', 'alarm ri>disa'; 'alarm ac>enab', 'alarm ac>disa'; 'alarm hz>enab', 'alarm hz>disa'
 /// </summary>
 /// <param name=""></param>
@@ -1093,14 +1093,14 @@ Exception:
 /// <summary>
 /// Relays set/get: 'Relays? returns Set command syntax 'relays=H' in hexadecimal format. Setting in flash is updated after 'save' command.
 /// relays? returns current state of relays: relays=H.
-/// relays=H changes state of relays, where H is a hexadecimal value representing the state of four relays. 
-/// Each bit in H corresponds to a relay, with 1 indicating the relay is on and 0 indicating it is off. 
+/// relays=H changes state of relays, where H is a hexadecimal value representing the state of four relays.
+/// Each bit in H corresponds to a relay, with 1 indicating the relay is on and 0 indicating it is off.
 /// The changes will be sent to relay board via TWI and take effect immediately but can be overwritten if alarm condition persists.
 /// </summary>
 /// <param name=""></param>
 void SetGetRelays(void)
 {
-	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
 	if (temp_Inp_str[CMD_LEN + 1] == 'S') {
 		if (temp_Inp_str[CMD_LEN + 2] != '=') // relays returns current state of relays: relays=H.
 		{
@@ -1108,7 +1108,7 @@ void SetGetRelays(void)
 			printf("ys=%X", Display_Info.Relays_state); //return to PC "relay=H"
 			return;
 		}
-		else //if (temp_Inp_str[CMD_LEN + 1] == '=') // relay=H changes state of relays, where H is a hexadecimal value representing the state of four relays. 
+		else //if (temp_Inp_str[CMD_LEN + 1] == '=') // relay=H changes state of relays, where H is a hexadecimal value representing the state of four relays.
 		{
 			char HexRstate = temp_Inp_str[CMD_LEN + 3];
 			int Rstate = ASCIIToHexChar(HexRstate);
@@ -1126,9 +1126,9 @@ void SetGetRelays(void)
 }
 
 /// <summary>
-/// rel#=XXXX sets lookup table for relay control, where # is the relay number (1-4) and XXXX is a 16-bit hexadecimal value representing 
-/// the conditions under which the relay should be activated; command changes uint16 Relay_MASK[4].
-/// based on alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ,BCL defined in structure_defs.h, 
+/// rel#=XXXX sets lookup table for relay control, where # is the relay number (1-4) and XXXX is a 16-bit hexadecimal value representing
+/// the conditions under which the relay should be activated; command changes uint16 DefaultRelayMASK[4].
+/// based on alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ,BCL defined in structure_defs.h,
 /// the relay control logic can be configured to activate relays based on specific alarm conditions.
 /// </summary>
 /// <param name=""></param>
@@ -1163,7 +1163,68 @@ void SetGetRelayTriggers(void)
 }
 
 void SetGetExtLEDs() {
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
+	if (temp_Inp_str[CMD_LEN + 1] == 'S') {
+		if (temp_Inp_str[CMD_LEN + 2] != '=') // eleds returns current state of external LEDs: eleds=HH.
+		{
+			Put_CMD_as_chars();
+			printf("ds=%02X", Display_Info.ExtLED_state); //return to PC "eleds=HH"
+			return;
+		}
+		else //if (temp_Inp_str[CMD_LEN + 2] == '=') // eleds=HH changes state of external LEDs, where HH is a hexadecimal value representing the state of six LEDs.
+		{
+			char HexHigh = temp_Inp_str[CMD_LEN + 3];
+			char HexLow = temp_Inp_str[CMD_LEN + 4];
+			int LEDhigh = ASCIIToHexChar(HexHigh);
+			int LEDlow = ASCIIToHexChar(HexLow);
+			if (LEDhigh < 0 || LEDlow < 0)// check if HH is a valid hexadecimal digit (0-9, A-F)
+			{
+				Send_RCI_Param_Error_as_FlashConst("eleds=HH or eleds?");
+			}
+			else
+			{
+				Display_Info.ExtLED_state = (LEDhigh << 4) | LEDlow; //change state of external LEDs, where HH is a hexadecimal value representing the state of six LEDs.
+			}
+			return;
+		}
+	}
+}
 
+/// <summary>
+/// ExtLED triggers set/get: 'led#=XXXX' sets lookup table for external LED control, where # is the LED number (1-6) 
+/// and XXXX is a 16-bit hexadecimal value representing the conditions under which the LED should be activated; 
+/// command changes uint16 SysData.ExtLED_MASK[6].
+/// based on alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ,BCL defined in structure_defs.h,
+/// the LED control logic can be configured to activate LEDs based on specific alarm conditions.
+/// </summary>
+/// <param name=""></param>
+void SetGetExtLEDTriggers(void)
+{
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	int led_num = temp_Inp_str[CMD_LEN + 1] - '0'; //fifth byte after command,the "#"; covert to integer 1-6 for LED number
+	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 3]); // LED setting starting at 7th byte
+	// Handle led#=XXXX or led#? commands
+	if (led_num >= 1 && led_num <= 6)
+	{
+		if (temp_Inp_str[CMD_LEN + 2] == '=')
+		{
+			SysData.ExtLED_MASK[led_num - 1] = param;
+		}
+		else if (temp_Inp_str[CMD_LEN + 2] == '?')
+		{
+			Put_CMD_as_chars();
+			printf("y%d=%04X", led_num, SysData.ExtLED_MASK[led_num - 1]); //led#=XXXX
+		}
+		else
+		{
+			Send_RCI_Param_Error_as_FlashConst("led#=XXXX or led#?");
+		}
+	}
+	else
+	{
+		Send_RCI_Param_Error_as_FlashConst("range 1-6");
+	}
+	return;
 }
 
 void SetGetStatus(uint16 Status_bit)
@@ -1991,15 +2052,26 @@ const t_rci_commands rci[] =
 														// Set / Get one-phase (120 Hz) or 3-phase (360 Hz) charger. Calibration parameters have 2 sets for 120 or 360 Hz
 	/*+*/	"alar",		(void*)&SetGetAlarm,			// Alarm set/get: 'alarm rv>enab', 'alarm rv>disa'; 'alarm ri>enab', 'alarm ri>disa'; 'alarm ac>enab', 'alarm ac>disa'; 'alarm hz>enab', 'alarm hz>disa'
 	/*+*/	"dela",		(void*)&SetGetDelay,			// Delay set/get: 'delay? returns Set command syntax 'delay=XX.X' in seconds. Setting in flash is updated after 'save' command.
-	/*+*/	"rela",		(void*)&SetGetRelays,			// Relays set/get: 'Relay? returns Set command syntax 'relay=H' in hexadecimal format. Setting in flash is updated after 'save' command.
 	/*+*/	"eled",		(void*)&SetGetExtLEDs,			// External LEDs set/get: 'eled? returns Set command syntax 'eled=HH' in hexadecimal format. This is test command.
 	/*+*/	"buzz",		(void*)&SetGetBuzzer,			// Buzzer set/get: 'buzz>on', 'buzz>off' - set right now; 'buzz>enab', 'buzz>disa' - set/get setting in flash after 'save' command.
 	/*+*/	"latc",		(void*)&SetGetLatch,			// Get 'latc[h?]' returns Set command syntax 'latch>enab', 'latch>disa'. Setting in flash is updated after 'save' command.
+	/*+*/	"rel1",		(void*)&SetGetRelayTriggers,	// rel#=XXXX sets lookup table for relay control, where # is the relay number (1-4) and XXXX is a 16-bit hexadecimal value.
+	/*+*/	"rel2",		(void*)&SetGetRelayTriggers,	// representing alarm bits that will trigger the relay.
+	/*+*/	"rel3",		(void*)&SetGetRelayTriggers,	// "rel#?" returns the current lookup table for the specified relay.
+	/*+*/	"rel4",		(void*)&SetGetRelayTriggers,	//
+	/*+*/	"led1",		(void*)&SetGetExtLEDTriggers,	// led#=XXXX sets lookup table for anunciator LED control, where # is the LED number (1-6),
+	/*+*/	"led2",		(void*)&SetGetExtLEDTriggers,	// and XXXX is a 16-bit hexadecimal value representing alarm bits that will light the LED.
+	/*+*/	"led3",		(void*)&SetGetExtLEDTriggers,	// "led#?" returns the current lookup table for the specified LED.
+	/*+*/	"led4",		(void*)&SetGetExtLEDTriggers,	// Setting in flash is updated after 'save' command
+	/*+*/	"led5",		(void*)&SetGetExtLEDTriggers,	// "led#?" returns the current lookup table for the specified LED.
+	/*+*/	"led6",		(void*)&SetGetExtLEDTriggers,	//
 
 	/*+*/	"echo",		(void*)&Echo_Enab_Disab,		// "echo>enabled"  "echo>disabled" sets echo flag. "echo?" returns flag
 	/*+*/	"expo",		(void*)&Export_settings,		// "expo" //creates play-back list of commands to restore settings
 	///////"expo" ends auto param list
 
+	/*+*/	"rela",		(void*)&SetGetRelays,			// Relays set/get: 'Relay? returns Set command syntax 'relay=H' in hexadecimal format. Test command, state is not set in flash.
+	/*+*/	"eled",		(void*)&SetGetExtLEDs,			// External LEDs set/get: "eleds" returns Set command syntax 'eleds=H' in hexadecimal format.Test command, state is not set in flash.
 	/*+*/	"cpar",		(void*)&SetGetCalParam,			// "cpar#$=GGG.GGG" Set/get calibration parameter.
 	/*+*/	"cali",		(void*)&SetCalibrationValue,	// "cali#$=GGG.GGG" Set Calibration value.
 	/*+*/	"save",		(void*)&SaveCal,				// "save"  transfers data from RAM to FLASH. Use "SAVE" to permanently update it in FLASH

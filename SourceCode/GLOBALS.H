@@ -597,6 +597,8 @@ extern /*volatile*/ uint8  iien1;		// IIN byte 1
 extern /*volatile*/ uint8  iien2;		// IIN byte 2
 extern /*volatile*/ uint8  all_stations_msg;			// indicates if this is a DNP broadcast message to all stations
 extern uint16 send_dnp;							// instructs what msg to send if any; uint16 because it could get OBJECT_1_RESPONSE = 1024
+extern const uint16 DefaultRelayMask[4];
+extern const uint16 DefaultExternLEDmask[6];
 
 /*------------------------- Structures -----------------------------*/
 //typedef struct    // Encapsulate into structure to allow addressing in assembler with increment

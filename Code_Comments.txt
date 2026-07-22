@@ -1,4 +1,14 @@
-20260720 created"relay" command to set/get either relay state "relay=H" or "relay?" 
+
+20270722
+modified "relay" command: split command in two: 
+"rel#" to set relay mask SysData.Relay_MASK[4] and 
+"relays" to set/get relays state "relays=H" or "relays?"
+created similar functions for extLEDs
+"led#" to set relay mask SysData.ExtLED_MASK[6] and 
+"leds" to set/get relays state "leds=H" or "leds?"
+
+20260720 
+created"relay" command to set/get either relay state "relay=H" or "relay?" 
 or set relay mask "relay#=XXXX" or  "relay#?" to get relay mask
 
 20260715 in process:

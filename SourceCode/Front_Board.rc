@@ -65,41 +65,43 @@ BEGIN
     PUSHBUTTON      "Dwn(-)",IDC_BUT_MNS,10,53,26,12
     PUSHBUTTON      "Reset",IDC_BUT_RESET,105,38,26,12
     LTEXT           "ms cntr: 0",IDC_TIME_TEST,8,128,90,8
-    LTEXT           "Tx / Rx",IDC_STATIC,110,70,25,8
+    LTEXT           "Tx / Rx",IDC_STATIC,107,70,25,8
     LTEXT           "Auto",IDC_STATIC,12,24,16,8
     LTEXT           "Alarm",IDC_STATIC,110,24,21,8
     LTEXT           "Pulse On",IDC_STATIC,5,70,28,8
     LTEXT           "Button held XXXX ms",IDC_BUT_HELD_TIME,8,119,87,8
     LTEXT           "Vbatt, V",IDC_STATIC,7,94,34,8
     EDITTEXT        IDC_V_BATT,38,92,26,12,ES_NOHIDESEL
-    LTEXT           "Vgnd, V",IDC_STATIC,83,94,34,8
-    EDITTEXT        IDC_V_GND,113,92,26,12,ES_NOHIDESEL
+    LTEXT           "Vgnd, V",IDC_STATIC,75,94,34,8
+    EDITTEXT        IDC_V_GND,105,92,26,12,ES_NOHIDESEL
     LTEXT           "Vrip, mA",IDC_STATIC,7,108,34,8
     EDITTEXT        IDC_V_RIP,38,106,26,12,ES_NOHIDESEL
-    LTEXT           "Irip, mA",IDC_STATIC,83,108,34,8
-    EDITTEXT        IDC_I_RIP,113,106,26,12,ES_NOHIDESEL
+    LTEXT           "Irip, mA",IDC_STATIC,75,108,34,8
+    EDITTEXT        IDC_I_RIP,105,106,26,12,ES_NOHIDESEL
     LTEXT           "Set simulated values",IDC_STATIC,31,84,77,8
-    LTEXT           "LEDs && Relays",IDC_STATIC,144,10,45,8
-    CONTROL         "",IDC_EXT_LED_PLS_GF,"Static",SS_OWNERDRAW,144,20,8,8
-    LTEXT           "+GND Fault",IDC_STATIC,155,20,40,8
-    CONTROL         "",IDC_EXT_LED_MNS_GF,"Static",SS_OWNERDRAW,144,30,8,8
-    LTEXT           "-GND Fault",IDC_STATIC,155,30,40,8
-    CONTROL         "",IDC_EXT_LED_HI_BAT,"Static",SS_OWNERDRAW,144,40,8,8
-    LTEXT           "High V bat",IDC_STATIC,155,40,40,8
-    CONTROL         "",IDC_EXT_LED_LO_BAT,"Static",SS_OWNERDRAW,144,50,8,8
-    LTEXT           "Low  V bat",IDC_STATIC,155,50,40,8
-    CONTROL         "",IDC_EXT_LED_RI_RV_NZ,"Static",SS_OWNERDRAW,144,60,8,8
-    LTEXT           "RipI V HiZ",IDC_STATIC,155,60,40,8
-    CONTROL         "",IDC_EXT_LED_AC_LOSS,"Static",SS_OWNERDRAW,144,70,8,8
-    LTEXT           "ACpwr Loss",IDC_STATIC,155,70,40,8
-    LTEXT           "Relay K1",IDC_STATIC,146,90,30,8
-    LTEXT           "OFF",IDC_RELAY_K1,180,90,14,8
-    LTEXT           "Relay K2",IDC_STATIC,146,100,30,8
-    LTEXT           "OFF",IDC_RELAY_K2,180,100,14,8
-    LTEXT           "Relay K3",IDC_STATIC,146,110,30,8
-    LTEXT           "OFF",IDC_RELAY_K3,180,110,14,8
-    LTEXT           "Relay K4",IDC_STATIC,146,120,30,8
-    LTEXT           "ON ",IDC_RELAY_K4,180,120,14,8
+    CONTROL         "",IDC_STATIC,"Static",SS_BLACKFRAME,3,3,132,135
+    CONTROL         "", IDC_STATIC, "Static", SS_BLACKFRAME, 138, 3, 55, 135
+    LTEXT           "LEDs && Relays",IDC_STATIC,142,10,45,8
+    CONTROL         "",IDC_EXT_LED_PLS_GF,"Static",SS_OWNERDRAW,142,21,6,6 // units are depend on font (currently FONT 12, "MS Shell Dlg"), approximately matches with 14x14 pixel size LEDs
+    LTEXT           "+GND Fault",IDC_STATIC,152,20,40,8
+    CONTROL         "",IDC_EXT_LED_MNS_GF,"Static",SS_OWNERDRAW,142,31,6,6
+    LTEXT           "-GND Fault",IDC_STATIC,152,30,40,8
+    CONTROL         "",IDC_EXT_LED_HI_BAT,"Static",SS_OWNERDRAW,142,41,6,6
+    LTEXT           "High V bat",IDC_STATIC,152,40,40,8
+    CONTROL         "",IDC_EXT_LED_LO_BAT,"Static",SS_OWNERDRAW,142,51,6,6
+    LTEXT           "Low  V bat",IDC_STATIC,152,50,40,8
+    CONTROL         "",IDC_EXT_LED_RI_RV_NZ,"Static",SS_OWNERDRAW,142,61,6,6
+    LTEXT           "Rip I V HiZ",IDC_STATIC,152,60,40,8
+    CONTROL         "",IDC_EXT_LED_AC_LOSS,"Static",SS_OWNERDRAW,142,71,6,6
+    LTEXT           "ACpwr Loss",IDC_STATIC,152,70,40,8
+    LTEXT           "Relay K1",IDC_STATIC,142,90,30,8
+    LTEXT           "OFF",IDC_RELAY_K1,175,90,14,8
+    LTEXT           "Relay K2",IDC_STATIC,142,100,30,8
+    LTEXT           "OFF",IDC_RELAY_K2,175,100,14,8
+    LTEXT           "Relay K3",IDC_STATIC,142,110,30,8
+    LTEXT           "OFF",IDC_RELAY_K3,175,110,14,8
+    LTEXT           "Relay K4",IDC_STATIC,142,120,30,8
+    LTEXT           "ON ",IDC_RELAY_K4,175,120,14,8
     END
 
 

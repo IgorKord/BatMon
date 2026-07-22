@@ -196,7 +196,7 @@ HBRUSH* hbr_LEDcolor_ptr[number_of_LEDs];
 HBRUSH* hbr_Color_ptr[Total_Colors] = { &hbr_LED_off, &hbr_LED_Red, &hbr_LED_Green, &hbr_LED_Yellow };
 
 #define FrontPanel_WIDTH	465	// nWidth The width, in device units, of the window.
-#define FrontPanel_HEIGHT	370	// nHeight
+#define FrontPanel_HEIGHT	380	// nHeight
 #define LED_size      14
 
 #define AUTO_LED_x1   70
@@ -224,7 +224,7 @@ HBRUSH* hbr_Color_ptr[Total_Colors] = { &hbr_LED_off, &hbr_LED_Red, &hbr_LED_Gre
 #define EXT_LO_BAT_LED_y1  50
 #define EXT_RI_RV_NZ_LED_y1  60
 #define EXT_AC_LOSS_LED_y1  70
-#define EXT_LED_size  8
+#define EXT_LED_size  8  // NOTE: This size is NOT used for drawing; actual size is in Front_Board.rc (7x7)
 
 RECT rctAutoLED = { AUTO_LED_x1, AUTO_LED_y1, AUTO_LED_x2, AUTO_LED_y2 };		// create Auto LED
 RECT rctAlarmLED = { ALARM_LED_x1, ALARM_LED_y1, ALARM_LED_x2, ALARM_LED_y2 };	// create Alarm LED
@@ -967,7 +967,9 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 		HBRUSH hOldBrush = (HBRUSH)SelectObject(hdc, *hbr_LEDcolor_ptr);
 		HBRUSH hOldPen = (HBRUSH)SelectObject(hdc, GetStockObject(BLACK_PEN)); // No border; BLACK_PEN
 
-		for (int i = 0; i < number_of_LEDs; ++i) {
+		// Only draw the first 4 main panel LEDs (Auto, Alarm, Tx/Rx, Pulse) - each 14x14 pixels
+		// External LEDs (indices 4-9) are SS_OWNERDRAW controls drawn by WM_DRAWITEM handler
+		for (int i = 0; i < LEDindx_EXT_PLS_GF; ++i) {  // Loop only through main panel LEDs (0-3)
 			hOldBrush = (HBRUSH)SelectObject(hdc, *hbr_LEDcolor_ptr[i]);
 			Ellipse(hdc,
 				rect_LED[i]->left,
@@ -1623,6 +1625,7 @@ CONTROLLER PUSH BUTTONS:
 |   End  |   |PageDown|
 |  ENTER |   | -,DOWN |
  --------     -------
+
 		 CURSOR
 */
 #define MENU_RETURN     KEY_HOME

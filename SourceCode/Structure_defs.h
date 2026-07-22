@@ -182,7 +182,7 @@ extern __eeprom  SYS_SPECIFIC_DATA EEPROM_SysData;// located in EEPROM @ EE_SYS_
 #define Buzzer_ON_eq1_Bit               Bit_9	// 0x0200 Bit enables / disables buzzer immediately, use bit in SysData.NV_UI.SavedStatusWord to be saved into flash.
 #define Latch_ON_eq1_Bit                Bit_10	// 0x0400 Bit enables / disables alarm latching immediately, use bit in SysData.NV_UI.SavedStatusWord to be saved into flash.
 #define SinglePhase_eq0_3ph_eq1_Bit     Bit_11	// 0x0800 Bit in SysData.NV_UI.SavedStatusWord to be saved into flash, selects 1 phase or 3-phase.
-#define CurOut_I420_eq0_I01_eq1_Bit     Bit_12	// 0x1000 Bit in SysData.NV_UI.SavedStatusWord to be saved into flash, selects 1 phase or 3-phase.
+#define CurOut_I420_eq0_I01_eq1_Bit     Bit_12	// 0x1000 Bit in SysData.NV_UI.SavedStatusWord to be saved into flash, selects current output 0...1mA when set or 4...20mA when bit is zero.
 
 #define AlarmStatus_Instant_BITS        (Alarm_Ripple_Voltage_Bit | Alarm_Ripple_Current_Bit | Alarm_AC_Loss_Bit | Alarm_High_Impedance_Bit)
 #define AlarmStatus_ALL_BITS            (Alarm_BatVoltageHIGH_Bit | Alarm_BatVoltageLOW_Bit | Alarm_PlusGND_FAULT_Bit | Alarm_MinusGND_FAULT_Bit | AlarmStatus_Instant_BITS)
@@ -210,6 +210,8 @@ extern __eeprom  SYS_SPECIFIC_DATA EEPROM_SysData;// located in EEPROM @ EE_SYS_
 #define ACL		Alarm_AC_Loss_Bit			// Bit_6
 #define HIZ		Alarm_High_Impedance_Bit	// Bit_7
 #define BCL		Alarm_BatVoltCRITICAL_Bit	// Bit_8
+#define INV		Bit_12	// Bit_12 tells that action should be inverted, for example K4 relay should be ON when alarm is NOT present, and OFF when alarm is present.
+// for example , This can be used for Last Gasp alarm, to turn ON K4 relay when battery voltage is critically low, and turn OFF K4 relay when battery voltage is above critical level.
 
 
 #define   CharAvailableFlag             Bit_0	// maybe make it as a whole lower byte, use add instead of set, process chars subtracting it until it is zero

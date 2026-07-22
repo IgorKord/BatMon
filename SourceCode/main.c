@@ -1570,7 +1570,7 @@ void TWI_Read (uint8 dest_ADR)
 	else if (measurement_ID == ADC_RIPPLE_CURRENT)  // 5
 	{
 		Simulated_ADC_counts = 4283; // counts, shows 59 mA
-		Simulated_ADC_counts = (uint16)AddNoise(UserValue[Irip], 0.05) * 124; // UserValue[Irip] in mA
+		Simulated_ADC_counts = (uint16)AddNoise(UserValue[Irip], 0.05) * 75; // UserValue[Irip] in mA
 	}
 	else if (measurement_ID == ADC_RIPPLE_VOLTAGE)  // 6
 	{
@@ -3097,11 +3097,11 @@ void CalibrationSteps(uint16 RawADCcounts)
 			}
 		}  //End calibrating ripple current
 
-		rt.OutData.measured.ripple_mA_f = RawADC_f;
+		//rt.OutData.measured.ripple_mA_f = RawADC_f;
 		// 1st order Low Pass Filtering
-		filtered_ripple_i_f = last_ripple_i_f * (1 - LPF_factor) + LPF_factor * rt.OutData.measured.ripple_mA_f;
-		last_ripple_i_f = rt.OutData.measured.ripple_mA_f;
-		debug_f1 = filtered_ripple_i_f * 0.000449f;
+		filtered_ripple_i_f = last_ripple_i_f * (1 - LPF_factor) + LPF_factor * RawADC_f;
+		last_ripple_i_f = RawADC_f;
+		debug_f1 = filtered_ripple_i_f;//-!- IK20260722 removed multiplier *0.000449f;
 
 		debug_f2 = LinInterpolation(debug_f1, CalStructPtr);
 
@@ -3757,6 +3757,12 @@ void SetSysDataDefaultsInRAM(void)
 		Sp->extra_floats[ctr] = 0;							// 0x0D0  4*EXTRA_FLOATS_NUM     // future use
 
 	//--- if EXTRA_FLOATS_NUM = 8 next address is  0x0E0
+
+	// IK20260722: Initialize relay and external LED masks from default const arrays
+	// 0x100  8  // relay control lookup table
+	memcpy(&Sp->Relay_MASK, &DefaultRelayMask, sizeof(DefaultRelayMask));
+	// 0x108  12 // external LED control lookup table
+	memcpy(&Sp->ExtLED_MASK, &DefaultExternLEDmask, sizeof(DefaultExternLEDmask));
 }
 
 /*****************************************************************/
@@ -3822,7 +3828,9 @@ void Init_Parameters(void)
 	if (isnan(SysData.Bat_Cal_Offset_Volts_f)) // IK20231218 empty EEPROM? the "FF FF FF FF"" accessed as a float gives -NAN
 		SysData.Bat_Cal_Offset_Volts_f = 0;								// make it zero
 	__disable_interrupt();							// store three copies
-
+	//IK20260722 set default states for relay board
+	memcpy(&SysData.Relay_MASK, &DefaultRelayMask, sizeof(DefaultRelayMask));	// set default relay mask
+	memcpy(&SysData.ExtLED_MASK, &DefaultExternLEDmask, sizeof(DefaultExternLEDmask));	// set default external LED mask
 	display_mode = INIT;							// set to start off with init screen, shows "ARGA"
 
 	iien1 = 0x80;                              // set restart
@@ -4396,6 +4404,7 @@ void main(void)
 
 			else if (measurement_ID == RELAY_DATA)														// == 21 time to send & rcv relay data
 			{
+				Create_Relay_Board_setting();
 				if (cal_status != CALIBRATION_DONE)														// if calibrating shut off pulse
 					clearBit(Display_Info.Status, DISP_STATE_PulseON_BIT);
 				TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.alarm_status, Display_Info.Status);
@@ -4585,19 +4594,16 @@ void main(void)
 //	/* K3 */	1,	0,	0,	0,	0,	0,	0,	0,	0,	// Relay 3 (K3) maps to Alarm_BatVoltageHIGH_Bit (BVH)
 //	/* K4 */	0,	0,	0,	0,	1,	1,	0,	1,	0,	// Relay 4 (K4) maps to RVV, RIV, HIZ alarms (RVH,RCL,HIZ)
 //};
-uint16 Relay_MASK[4] =  
+const uint16 DefaultRelayMask[4] = // K4 is closed when there is no alarm, K1-K3 are open when there is no alarm
 {
-// alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ, BCL
-	/* K1*/(0|	0|	0|PGF|	0|	0|	0|	0|	0|	0),	// Relay 1 (K1) maps to Alarm_PlusGND_FAULT_Bit (PGF)
-	/* K2*/(0|	0|	0|	0|MGF|	0|	0|	0|	0|	0),	// Relay 2 (K2) maps to Alarm_MinusGND_FAULT_Bit (MGF)
-	/* K3*/(0|BVH|	0|	0|	0|	0|	0|	0|	0|	0),	// Relay 3 (K3) maps to Alarm_BatVoltageHIGH_Bit (BVH)
-	/* K4*/(0|	0|	0|	0|	0|RVH|RCL|	0|HIZ|	0)	// Relay 4 (K4) maps to RVV, RIV, HIZ alarms (RVH,RCL,HIZ)
+// alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ, BCL, INV
+	/* K1*/(0|	0|	0|PGF|	0|	0|	0|	0|	0|	0 | 0  ),	// Relay 1 (K1) maps to Alarm_PlusGND_FAULT_Bit (PGF)
+	/* K2*/(0|	0|	0|	0|MGF|	0|	0|	0|	0|	0 | 0  ),	// Relay 2 (K2) maps to Alarm_MinusGND_FAULT_Bit (MGF)
+	/* K3*/(0|BVH|	0|	0|	0|	0|	0|	0|	0|	0 | 0  ),	// Relay 3 (K3) maps to Alarm_BatVoltageHIGH_Bit (BVH)
+	/* K4*/(0|	0|BVL|	0|	0|RVH|RCL|	0|HIZ|	0 | INV)	// Relay 4 (K4) maps to RVV, RIV, HIZ alarms (RVH,RCL,HIZ), with inversion
 };
 
-//-!- IK20260715 need to add inversion, K4 is closed when there is no alarm, K1-K3 are open when there is no alarm
-uint8 Relay_invert[4] = { 0, 0, 0, 1 }; // K1-K3 are not inverted, K4 is inverted
-
-uint16 ExtLED_MASK[6] =  
+const uint16 DefaultExternLEDmask[6] =
 {
 // alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ, BCL
 	/* L0*/(0|	0|	0|PGF|	0|	0|	0|	0|	0|	0),	// ExtLED 0 maps to Alarm_PlusGND_FAULT_Bit (PGF)
@@ -4613,13 +4619,18 @@ void Create_Relay_Board_setting(void) {
 	uint8 LED_byte = 0;
 	uint8 out_index;
 	for (out_index = 0; out_index < 6; out_index++) {
-		if (Display_Info.alarm_status & SysData.ExtLED_MASK[out_index]) LED_byte |= (1 << out_index);
+		if (Display_Info.alarm_status & SysData.ExtLED_MASK[out_index]) 
+			LED_byte |= (1 << out_index);
 	}
 	for (out_index = 0; out_index < 4; out_index++) {
-		if (Display_Info.alarm_status & SysData.Relay_MASK[out_index]) Relay_byte |= (1 << out_index);
+		uint16 RelayMSK = SysData.Relay_MASK[out_index] & ~INV; // mask out the INV bit for checking
+		if (Display_Info.alarm_status & RelayMSK) 
+			Relay_byte |= (1 << out_index);
 	}
 	for (out_index = 0; out_index < 4; out_index++) {
-		if (Relay_invert[out_index]) Relay_byte ^= (1 << out_index);
+		uint16 Relay_invert = (SysData.Relay_MASK[out_index] & INV); // check if the relay mask has the INV bit set
+		if (Relay_invert) 
+			Relay_byte ^= (1 << out_index);
 	}
 	Display_Info.Relays_state = Relay_byte;
 	Display_Info.ExtLED_state = LED_byte;
