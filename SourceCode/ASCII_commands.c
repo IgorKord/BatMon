@@ -43,6 +43,19 @@ char RCI_message[128];						// for output via UART from RCI
 
 char FL* p_Execution = ">~Execution";
 char FL* p_Unrecognized = ">~Unrecognized";	//command was not recognized
+char FL * AlarmBitsNames[] =
+{
+"HiB",//	BVH
+"LoB",//	BVL
+"+GF",//	PGF
+"-GF",//	MGF
+"RiV",//	RVH
+"RiC",//	RCL
+"ACL",//	ACL
+"HiZ",//	HIZ
+"CLV",//	BCL
+"Inv",//	INV
+};
 
 void PrintNewLine(void) {
 	cputs("\r\n");
@@ -1106,7 +1119,7 @@ Exception:
 void SetGetRelays(void)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
-	if (temp_Inp_str[CMD_LEN + 2] != '=') { // relays returns current state of relays: relays=H.
+	if (temp_Inp_str[CMD_LEN + 2] != '=') { // 'relays' returns current state of relays: relays=H.
 		Put_CMD_as_chars();
 		printf("ys=%X", Display_Info.Relays_state); //return to PC "relays=H"
 		if (rt.Host & CmdVerboseResponse)
@@ -1154,24 +1167,38 @@ void SetGetRelays(void)
 void SetGetRelayTriggers(void)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
-	int relay_num = temp_Inp_str[CMD_LEN + 1] - '0'; //fifth byte after command,the "#"; covert to integer 1-4 for relay number
+	uint8 relay_num = temp_Inp_str[CMD_LEN - 1] - '1'; //forth byte of command,the "#"; covert to integer 0-3 for relay index
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 3]); // relay setting starting at 7th byte
 	// Handle rel#=XXXX or rel#? commands
-	if (relay_num >= 1 && relay_num <= 4)
+	if (relay_num <= 3)
 	{
-		if (temp_Inp_str[CMD_LEN + 2] == '=')
+		if (temp_Inp_str[CMD_LEN + 1] == '=')
 		{
-			SysData.Relay_MASK[relay_num - 1] = param;
+			SysData.Relay_MASK[relay_num] = param;
 		}
-		else if (temp_Inp_str[CMD_LEN + 2] == '?')
+		else //if (temp_Inp_str[CMD_LEN + 1] == '?')
 		{
 			Put_CMD_as_chars();
-			printf("y%d=%04X", relay_num, SysData.Relay_MASK[relay_num - 1]); //relay#=XXXX
+			printf("=%04X", SysData.Relay_MASK[relay_num]); //relay#=XXXX
+			if (rt.Host & CmdVerboseResponse)
+			{
+				uint8 bitNum;
+				cputs(" // K"); PutChar(temp_Inp_str[CMD_LEN - 1]);
+				cputs(" triggers |");
+				for (bitNum = 0; bitNum < NUM_ALARMS; bitNum++)
+				{
+					if (SysData.Relay_MASK[relay_num] & (1 << bitNum))
+						cputs(AlarmBitsNames[bitNum]);
+					else
+						cputs("   ");
+					PutChar('|');
+				}
+			}
 		}
-		else
-		{
-			Send_RCI_Param_Error_as_FlashConst("relay#=XXXX or relay#?");
-		}
+		//else
+		//{
+		//	Send_RCI_Param_Error_as_FlashConst("rel#=XXXX or rel#?");
+		//}
 	}
 	else
 	{
@@ -1210,8 +1237,8 @@ void SetGetExtLEDs() {
 }
 
 /// <summary>
-/// ExtLED triggers set/get: 'led#=XXXX' sets lookup table for external LED control, where # is the LED number (1-6) 
-/// and XXXX is a 16-bit hexadecimal value representing the conditions under which the LED should be activated; 
+/// ExtLED triggers set/get: 'led#=XXXX' sets lookup table for external LED control, where # is the LED number (1-6)
+/// and XXXX is a 16-bit hexadecimal value representing the conditions under which the LED should be activated;
 /// command changes uint16 SysData.ExtLED_MASK[6].
 /// based on alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ,BCL defined in structure_defs.h,
 /// the LED control logic can be configured to activate LEDs based on specific alarm conditions.

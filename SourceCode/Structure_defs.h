@@ -157,7 +157,6 @@ extern __eeprom  SYS_SPECIFIC_DATA EEPROM_SysData;// located in EEPROM @ EE_SYS_
 #endif// PC
 
 
-#define NUM_ALARMS   9  // Current number of alarms defined
 
 //********** Display_Info.alarm_status definitions
 #define Alarm_BatVoltageHIGH_BitNum     0	// Battery Voltage High, above Vmax setting
@@ -169,6 +168,7 @@ extern __eeprom  SYS_SPECIFIC_DATA EEPROM_SysData;// located in EEPROM @ EE_SYS_
 #define Alarm_AC_Loss_BitNum            6	// NO AC voltage detected - no battery charge is possible
 #define Alarm_High_Impedance_BitNum     7	// Seems to be no charging current - battery is not charging
 #define Alarm_BatVoltCRITICAL_BitNum    8	// LAST GASP, Battery Voltage CRITICALLY LOW, below Vcrit setting
+#define NUM_ALARMS                      9	// Current number of alarms defined
 
 #define Alarm_BatVoltageHIGH_Bit        (1<<Alarm_BatVoltageHIGH_BitNum )	// 0x0001 Battery Voltage High, above Vmax setting
 #define Alarm_BatVoltageLOW_Bit         (1<<Alarm_BatVoltageLOW_BitNum  )	// 0x0002 Battery Voltage LOW, below Vmin setting
