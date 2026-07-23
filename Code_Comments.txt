@@ -1,3 +1,5 @@
+20270723
+Added pulse bit to Display_Info.Relay_State, to transfer pulse enabled/disabled information to relay board.
 
 20270722
 modified "relay" command: split command in two: 

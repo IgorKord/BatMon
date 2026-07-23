@@ -56,7 +56,7 @@ IDD_DIALOGBAR DIALOGEX 0, 0, 210, 140
 STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
 FONT 12, "MS Shell Dlg", 0, 0, 0x0
 BEGIN
-    CTEXT           "ARGA BATTERY MONITOR",IDC_STATIC,26,9,95,8
+    CTEXT           "ARGA BATTERY MONITOR",IDC_STATIC,26,8,95,8
     EDITTEXT        IDC_LCD_L1,44,22,50,15,ES_READONLY
     EDITTEXT        IDC_LCD_L2,44,45,50,15,ES_CENTER | ES_READONLY
     PUSHBUTTON      "Scan/Manual",IDC_BUT_RETURN,45,67,49,12
@@ -81,7 +81,7 @@ BEGIN
     LTEXT           "Set simulated values",IDC_STATIC,31,84,77,8
     CONTROL         "",IDC_STATIC,"Static",SS_BLACKFRAME,3,3,132,135
     CONTROL         "", IDC_STATIC, "Static", SS_BLACKFRAME, 138, 3, 55, 135
-    LTEXT           "LEDs && Relays",IDC_STATIC,142,10,45,8
+    LTEXT           "LEDs && Relays",IDC_STATIC,142,8,45,8
     CONTROL         "",IDC_EXT_LED_PLS_GF,"Static",SS_OWNERDRAW,142,21,6,6 // units are depend on font (currently FONT 12, "MS Shell Dlg"), approximately matches with 14x14 pixel size LEDs
     LTEXT           "+GND Fault",IDC_STATIC,152,20,40,8
     CONTROL         "",IDC_EXT_LED_MNS_GF,"Static",SS_OWNERDRAW,142,31,6,6
@@ -94,14 +94,17 @@ BEGIN
     LTEXT           "Rip I V HiZ",IDC_STATIC,152,60,40,8
     CONTROL         "",IDC_EXT_LED_AC_LOSS,"Static",SS_OWNERDRAW,142,71,6,6
     LTEXT           "ACpwr Loss",IDC_STATIC,152,70,40,8
-    LTEXT           "Relay K1",IDC_STATIC,142,90,30,8
-    LTEXT           "OFF",IDC_RELAY_K1,175,90,14,8
-    LTEXT           "Relay K2",IDC_STATIC,142,100,30,8
-    LTEXT           "OFF",IDC_RELAY_K2,175,100,14,8
-    LTEXT           "Relay K3",IDC_STATIC,142,110,30,8
-    LTEXT           "OFF",IDC_RELAY_K3,175,110,14,8
-    LTEXT           "Relay K4",IDC_STATIC,142,120,30,8
-    LTEXT           "ON ",IDC_RELAY_K4,175,120,14,8
+
+    LTEXT           "ExcitPulse",IDC_STATIC,142,82,33,8
+    LTEXT           "OFF", IDC_EXCIT_PULSE,175,82,14,8
+    LTEXT           "Relay K1",IDC_STATIC,142,95,30,8
+    LTEXT           "OFF",IDC_RELAY_K1,175,95,14,8
+    LTEXT           "Relay K2",IDC_STATIC,142,105,30,8
+    LTEXT           "OFF",IDC_RELAY_K2,175,105,14,8
+    LTEXT           "Relay K3",IDC_STATIC,142,115,30,8
+    LTEXT           "OFF",IDC_RELAY_K3,175,115,14,8
+    LTEXT           "Relay K4",IDC_STATIC,142,125,30,8
+    LTEXT           "ON ",IDC_RELAY_K4,175,125,14,8
     END
 
 

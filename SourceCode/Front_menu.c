@@ -960,13 +960,13 @@ void Operation(void)
 	}
 	//Display_Info.Status housekeeping, handle pulse LED
 	if (rt.pulse == FALSE) {											// set/clr bit in display status
-		Display_PulseLED_OFF;	// clearBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT); // Bit_2
-		clearBit(Display_Info.Status, DISP_STATE_PulseON_BIT);			// clear Bit_6);
+		//Display_PulseLED_OFF;	// clearBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT); // Bit_2
+		clearBit(Display_Info.Status, DISP_STATE_PulseON_BIT | DISP_LED_Pulse_ON_BIT);			// clear Bit_14 and Bit_2
 	}
 	else //if (SysData.NV_UI.pulse == TRUE)
 	{
-		Display_PulseLED_ON;											// setBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT);	// Bit_2
-		setBit(Display_Info.Status, DISP_STATE_PulseON_BIT);			// set Bit_6;
+		//Display_PulseLED_ON;											// setBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT);	// Bit_2
+		setBit(Display_Info.Status, DISP_STATE_PulseON_BIT | DISP_LED_Pulse_ON_BIT);			// set Bit_14 and Bit_2
 	}
 
 	//Check Reset Button

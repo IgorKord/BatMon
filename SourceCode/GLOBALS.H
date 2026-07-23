@@ -225,8 +225,6 @@ extern float FirmwareVersion;     //Version 3.0
 
 #define  If_int16_is_negative(var)   if (var & 0x8000)   //check to see if negative number
 
-#define TWI_SET_RELAY_K1_BIT	Bit_12	// 0x1000 send to Relay board relay status in Display_Info.Relay_status, bit 12 = K1, bit 13 = K2, bit 14 = K3, bit 15 = K4
-
 // define only one option!
 // #define  GENERIC		// all variants customized by settings
 // #define STANDARD_PANEL
@@ -540,14 +538,21 @@ typedef int                  int16;
 #define DISP_BRD_I_CAL_MODE (DISP_STATE_LOmA_BIT | DISP_STATE_HImA_BIT)
 #define DISP_BRD_CAL_MODE   (DISP_BRD_I_CAL_MODE | DISP_STATE_VoltCal_BIT)
 
+// used with 'alarm_status', 'latched_alarm_status'
+#define TWI_TO_RELAY_BRD_K1_BIT Bit_0
+#define TWI_TO_RELAY_BRD_K2_BIT Bit_1
+#define TWI_TO_RELAY_BRD_K3_BIT Bit_2
+#define TWI_TO_RELAY_BRD_K4_BIT Bit_3
+#define TWI_TO_RELAY_BRD_PULSE_BIT Bit_4
 
 // used with 'relay_board_status' and 'disabled_alarms'
-#define RELAY_BRD_AC_FAIL_BIT       Bit_0 // if ((relay_board_status & 0x01)            //ac pwr fail from alarm board?
+#define RELAY_BRD_AC_FAIL_BIT       Bit_0 // if ((relay_board_status & 0x01)            //ac pwr fail from relay board?
 #define RELAY_BRD_REQ_RESET_BIT     Bit_1 // if ((relay_board_status & 0x02) == 0x02)   //ext. reset from relay board?
+#define RELAY_BRD_EXCIT_PULSE_BIT   TWI_TO_RELAY_BRD_PULSE_BIT // in Display_Info.Relays_state. set excitation pulsing on relay board to test discontinuity
 
 #define ALARM_BLINK_RATE_ms                 300
 
-// used with 'alarm_status', 'latched_alarm_status'
+
 #define DELAY_ms_BEFORE_ALARM_ACCEPTED      25 // wait 25 ms (counter reaches 25) before raising the 'alarm detected' event / set the flag
 #define ALARM_COUNTER_CAP_ms                DELAY_ms_BEFORE_ALARM_ACCEPTED*2 // 50 ms maximum counter allowed to increment, because it would count down from 2x25 ms to 25 ms to clear alarm
 

@@ -24,10 +24,11 @@
 #define IDC_EXT_LED_LO_BAT              1019
 #define IDC_EXT_LED_RI_RV_NZ            1020
 #define IDC_EXT_LED_AC_LOSS             1021
-#define IDC_RELAY_K1                    1022
-#define IDC_RELAY_K2                    1023
-#define IDC_RELAY_K3                    1024
-#define IDC_RELAY_K4                    1025
+#define IDC_EXCIT_PULSE                 1022
+#define IDC_RELAY_K1                    1023
+#define IDC_RELAY_K2                    1024
+#define IDC_RELAY_K3                    1025
+#define IDC_RELAY_K4                    1026
 
 // Next default values for new objects
 // 
@@ -35,7 +36,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        101
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1020
+#define _APS_NEXT_CONTROL_VALUE         1027
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

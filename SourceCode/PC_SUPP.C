@@ -737,16 +737,19 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(GetDlgItem(hDlg, IDC_EXT_LED_AC_LOSS), NULL, FALSE);
 
 			// Update relay status labels
-			SetDlgItemText(hDlg, IDC_RELAY_K1, (Display_Info.Relays_state & 0x01) ? "ON " : "OFF");
-			SetDlgItemText(hDlg, IDC_RELAY_K2, (Display_Info.Relays_state & 0x02) ? "ON " : "OFF");
-			SetDlgItemText(hDlg, IDC_RELAY_K3, (Display_Info.Relays_state & 0x04) ? "ON " : "OFF");
-			SetDlgItemText(hDlg, IDC_RELAY_K4, (Display_Info.Relays_state & 0x08) ? "ON " : "OFF");
+			SetDlgItemText(hDlg, IDC_RELAY_K1, (Display_Info.Relays_state & TWI_TO_RELAY_BRD_K1_BIT) ? "ON " : "OFF");
+			SetDlgItemText(hDlg, IDC_RELAY_K2, (Display_Info.Relays_state & TWI_TO_RELAY_BRD_K2_BIT) ? "ON " : "OFF");
+			SetDlgItemText(hDlg, IDC_RELAY_K3, (Display_Info.Relays_state & TWI_TO_RELAY_BRD_K3_BIT) ? "ON " : "OFF");
+			SetDlgItemText(hDlg, IDC_RELAY_K4, (Display_Info.Relays_state & TWI_TO_RELAY_BRD_K4_BIT) ? "ON " : "OFF");
+			// Update excitation pulse label
+			SetDlgItemText(hDlg, IDC_EXCIT_PULSE, (Display_Info.Relays_state & TWI_TO_RELAY_BRD_PULSE_BIT) ? "ON " : "OFF");
 
 			// Force redraw to update background colors
 			InvalidateRect(GetDlgItem(hDlg, IDC_RELAY_K1), NULL, TRUE);
 			InvalidateRect(GetDlgItem(hDlg, IDC_RELAY_K2), NULL, TRUE);
 			InvalidateRect(GetDlgItem(hDlg, IDC_RELAY_K3), NULL, TRUE);
 			InvalidateRect(GetDlgItem(hDlg, IDC_RELAY_K4), NULL, TRUE);
+			InvalidateRect(GetDlgItem(hDlg, IDC_EXCIT_PULSE), NULL, TRUE);
 		}
 		// show holding button duration in real time
 		for (int i = 0; i <= BTN_INDEX_RESET; ++i)
@@ -901,7 +904,8 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 		if (hwndStatic == GetDlgItem(hDlg, IDC_RELAY_K1) ||
 			hwndStatic == GetDlgItem(hDlg, IDC_RELAY_K2) ||
 			hwndStatic == GetDlgItem(hDlg, IDC_RELAY_K3) ||
-			hwndStatic == GetDlgItem(hDlg, IDC_RELAY_K4))
+			hwndStatic == GetDlgItem(hDlg, IDC_RELAY_K4) ||
+			hwndStatic == GetDlgItem(hDlg, IDC_EXCIT_PULSE))
 		{
 			char text[10];
 			GetWindowText(hwndStatic, text, sizeof(text));
@@ -1017,7 +1021,7 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 		COLORREF bgColor;
 
 		// Check if this is an external LED control
-		if (lpdis->CtlID >= IDC_EXT_LED_PLS_GF && lpdis->CtlID <= IDC_EXT_LED_AC_LOSS) {
+		if (lpdis->CtlID >= IDC_EXT_LED_PLS_GF && lpdis->CtlID <= IDC_EXCIT_PULSE) {
 			// Determine LED index based on control ID
 			int ledIndex = -1;
 			int bitIndex = -1;

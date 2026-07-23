@@ -2016,7 +2016,7 @@ const t_rci_commands rci[] =
 	/*+*/	"help",		(void*)&Print_Help,				// "help" - list of commands
 	/*+*/	"?\0\0\0",	(void*)&Print_Help,				// "?" prints - list of commands
 	/*+*/	"adch",		(void*)&Show_ADCcounts_and_Volts,	// "adch"  Report ADC readings in format: chan0, chan1, chan2, chan3, chan4, chan5, chan6, chan7
-	/*+*/	"puls",		(void*)&Excitation_Pulse,		// Pulse set/get: 'pulse>on', 'pulse>off' - set right now; 'pulse>enab', IT DOES NOT SAVED into flash because it is test command.
+	/*+*/	"puls",		(void*)&Excitation_Pulse,		// Pulse set/get: 'pulse>on', 'pulse>off' - set right now; 'pulse>enab', IT IS NOT SAVED into flash because it is test command.
 	/*+*/	"dnp3",		(void*)&SwitchToDNP,			// exit ASCII RCI, and swith to DNP immediately ==> set rt.operating_protocol. No EEPROM change. //-!- redundant, 'prot>dnp3' temporary or 'prot>dnp3>save' change and save into EEPROM
 	/*+*/	"init",		(void*)&InitATMEL,				// "init": Re-initialize controller, like power-up
 	/*+*/	"modb",		(void*)&SwitchToModBus,			// exit ASCII RCI and swith to ModBus immediately  ==> set rt.operating_protocol. No EEPROM change //-!- redundant, 'prot>modb' temporary or 'prot>modb>save' change and save into EEPROM
