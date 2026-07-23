@@ -3929,7 +3929,6 @@ void Init_UART() {
 void init(void)
 {
 	uint16 i;
-	EchoStatus = ECHO_ENABLED;						// AT20230615 enable echo by default
 	FirmwareVersion = FW_ver_float;					// initialization of global variable with firmware version number
 #ifdef PC
 	initEEsimulator();
@@ -3944,7 +3943,7 @@ void init(void)
 	// It will be activated after timer.start_up_ms expires
 
 	// Initialize UART with SETUP protocol settings
-    Existing.BRate_index = Baud_9600_i;
+	Existing.BRate_index = Baud_9600_i;
 	Init_UART();
 	// Start the 6-second startup timer
 	timer.start_up_ms = 6000;                    // 6 seconds in SETUP mode

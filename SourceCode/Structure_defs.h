@@ -445,7 +445,7 @@ typedef struct  {				// use received from front board (via TWI communication) st
 	// uint8 display_status;				// IK20250814 these bits used with former 'Display_Info.display_status', now upper byte of Display_Info.Status // status of display etc.
 	uint16 alarm_status;					// IK20250811 increased to 2 bytes to fit LastGasp. status of active alarms
 	uint8 ExtLED_state;						// send to Relay board annunciator LEDs state, bits 0 to 5, on top-to-bottom order: LED0 = "+GF", LED1="-GF", LED2="HiBat", LED3="LoBat", LED4="Ripple V,I;HiZ", LED5="AC Loss"
-	uint8 Relays_state;						// send to Relay board Relay_state, bit 0 = K1, bit 1 = K2, bit 2 = K3, bit 3 = K4
+	uint8 Relays_state;						// send to Relay board Relay_state, bit 0 = K1, bit 1 = K2, bit 2 = K3, bit 3 = K4, bit 4 = excitation pulse state
 }DisplayInfo;
 extern DisplayInfo Display_Info;
 

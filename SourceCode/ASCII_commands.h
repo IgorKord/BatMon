@@ -23,7 +23,6 @@ uint16 PrintConstString(const char FL* str_f_ptr);
 /*************************************************************/
 extern char FW_PartNumber[];
 extern char FW_Date[];
-extern uint8  EchoStatus;                         // true - send echo back to COM port, false (default) - no echo
 extern Uint32 ErrorStatus;						// 0 - no error, other values - error code
 extern SettingsStruct Existing;					// keep current setting to detect change vs SysData.NV_UI
 extern uint8  restart_op;							// used to restart system using WDT
@@ -44,13 +43,6 @@ extern void SendMsgToPC(char FL* Msg);
 extern void Put_CMD_as_chars(void);
 extern void Print_FW_Version(void);
 extern int NumOfCommands(void);
-
-enum ECHO_STATE {
-	ECHO_DISABLED = 0, // convinient to check: if(EchoStatus) send echo - will not send if EchoStatus=ECHO_DISABLED
-	ECHO_ENABLED = 1,
-	ECHO_VERBOSE = 2,
-};
-
 
 #ifdef PC
 #ifndef UCSR0C // = 0x06;                              //no UART_parity, async, 1 stop,

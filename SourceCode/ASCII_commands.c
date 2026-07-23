@@ -39,7 +39,6 @@ uint8 Num_RCI_commands; // = sizeof(rci) / sizeof(t_rci_commands);
 char CMD_index;
 char* CommStr;
 
-uint8  EchoStatus;                         // true - send echo back to COM port, false (default) - no echo
 char RCI_message[128];						// for output via UART from RCI
 
 char FL* p_Execution = ">~Execution";
@@ -64,21 +63,24 @@ void Print_FW_Version(void)
 }
 
 // if verbose is enabled add verbose comment , then \r\n
-void Print_w_verbose(char FL* vrb)
-{
-	if (EchoStatus == ECHO_VERBOSE)
-	{
-		//	cputs(" // ");
-		cputs(vrb);
-	}
-	PrintNewLine();
-}
+//void Print_w_verbose(char FL* vrb)
+//{
+//	if (rt.Host & CmdVerboseResponse)
+//	{
+//		//	cputs(" // ");
+//		cputs(vrb);
+//	}
+//	PrintNewLine();
+//}
 
 void PrintDelayTime(void)
 {
 	static FL char ms_delay_before_measurement[] = "ms delay before measurement";
 	printf("\x1BRW%d\r", SysData.xmt_delay);
-	Print_w_verbose((char FL*)ms_delay_before_measurement); // ms
+	//Print_w_verbose((char FL*)ms_delay_before_measurement); // ms
+	if (rt.Host & CmdVerboseResponse)
+		cputs(ms_delay_before_measurement);
+	PrintNewLine();
 }
 
 /*************************************************************/
@@ -644,13 +646,6 @@ void Send_RCI_Param_Error_as_FlashConst(char FL* valid_msg)
 	printf(">~ERR BAD param %s; valid: %s", rt.HostRxBuff, printf_buff);
 }
 
-/******************************************************************************/
-void Send_comment(char FL* comment)
-{
-	//printf(" // %s", comment);
-	cputs(" // ");
-	cputs(comment);
-}
 
 /******************************************************************************/
 void Send_verbose_comment(char* comment)
@@ -658,7 +653,6 @@ void Send_verbose_comment(char* comment)
 	if (testBit(rt.Host, CmdVerboseResponse))
 	{
 		int chr;
-
 		cputs(" // ");
 		while (*comment != 0) // while pointer points NOT to end of string, 0
 		{
@@ -670,10 +664,21 @@ void Send_verbose_comment(char* comment)
 }
 
 /******************************************************************************/
+//void Send_comment(char FL* comment)
+//{
+//	cputs(" // ");
+//	cputs(comment);
+//}
+
+/******************************************************************************/
 void Send_verbose_comment_as_FlashConst(char FL* comment)
 {
 	//CopyConstString(comment, printf_buff);
-	if (testBit(rt.Host, CmdVerboseResponse))	Send_comment(comment);
+	if (testBit(rt.Host, CmdVerboseResponse)) {
+		//Send_comment(comment);
+		cputs(" // ");
+		cputs(comment);
+	}
 }
 
 /*************************************************************** /
@@ -1101,27 +1106,41 @@ Exception:
 void SetGetRelays(void)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
-	if (temp_Inp_str[CMD_LEN + 1] == 'S') {
-		if (temp_Inp_str[CMD_LEN + 2] != '=') // relays returns current state of relays: relays=H.
+	if (temp_Inp_str[CMD_LEN + 2] != '=') { // relays returns current state of relays: relays=H.
+		Put_CMD_as_chars();
+		printf("ys=%X", Display_Info.Relays_state); //return to PC "relays=H"
+		if (rt.Host & CmdVerboseResponse)
 		{
-			Put_CMD_as_chars();
-			printf("ys=%X", Display_Info.Relays_state); //return to PC "relay=H"
-			return;
+			char txtON[] = "ON ";
+			char txtOFF[] = "OFF";
+			uint8 bitNum;
+			char* bitState[5];// = { txtOFF, txtOFF, txtOFF, txtOFF, txtOFF };
+			for (bitNum = 0; bitNum < 5; bitNum++)
+			{
+				if (Display_Info.Relays_state & (1 << bitNum))
+					bitState[bitNum] = txtON;
+				else
+					bitState[bitNum] = txtOFF;
+			}
+			sprintf(RCI_message, "K1 %s, K2 %s, K3 %s, K4 %s, Pulses %s", bitState[0], bitState[1], bitState[2], bitState[3], bitState[4]); // states of relays and pulse
+			Send_verbose_comment(RCI_message);
 		}
-		else //if (temp_Inp_str[CMD_LEN + 1] == '=') // relay=H changes state of relays, where H is a hexadecimal value representing the state of four relays.
+		return;
+	}
+	else //if (temp_Inp_str[CMD_LEN + 2] == '=') // relays=H changes state of relays, where H is a hexadecimal value representing the state of four relays.
+	{
+		char HexRstate = temp_Inp_str[CMD_LEN + 3];
+		int Rstate = ASCIIToHexChar(HexRstate);
+		if (Rstate < 0)// check if H is a valid hexadecimal digit (0-9, A-F)
 		{
-			char HexRstate = temp_Inp_str[CMD_LEN + 3];
-			int Rstate = ASCIIToHexChar(HexRstate);
-			if (Rstate < 0)// check if H is a valid hexadecimal digit (0-9, A-F)
-			{
-				Send_RCI_Param_Error_as_FlashConst("relays=H or relays?");
-			}
-			else
-			{
-				Display_Info.Relays_state = Rstate; //change state of relays, where H is a hexadecimal value representing the state of four relays.
-			}
-			return;
+			Send_RCI_Param_Error_as_FlashConst("relays=H or relays?");
 		}
+		else
+		{
+			// ? strip excitation pulse bit ?
+			Display_Info.Relays_state = Rstate; //change state of relays, where H is a hexadecimal value representing the state of four relays and the excitation pulse bit.
+		}
+		return;
 	}
 }
 
