@@ -781,6 +781,26 @@ int ASCIIToHexChar(char in_char)
 	return(-1);
 }
 
+/// <summary>
+/// take a hex string and convert it to a 32bit number (max 8 hex digits)
+/// </summary>
+/// <param name="hex">Hexadecimal string to convert</param>
+/// <returns>Uint32 converted from string</returns>
+Uint32 hex2int(char* hex) {
+	Uint32 val = 0;
+	while (*hex) {
+		// get current character then increment
+		uint8 byte = *hex++;
+		// transform hex character to the 4bit equivalent number, using the ascii table indexes
+		if (byte >= '0' && byte <= '9') byte = byte - '0';
+		else if (byte >= 'a' && byte <= 'f') byte = byte - 'a' + 10;
+		else if (byte >= 'A' && byte <= 'F') byte = byte - 'A' + 10;
+		// shift 4 to make space for new digit, and add the 4 bits of the new digit
+		val = (val << 4) | (byte & 0xF);
+	}
+	return val;
+}
+
 char FL* CalNames[8] = {// IK20250130 be careful with the length, I reserved only 40 bytes for a temporary string in stack in function SetGetCalParam(void) - char Cal_Name[40];
 	"BatteryVolts",		// Y1 X1 Y2 X2 Battery Voltage calibration
 	"FaultVolts",		// Y1 X1 Y2 X2 Fault Voltage calibration
@@ -1162,16 +1182,19 @@ void SetGetRelays(void)
 /// the conditions under which the relay should be activated; command changes uint16 DefaultRelayMASK[4].
 /// based on alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ,BCL defined in structure_defs.h,
 /// the relay control logic can be configured to activate relays based on specific alarm conditions.
+/// The call to this function can only happen when the # is in range 1...4, so check for # validity can be skipped
 /// </summary>
 /// <param name=""></param>
 void SetGetRelayTriggers(void)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
 	uint8 relay_num = temp_Inp_str[CMD_LEN - 1] - '1'; //forth byte of command,the "#"; covert to integer 0-3 for relay index
-	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 3]); // relay setting starting at 7th byte
+	Uint32 param;
+	//param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]);// FLASH = 56675
+	param = hex2int(&temp_Inp_str[CMD_LEN + 1]);                    // FLASH = 56751
+	//param = (int)strtol(&temp_Inp_str[CMD_LEN + 1], NULL, 16);    // FLASH = 56925
 	// Handle rel#=XXXX or rel#? commands
-	if (relay_num <= 3)
-	{
+	//if (relay_num <= 3) { // no need to check, call happens only with relay_num range 1 to 4
 		if (temp_Inp_str[CMD_LEN + 1] == '=')
 		{
 			SysData.Relay_MASK[relay_num] = param;
@@ -1195,17 +1218,7 @@ void SetGetRelayTriggers(void)
 				}
 			}
 		}
-		//else
-		//{
-		//	Send_RCI_Param_Error_as_FlashConst("rel#=XXXX or rel#?");
-		//}
-	}
-	else
-	{
-		Send_RCI_Param_Error_as_FlashConst("range 1-4");
-	}
-	return;
-
+	//}
 }
 
 void SetGetExtLEDs() {
@@ -1242,35 +1255,40 @@ void SetGetExtLEDs() {
 /// command changes uint16 SysData.ExtLED_MASK[6].
 /// based on alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ,BCL defined in structure_defs.h,
 /// the LED control logic can be configured to activate LEDs based on specific alarm conditions.
+/// The call to this function can only happen when the # is in range 1...6, so check for # validity can be skipped
 /// </summary>
 /// <param name=""></param>
 void SetGetExtLEDTriggers(void)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
-	int led_num = temp_Inp_str[CMD_LEN + 1] - '0'; //fifth byte after command,the "#"; covert to integer 1-6 for LED number
-	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 3]); // LED setting starting at 7th byte
+	int led_num = temp_Inp_str[CMD_LEN - 1] - '0'; //fifth byte after command,the "#"; covert to integer 1-6 for LED number
+	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); // LED setting starting at 5th byte
 	// Handle led#=XXXX or led#? commands
-	if (led_num >= 1 && led_num <= 6)
-	{
-		if (temp_Inp_str[CMD_LEN + 2] == '=')
+	//if (led_num >= 1 && led_num <= 6) { // no need to check, call happens only with led_num range 1 to 6
+		if (temp_Inp_str[CMD_LEN] == '=')
 		{
 			SysData.ExtLED_MASK[led_num - 1] = param;
 		}
-		else if (temp_Inp_str[CMD_LEN + 2] == '?')
+		else //if (temp_Inp_str[CMD_LEN] == '?')
 		{
 			Put_CMD_as_chars();
 			printf("y%d=%04X", led_num, SysData.ExtLED_MASK[led_num - 1]); //led#=XXXX
+			if (rt.Host & CmdVerboseResponse)
+			{
+				uint8 bitNum;
+				cputs(" // L"); PutChar(temp_Inp_str[CMD_LEN + 1]);
+				cputs(" triggers |");
+				for (bitNum = 0; bitNum < NUM_ALARMS; bitNum++)
+				{
+					if (SysData.ExtLED_MASK[led_num - 1] & (1 << bitNum))
+						cputs(AlarmBitsNames[bitNum]);
+					else
+						cputs("   ");
+					PutChar('|');
+				}
+			}
 		}
-		else
-		{
-			Send_RCI_Param_Error_as_FlashConst("led#=XXXX or led#?");
-		}
-	}
-	else
-	{
-		Send_RCI_Param_Error_as_FlashConst("range 1-6");
-	}
-	return;
+	//}
 }
 
 void SetGetStatus(uint16 Status_bit)

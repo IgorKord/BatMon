@@ -4613,6 +4613,7 @@ const uint16 DefaultExternLEDmask[6] =
 	/* L5*/(0|	0|	0|	0|	0|	0|	0|ACL|	0|	0),	// ExtLED 5 maps to Alarm_AC_Loss_Bit (ACL)
 };
 
+///
 void Create_Relay_Board_setting(void) {
 	uint8 Relay_byte = 0;
 	uint8 LED_byte = 0;
