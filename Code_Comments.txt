@@ -1,7 +1,10 @@
-20270723
+20260804
+debugged led#, rel# commands
+
+20260723
 Added pulse bit to Display_Info.Relay_State, to transfer pulse enabled/disabled information to relay board.
 
-20270722
+20260722
 modified "relay" command: split command in two: 
 "rel#" to set relay mask SysData.Relay_MASK[4] and 
 "relays" to set/get relays state "relays=H" or "relays?"

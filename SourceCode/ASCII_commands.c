@@ -344,10 +344,10 @@ float CurrentLoopPrediction(void) {
 	float t_f = rt.OutData.measured.battery_voltage_f / (SysData.NV_UI.V20 - SysData.NV_UI.V4) - 1;
 	float t_c;
 	if (SysData.NV_UI.SavedStatusWord & CurOut_I420_eq0_I01_eq1_Bit) {
-		t_c = 4.0 + (20 - 4) * t_f;
+		t_c = 4.0f + (20 - 4) * t_f;
 	}
 	else {
-		t_c = 0.0 + (1 - 0) * t_f;
+		t_c = 0.0f + (1 - 0) * t_f;
 	}
 	return t_c;
 }
@@ -1177,6 +1177,34 @@ void SetGetRelays(void)
 	}
 }
 
+
+/// <summary>
+/// Helper function to output trigger mask value and verbose explanation
+/// </summary>
+/// <param name="mask_value">The mask value to output</param>
+/// <param name="identifier_char">Character identifier (e.g., relay number or LED number)</param>
+/// <param name="prefix_char">Prefix character ('K' for relay, 'L' for LED)</param>
+void OutputTriggerMaskVerbose(Uint16 mask_value, char identifier_char, char prefix_char)
+{
+	Put_CMD_as_chars();
+	printf("=%04X", mask_value);
+	if (rt.Host & CmdVerboseResponse)
+	{
+		uint8 bitNum;
+		cputs(" // "); PutChar(prefix_char); PutChar(identifier_char);
+		cputs(" triggers: bit 0...9 |");
+		for (bitNum = 0; bitNum < NUM_ALARMS; bitNum++)
+		{
+			if (mask_value & (1 << bitNum))
+				cputs(AlarmBitsNames[bitNum]);
+			else
+				cputs("   ");
+			PutChar('|');
+		}
+		if (mask_value & INV)
+			cputs("Inverted");
+	}
+}
 /// <summary>
 /// rel#=XXXX sets lookup table for relay control, where # is the relay number (1-4) and XXXX is a 16-bit hexadecimal value representing
 /// the conditions under which the relay should be activated; command changes uint16 DefaultRelayMASK[4].
@@ -1194,51 +1222,58 @@ void SetGetRelayTriggers(void)
 	param = hex2int(&temp_Inp_str[CMD_LEN + 1]);                    // FLASH = 56751
 	//param = (int)strtol(&temp_Inp_str[CMD_LEN + 1], NULL, 16);    // FLASH = 56925
 	// Handle rel#=XXXX or rel#? commands
-	//if (relay_num <= 3) { // no need to check, call happens only with relay_num range 1 to 4
-		if (temp_Inp_str[CMD_LEN + 1] == '=')
-		{
-			SysData.Relay_MASK[relay_num] = param;
-		}
-		else //if (temp_Inp_str[CMD_LEN + 1] == '?')
-		{
-			Put_CMD_as_chars();
-			printf("=%04X", SysData.Relay_MASK[relay_num]); //relay#=XXXX
-			if (rt.Host & CmdVerboseResponse)
-			{
-				uint8 bitNum;
-				cputs(" // K"); PutChar(temp_Inp_str[CMD_LEN - 1]);
-				cputs(" triggers |");
-				for (bitNum = 0; bitNum < NUM_ALARMS; bitNum++)
-				{
-					if (SysData.Relay_MASK[relay_num] & (1 << bitNum))
-						cputs(AlarmBitsNames[bitNum]);
-					else
-						cputs("   ");
-					PutChar('|');
-				}
-			}
-		}
-	//}
+	if (temp_Inp_str[CMD_LEN ] == '=')
+	{
+		SysData.Relay_MASK[relay_num] = (Uint16)param;
+	}
+	else //if (temp_Inp_str[CMD_LEN + 1] == '?')
+	{
+		OutputTriggerMaskVerbose(SysData.Relay_MASK[relay_num], temp_Inp_str[CMD_LEN - 1], 'K');
+	}
 }
 
+/// <summary>
+/// External LEDs set/get: 'eleds? returns Set command syntax 'eleds=HH' in hexadecimal format. Setting in flash is updated after 'save' command.
+/// eleds? returns current state of External LEDs: eled=HH.
+/// eleds=HH changes state of LEDs, where H is a hexadecimal value representing the state of six LEDs.
+/// Each bit in H corresponds to an LED, with 1 indicating the LED is on and 0 indicating it is off.
+/// The changes will be sent to relay board via TWI and take effect immediately but can be overwritten if alarm condition persists.
+/// </summary>
+/// <param name=""></param>
 void SetGetExtLEDs() {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
-	if (temp_Inp_str[CMD_LEN + 1] == 'S') {
-		if (temp_Inp_str[CMD_LEN + 2] != '=') // eleds returns current state of external LEDs: eleds=HH.
+	if (temp_Inp_str[CMD_LEN] == 'S') {
+		if (temp_Inp_str[CMD_LEN + 1] != '=') // eleds returns current state of external LEDs: eleds=HH.
 		{
 			Put_CMD_as_chars();
-			printf("ds=%02X", Display_Info.ExtLED_state); //return to PC "eleds=HH"
+			printf("s=%02X", Display_Info.ExtLED_state); //return to PC "eleds=HH"
+			if (rt.Host & CmdVerboseResponse)
+			{
+				char txtON[] = "ON ";
+				char txtOFF[] = "OFF";
+				uint8 bitNum;
+				char* bitState[5];// = { txtOFF, txtOFF, txtOFF, txtOFF, txtOFF };
+				for (bitNum = 0; bitNum < 5; bitNum++)
+				{
+					if (Display_Info.ExtLED_state & (1 << bitNum))
+						bitState[bitNum] = txtON;
+					else
+						bitState[bitNum] = txtOFF;
+				}
+				sprintf(RCI_message, "L1 %s, L2 %s, L3 %s, L4 %s, L5 %s, L6 %s", bitState[0], bitState[1], bitState[2], bitState[3], bitState[4], bitState[4]); // states of external LEDs
+				Send_verbose_comment(RCI_message);
+			}
 			return;
 		}
-		else //if (temp_Inp_str[CMD_LEN + 2] == '=') // eleds=HH changes state of external LEDs, where HH is a hexadecimal value representing the state of six LEDs.
+		else //if (temp_Inp_str[CMD_LEN + 2] != '=') // eleds=HH changes state of external LEDs, where HH is a hexadecimal value representing the state of six LEDs.
 		{
-			char HexHigh = temp_Inp_str[CMD_LEN + 3];
-			char HexLow = temp_Inp_str[CMD_LEN + 4];
+			char HexHigh = temp_Inp_str[CMD_LEN + 2];
+			char HexLow = temp_Inp_str[CMD_LEN + 3];
 			int LEDhigh = ASCIIToHexChar(HexHigh);
 			int LEDlow = ASCIIToHexChar(HexLow);
 			if (LEDhigh < 0 || LEDlow < 0)// check if HH is a valid hexadecimal digit (0-9, A-F)
 			{
-				Send_RCI_Param_Error_as_FlashConst("eleds=HH or eleds?");
+				goto eleds_error;
 			}
 			else
 			{
@@ -1246,6 +1281,11 @@ void SetGetExtLEDs() {
 			}
 			return;
 		}
+	}
+	else 
+	{
+eleds_error:
+		Send_RCI_Param_Error_as_FlashConst("eleds=HH or eleds?");
 	}
 }
 
@@ -1262,33 +1302,16 @@ void SetGetExtLEDTriggers(void)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
 	int led_num = temp_Inp_str[CMD_LEN - 1] - '0'; //fifth byte after command,the "#"; covert to integer 1-6 for LED number
-	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); // LED setting starting at 5th byte
+	Uint32 param = hex2int(&temp_Inp_str[CMD_LEN + 1]); // LED setting starting at 5th byte
 	// Handle led#=XXXX or led#? commands
-	//if (led_num >= 1 && led_num <= 6) { // no need to check, call happens only with led_num range 1 to 6
-		if (temp_Inp_str[CMD_LEN] == '=')
-		{
-			SysData.ExtLED_MASK[led_num - 1] = param;
-		}
-		else //if (temp_Inp_str[CMD_LEN] == '?')
-		{
-			Put_CMD_as_chars();
-			printf("y%d=%04X", led_num, SysData.ExtLED_MASK[led_num - 1]); //led#=XXXX
-			if (rt.Host & CmdVerboseResponse)
-			{
-				uint8 bitNum;
-				cputs(" // L"); PutChar(temp_Inp_str[CMD_LEN + 1]);
-				cputs(" triggers |");
-				for (bitNum = 0; bitNum < NUM_ALARMS; bitNum++)
-				{
-					if (SysData.ExtLED_MASK[led_num - 1] & (1 << bitNum))
-						cputs(AlarmBitsNames[bitNum]);
-					else
-						cputs("   ");
-					PutChar('|');
-				}
-			}
-		}
-	//}
+	if (temp_Inp_str[CMD_LEN] == '=')
+	{
+		SysData.ExtLED_MASK[led_num - 1] = (Uint16)param;
+	}
+	else //if (temp_Inp_str[CMD_LEN] == '?')
+	{
+		OutputTriggerMaskVerbose(SysData.ExtLED_MASK[led_num - 1], temp_Inp_str[CMD_LEN - 1], 'L');
+	}
 }
 
 void SetGetStatus(uint16 Status_bit)
@@ -1740,7 +1763,7 @@ void SetGetBaudRate(void)
 		}
 		if (BR != -1)
 		{
-			SysData.NV_UI.baud_rate = BR << 2;
+			SysData.NV_UI.baud_rate = (float)(BR << 2);
 		}
 	}
 	else // ? -- get command
