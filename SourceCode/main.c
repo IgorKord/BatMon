@@ -1082,21 +1082,48 @@ INTERRUPT void TIMER2_COMPA_interrupt(void)
 			timer.TWI_request = 0;
 			Display_Info.DisplayNeedsUpdateFlag = SET;
 		}
-	}       //end of tmr extender
-	//#if ((defined TIME_TESTING) || (defined INTERRUPT_TIME_TESTING))
-	//	if (timer.RT_correction >990)					// test
-	//		SetTestPin44;								// IK20250523 set test pin #44 (short pulse)
-	//#endif // #ifdef TIME_TESTING
-	//	if (timer.RT_correction >999)					// test
-	//	{
-	//#if ((defined TIME_TESTING) || (defined INTERRUPT_TIME_TESTING))
-	//		SetTestPin44;										// IK20250523 set test pin #44 (short pulse)
-	//#endif // #ifdef TIME_TESTING
-	//		timer.RT_correction = 0;
-	//#if ((defined TIME_TESTING) || (defined INTERRUPT_TIME_TESTING))
-	//		ClearTestPin44;										// IK20250523 reset test pin #44 (end of short pulse)
-	//#endif // #ifdef TIME_TESTING
-	//	}
+		if (rt.hi_bat_tmr > 1) //cap at 60 seconds happen when value is assined 
+			rt.hi_bat_tmr--;
+		if (rt.low_bat_tmr > 1)
+			rt.low_bat_tmr--;
+		if (rt.pgf_tmr > 1)
+			rt.pgf_tmr--;
+		if (rt.mgf_tmr > 1)
+			rt.mgf_tmr--;
+		if (rt.ripple_v_tmr > 1)
+			rt.ripple_v_tmr--;
+		if (rt.ripple_i_tmr > 1)
+			rt.ripple_i_tmr--;
+		if (rt.ac_tmr > 1)
+			rt.ac_tmr--;
+		if (rt.hi_z_tmr > 1)
+			rt.hi_z_tmr--;
+#ifdef LAST_GASP
+		if (rt.e_bat_tmr > 1)
+			rt.e_bat_tmr--;
+#endif // LAST_GASP
+//		if ((rt.hi_bat_tmr <= MAX_ALARM_GRACE_PERIOD_ms) && (rt.hi_bat_tmr > 0))//cap at 60 seconds
+//			rt.hi_bat_tmr++;
+//		if ((rt.low_bat_tmr <= MAX_ALARM_GRACE_PERIOD_ms) && (rt.low_bat_tmr > 0))
+//			rt.low_bat_tmr++;
+//		if ((rt.pgf_tmr <= MAX_ALARM_GRACE_PERIOD_ms) && (rt.pgf_tmr > 0))
+//			rt.pgf_tmr++;
+//		if ((rt.mgf_tmr <= MAX_ALARM_GRACE_PERIOD_ms) && (rt.mgf_tmr > 0))
+//			rt.mgf_tmr++;
+//		if ((rt.ripple_v_tmr <= MAX_ALARM_GRACE_PERIOD_ms) && (rt.ripple_v_tmr > 0))
+//			rt.ripple_v_tmr++;
+//		if ((rt.ripple_i_tmr <= MAX_ALARM_GRACE_PERIOD_ms) && (rt.ripple_i_tmr > 0))
+//			rt.ripple_i_tmr++;
+//		if ((rt.ac_tmr <= MAX_ALARM_GRACE_PERIOD_ms) && (rt.ac_tmr > 0))
+//			rt.ac_tmr++;
+//		if ((rt.hi_z_tmr <= MAX_ALARM_GRACE_PERIOD_ms) && (rt.hi_z_tmr > 0))
+//			rt.hi_z_tmr++;
+//#ifdef LAST_GASP
+//		if ((rt.e_bat_tmr <= MAX_ALARM_GRACE_PERIOD_ms) && (rt.e_bat_tmr > 0))
+//			rt.e_bat_tmr++;
+//#endif // LAST_GASP
+
+	}
 }
 
 /********************************************************************/
@@ -1874,13 +1901,13 @@ void CheckAlarmBit( float RealTimeValue, float threshold, signed char SetAlarmIf
 	{
 		if ((SysData.NV_UI.disabled_alarms & AlarmBit) == 0)	// an alarm is enabled
 		{
-			setBit(Display_Info.alarm_status, AlarmBit);		// set detected alarm bit
+			setBit(rt.alarm_detection, AlarmBit);		// set detected alarm bit
 			setBit(latched_alarm_status, AlarmBit);				// set latched alarm bit
 		}
 	}
 	else
 	{
-		clearBit(Display_Info.alarm_status, AlarmBit);					// clear detected alarm bit
+		clearBit(rt.alarm_detection, AlarmBit);					// clear detected alarm bit
 		if ((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) == 0)	// if not latched (persistent) alarms
 		{
 			clearBit(latched_alarm_status, AlarmBit);					// clear latched alarm bit
@@ -1936,12 +1963,12 @@ void Check_Alarms(void)
 
 		if (rt.high_impedance_cntr > DELAY_ms_BEFORE_ALARM_ACCEPTED)
 		{
-			setBit(Display_Info.alarm_status, Alarm_High_Impedance_Bit);		// alarm_status |= 0x80;        // set Hi-Z alarm
+			setBit(rt.alarm_detection, Alarm_High_Impedance_Bit);		// alarm_status |= 0x80;        // set Hi-Z alarm
 			setBit(latched_alarm_status, Alarm_High_Impedance_Bit);				// latched_alarm_status |= 0x80;  // set Hi-Z alarm
 		}
 		else
 		{
-			clearBit(Display_Info.alarm_status, Alarm_High_Impedance_Bit);		// alarm_status &= 0x7F;
+			clearBit(rt.alarm_detection, Alarm_High_Impedance_Bit);		// alarm_status &= 0x7F;
 			if ((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) == 0)		// if not latched (persistent) alarms
 			{
 				clearBit(latched_alarm_status, Alarm_High_Impedance_Bit);		// latched_alarm_status &= 0x7F;
@@ -1990,7 +2017,7 @@ void Check_Alarms(void)
 	if (relay_board_status & RELAY_BRD_REQ_RESET_BIT)	// ext. reset from relay board?
 	{
 #ifndef PC
-		Display_Info.alarm_status = 0;					// ext reset clear alarms
+		rt.alarm_detection = 0;					// ext reset clear alarms
 		latched_alarm_status = 0;
 		Display_Buzzer_OFF;								// turn buzzer off
 //-!- IK20240227 disabled for test        display_mode = VOLTS;
@@ -2002,7 +2029,7 @@ void Check_Alarms(void)
 		//latched_alarm_status = 0;
 		//clearBit(alarm_detected, AlarmStatus_ALL_BITS);
 	}
-	Display_Info.alarm_status = latched_alarm_status;
+	rt.alarm_detection = latched_alarm_status;
 } // end Check_Alarms()
 
 /********************************************************************/
@@ -4136,13 +4163,423 @@ uint8 ReadButtons() {
 }
 /*************************************************************/
 
+/// <summary>
+/// Function works after void CheckAlarmBit() which debounces the alarm condition(25 ms typical) and sets/clears the rt.alarm_detection word bits
+/// reads real time status from rt.alarm_detection
+/// if alarm condition is detected after debouncing in 'rt.alarm_detection' the appropriated timer start counting; ex: rt.h_battery_fault_cntr. 
+/// if time reaches SysData.NV_UI.alarm_delay_sec_f the 'Display_Info.alarm_status' gets updated in this function
+/// Other functions in main.c check the 'Display_Info.alarm_status' and if it is set,
+/// the front panel LED starts blinking, relay and external LEDs varables get updated so a new settings are sent to relay board
+/// In this function,
+/// if alarm condition is cleared before timer expired the timer is reset and relay and external LEDs varables are not changed
+/// if (SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) 
+/// and condition persists for more than SysData.NV_UI.alarm_delay_sec_f the Display_Info.alarm_status bit is set;
+/// if (SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) and if alarm condition is removed, the alarm bit is not cleared
+/// 
+/// if (Display_Info.alarm_status & Alarm_BatVoltageLOW_Bit)
+/// </summary>
+/// <param name=""></param>
+void Process_Alarms(void)
+{
+	uint16 alarm_delay_ms = (uint16)SysData.NV_UI.alarm_delay_sec_f * 1000;
+
+	// High Battery Voltage Alarm
+	if (rt.alarm_detection & Alarm_BatVoltageHIGH_Bit) // alarm condition detected
+	{
+		if ((Display_Info.alarm_status & Alarm_BatVoltageHIGH_Bit) == 0) // alarm bit not set yet
+		{
+			if (rt.hi_bat_tmr == 0) // start delay timer
+			{
+				rt.hi_bat_tmr = alarm_delay_ms; // load timer (counts down in interrupt)
+			}
+			else if (rt.hi_bat_tmr == 1) // delay expired, set alarm
+			{
+				setBit(Display_Info.alarm_status, Alarm_BatVoltageHIGH_Bit);
+				rt.hi_bat_tmr = 0; // reset timer
+			}
+		}
+		else // alarm bit already set, keep it set
+		{
+			rt.hi_bat_tmr = 0; // reset timer
+		}
+	}
+	else // alarm condition cleared
+	{
+		if (Display_Info.alarm_status & Alarm_BatVoltageHIGH_Bit) // alarm bit is set
+		{
+			if ((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) == 0) // not in latch mode
+			{
+				if (rt.hi_bat_tmr == 0) // start delay timer
+				{
+					rt.hi_bat_tmr = alarm_delay_ms;
+				}
+				else if (rt.hi_bat_tmr == 1) // delay expired, clear alarm
+				{
+					clearBit(Display_Info.alarm_status, Alarm_BatVoltageHIGH_Bit);
+					rt.hi_bat_tmr = 0; // reset timer
+				}
+			}
+			// else: latched mode, alarm stays set
+		}
+		else // alarm bit not set, keep it clear
+		{
+			rt.hi_bat_tmr = 0; // reset timer
+		}
+	}
+
+	// Low Battery Voltage Alarm
+	if (rt.alarm_detection & Alarm_BatVoltageLOW_Bit)
+	{
+		if ((Display_Info.alarm_status & Alarm_BatVoltageLOW_Bit) == 0)
+		{
+			if (rt.low_bat_tmr == 0)
+			{
+				rt.low_bat_tmr = alarm_delay_ms;
+			}
+			else if (rt.low_bat_tmr == 1)
+			{
+				setBit(Display_Info.alarm_status, Alarm_BatVoltageLOW_Bit);
+				rt.low_bat_tmr = 0;
+			}
+		}
+		else
+		{
+			rt.low_bat_tmr = 0;
+		}
+	}
+	else
+	{
+		if (Display_Info.alarm_status & Alarm_BatVoltageLOW_Bit)
+		{
+			if ((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) == 0)
+			{
+				if (rt.low_bat_tmr == 0)
+				{
+					rt.low_bat_tmr = alarm_delay_ms;
+				}
+				else if (rt.low_bat_tmr == 1)
+				{
+					clearBit(Display_Info.alarm_status, Alarm_BatVoltageLOW_Bit);
+					rt.low_bat_tmr = 0;
+				}
+			}
+		}
+		else
+		{
+			rt.low_bat_tmr = 0;
+		}
+	}
+
+	// Plus Ground Fault Alarm
+	if (rt.alarm_detection & Alarm_PlusGND_FAULT_Bit)
+	{
+		if ((Display_Info.alarm_status & Alarm_PlusGND_FAULT_Bit) == 0)
+		{
+			if (rt.pgf_tmr == 0)
+			{
+				rt.pgf_tmr = alarm_delay_ms;
+			}
+			else if (rt.pgf_tmr == 1)
+			{
+				setBit(Display_Info.alarm_status, Alarm_PlusGND_FAULT_Bit);
+				rt.pgf_tmr = 0;
+			}
+		}
+		else
+		{
+			rt.pgf_tmr = 0;
+		}
+	}
+	else
+	{
+		if (Display_Info.alarm_status & Alarm_PlusGND_FAULT_Bit)
+		{
+			if ((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) == 0)
+			{
+				if (rt.pgf_tmr == 0)
+				{
+					rt.pgf_tmr = alarm_delay_ms;
+				}
+				else if (rt.pgf_tmr == 1)
+				{
+					clearBit(Display_Info.alarm_status, Alarm_PlusGND_FAULT_Bit);
+					rt.pgf_tmr = 0;
+				}
+			}
+		}
+		else
+		{
+			rt.pgf_tmr = 0;
+		}
+	}
+
+	// Minus Ground Fault Alarm
+	if (rt.alarm_detection & Alarm_MinusGND_FAULT_Bit)
+	{
+		if ((Display_Info.alarm_status & Alarm_MinusGND_FAULT_Bit) == 0)
+		{
+			if (rt.mgf_tmr == 0)
+			{
+				rt.mgf_tmr = alarm_delay_ms;
+			}
+			else if (rt.mgf_tmr == 1)
+			{
+				setBit(Display_Info.alarm_status, Alarm_MinusGND_FAULT_Bit);
+				rt.mgf_tmr = 0;
+			}
+		}
+		else
+		{
+			rt.mgf_tmr = 0;
+		}
+	}
+	else
+	{
+		if (Display_Info.alarm_status & Alarm_MinusGND_FAULT_Bit)
+		{
+			if ((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) == 0)
+			{
+				if (rt.mgf_tmr == 0)
+				{
+					rt.mgf_tmr = alarm_delay_ms;
+				}
+				else if (rt.mgf_tmr == 1)
+				{
+					clearBit(Display_Info.alarm_status, Alarm_MinusGND_FAULT_Bit);
+					rt.mgf_tmr = 0;
+				}
+			}
+		}
+		else
+		{
+			rt.mgf_tmr = 0;
+		}
+	}
+
+	// Ripple Voltage Alarm
+	if (rt.alarm_detection & Alarm_Ripple_Voltage_Bit)
+	{
+		if ((Display_Info.alarm_status & Alarm_Ripple_Voltage_Bit) == 0)
+		{
+			if (rt.ripple_v_tmr == 0)
+			{
+				rt.ripple_v_tmr = alarm_delay_ms;
+			}
+			else if (rt.ripple_v_tmr == 1)
+			{
+				setBit(Display_Info.alarm_status, Alarm_Ripple_Voltage_Bit);
+				rt.ripple_v_tmr = 0;
+			}
+		}
+		else
+		{
+			rt.ripple_v_tmr = 0;
+		}
+	}
+	else
+	{
+		if (Display_Info.alarm_status & Alarm_Ripple_Voltage_Bit)
+		{
+			if ((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) == 0)
+			{
+				if (rt.ripple_v_tmr == 0)
+				{
+					rt.ripple_v_tmr = alarm_delay_ms;
+				}
+				else if (rt.ripple_v_tmr == 1)
+				{
+					clearBit(Display_Info.alarm_status, Alarm_Ripple_Voltage_Bit);
+					rt.ripple_v_tmr = 0;
+				}
+			}
+		}
+		else
+		{
+			rt.ripple_v_tmr = 0;
+		}
+	}
+
+	// Ripple Current Alarm
+	if (rt.alarm_detection & Alarm_Ripple_Current_Bit)
+	{
+		if ((Display_Info.alarm_status & Alarm_Ripple_Current_Bit) == 0)
+		{
+			if (rt.ripple_i_tmr == 0)
+			{
+				rt.ripple_i_tmr = alarm_delay_ms;
+			}
+			else if (rt.ripple_i_tmr == 1)
+			{
+				setBit(Display_Info.alarm_status, Alarm_Ripple_Current_Bit);
+				rt.ripple_i_tmr = 0;
+			}
+		}
+		else
+		{
+			rt.ripple_i_tmr = 0;
+		}
+	}
+	else
+	{
+		if (Display_Info.alarm_status & Alarm_Ripple_Current_Bit)
+		{
+			if ((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) == 0)
+			{
+				if (rt.ripple_i_tmr == 0)
+				{
+					rt.ripple_i_tmr = alarm_delay_ms;
+				}
+				else if (rt.ripple_i_tmr == 1)
+				{
+					clearBit(Display_Info.alarm_status, Alarm_Ripple_Current_Bit);
+					rt.ripple_i_tmr = 0;
+				}
+			}
+		}
+		else
+		{
+			rt.ripple_i_tmr = 0;
+		}
+	}
+
+	// AC Loss Alarm
+	if (rt.alarm_detection & Alarm_AC_Loss_Bit)
+	{
+		if ((Display_Info.alarm_status & Alarm_AC_Loss_Bit) == 0)
+		{
+			if (rt.ac_tmr == 0)
+			{
+				rt.ac_tmr = alarm_delay_ms;
+			}
+			else if (rt.ac_tmr == 1)
+			{
+				setBit(Display_Info.alarm_status, Alarm_AC_Loss_Bit);
+				rt.ac_tmr = 0;
+			}
+		}
+		else
+		{
+			rt.ac_tmr = 0;
+		}
+	}
+	else
+	{
+		if (Display_Info.alarm_status & Alarm_AC_Loss_Bit)
+		{
+			if ((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) == 0)
+			{
+				if (rt.ac_tmr == 0)
+				{
+					rt.ac_tmr = alarm_delay_ms;
+				}
+				else if (rt.ac_tmr == 1)
+				{
+					clearBit(Display_Info.alarm_status, Alarm_AC_Loss_Bit);
+					rt.ac_tmr = 0;
+				}
+			}
+		}
+		else
+		{
+			rt.ac_tmr = 0;
+		}
+	}
+
+	// High Impedance Alarm
+	if (rt.alarm_detection & Alarm_High_Impedance_Bit)
+	{
+		if ((Display_Info.alarm_status & Alarm_High_Impedance_Bit) == 0)
+		{
+			if (rt.hi_z_tmr == 0)
+			{
+				rt.hi_z_tmr = alarm_delay_ms;
+			}
+			else if (rt.hi_z_tmr == 1)
+			{
+				setBit(Display_Info.alarm_status, Alarm_High_Impedance_Bit);
+				rt.hi_z_tmr = 0;
+			}
+		}
+		else
+		{
+			rt.hi_z_tmr = 0;
+		}
+	}
+	else
+	{
+		if (Display_Info.alarm_status & Alarm_High_Impedance_Bit)
+		{
+			if ((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) == 0)
+			{
+				if (rt.hi_z_tmr == 0)
+				{
+					rt.hi_z_tmr = alarm_delay_ms;
+				}
+				else if (rt.hi_z_tmr == 1)
+				{
+					clearBit(Display_Info.alarm_status, Alarm_High_Impedance_Bit);
+					rt.hi_z_tmr = 0;
+				}
+			}
+		}
+		else
+		{
+			rt.hi_z_tmr = 0;
+		}
+	}
+
+#ifdef LAST_GASP
+	// Critical Battery Voltage Alarm
+	if (rt.alarm_detection & Alarm_BatVoltCRITICAL_Bit)
+	{
+		if ((Display_Info.alarm_status & Alarm_BatVoltCRITICAL_Bit) == 0)
+		{
+			if (rt.e_bat_tmr == 0)
+			{
+				rt.e_bat_tmr = alarm_delay_ms;
+			}
+			else if (rt.e_bat_tmr == 1)
+			{
+				setBit(Display_Info.alarm_status, Alarm_BatVoltCRITICAL_Bit);
+				rt.e_bat_tmr = 0;
+			}
+		}
+		else
+		{
+			rt.e_bat_tmr = 0;
+		}
+	}
+	else
+	{
+		if (Display_Info.alarm_status & Alarm_BatVoltCRITICAL_Bit)
+		{
+			if ((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) == 0)
+			{
+				if (rt.e_bat_tmr == 0)
+				{
+					rt.e_bat_tmr = alarm_delay_ms;
+				}
+				else if (rt.e_bat_tmr == 1)
+				{
+					clearBit(Display_Info.alarm_status, Alarm_BatVoltCRITICAL_Bit);
+					rt.e_bat_tmr = 0;
+				}
+			}
+		}
+		else
+		{
+			rt.e_bat_tmr = 0;
+		}
+	}
+#endif // LAST_GASP
+
+}
 /*************************************************************/
 /*                    M A I N                                */
 /*************************************************************/
 #ifdef PC
 BOOL PC_LOOP_INITIALIZED = FALSE; //let main thread initialize / substitute variables
 #endif
-
 
 void main(void)
 {
@@ -4204,6 +4641,7 @@ void main(void)
 			ClearTestPin44;										// IK20250523 reset test pin #44 (easy to solder to)
 #endif // #ifdef TIME_TESTING
 		}
+		Process_Alarms();
 		CheckExecuteFrontPanelCmd();							// inside is front panel menu
 		//if (timer.TWI_request == 0) // IK20250919 added to have stable periodic check of front panel buttons
 		//{
@@ -4406,7 +4844,11 @@ void main(void)
 				Create_Relay_Board_setting();
 				if (cal_status != CALIBRATION_DONE)														// if calibrating shut off pulse
 					clearBit(Display_Info.Status, DISP_STATE_PulseON_BIT);
-				TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.alarm_status, Display_Info.Status);
+
+				TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.alarm_status, Display_Info.Status); //-!- IK20260806 replace with
+				// Display_Info.Relays_state ;
+				// Display_Info.ExtLED_state ;
+				// to set relays and extLEDs
 				TWI_Read(RELAY_READ_ADR);
 				relay_board_status = twi.buffer[BYTE_2];												// get AC power fail bit
 				{
@@ -4672,9 +5114,7 @@ void CheckExecuteFrontPanelCmd(void) //in firmware, it is called from main loop.
 		Display_Info.Info_segments_on_off = ON;
 	}
 #ifdef PC
-	static Uint32 Time_Stamp;
-	if ((timer.time_keep - Time_Stamp) < TICKS_IN_mSEC * 10) return;				// slow down, wait 200 ms (update 5 times per sec)
-	Time_Stamp = timer.time_keep; //save time stamp for next entry
+	PC_sim_slowdown();
 #endif //PC
 }
 

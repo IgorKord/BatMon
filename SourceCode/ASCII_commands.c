@@ -2138,7 +2138,7 @@ const t_rci_commands rci[] =
 	/*+*/	"phas",		(void*)&SetGetPhase,			// Get 'phas[e?]' returns Set command syntax 'phase>1ph', 'phase>3ph'. Setting in flash is updated after 'save' command.
 														// Set / Get one-phase (120 Hz) or 3-phase (360 Hz) charger. Calibration parameters have 2 sets for 120 or 360 Hz
 	/*+*/	"alar",		(void*)&SetGetAlarm,			// Alarm set/get: 'alarm rv>enab', 'alarm rv>disa'; 'alarm ri>enab', 'alarm ri>disa'; 'alarm ac>enab', 'alarm ac>disa'; 'alarm hz>enab', 'alarm hz>disa'
-	/*+*/	"dela",		(void*)&SetGetDelay,			// Delay set/get: 'delay? returns Set command syntax 'delay=XX.X' in seconds. Setting in flash is updated after 'save' command.
+	/*+*/	"dela",		(void*)&SetGetDelay,			// Delay set/get: 'delay? returns Set command syntax 'delay=XX.X' in seconds. changes SysData.NV_UI.alarm_delay_sec_f. Setting in flash is updated after 'save' command.
 	/*+*/	"eled",		(void*)&SetGetExtLEDs,			// External LEDs set/get: 'eled? returns Set command syntax 'eled=HH' in hexadecimal format. This is test command.
 	/*+*/	"buzz",		(void*)&SetGetBuzzer,			// Buzzer set/get: 'buzz>on', 'buzz>off' - set right now; 'buzz>enab', 'buzz>disa' - set/get setting in flash after 'save' command.
 	/*+*/	"latc",		(void*)&SetGetLatch,			// Get 'latc[h?]' returns Set command syntax 'latch>enab', 'latch>disa'. Setting in flash is updated after 'save' command.

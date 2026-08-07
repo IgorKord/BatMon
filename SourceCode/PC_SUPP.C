@@ -310,6 +310,11 @@ static HFONT hFontLarge = NULL;
 /***********************************************************************/
 // this PC_SimulationApplication runs in separate thread on timer-driven events
 /***********************************************************************/
+
+#define LOOP_SAMPLE_FREQUENCY    (float)(10000.0)   //not less than 1000!, it drives Tick_timer ISR and buttons
+#define LOOP_RATE                ((long)LOOP_SAMPLE_FREQUENCY)	// used as long. derivative of LOOP_SAMPLE_FREQUENCY, which is float const
+#define TICKS_IN_mSEC				(LOOP_RATE/1000)    // !!! LOOP_RATE MUST BE >=1000 !!!
+
 LARGE_INTEGER ticksPerSecond;
 LARGE_INTEGER tick;   // A point in time
 BOOL ten_times_faster;        // receives check box status
@@ -1879,4 +1884,9 @@ void Export_ToFile(void* f_ptr)
 	}
 #endif //PC
 }
-
+void PC_sim_slowdown(void)
+{
+	static Uint32 Time_Stamp;
+	if ((timer.time_keep - Time_Stamp) < TICKS_IN_mSEC * 10) return;				// slow down, wait 200 ms (update 5 times per sec)
+	Time_Stamp = timer.time_keep; //save time stamp for next entry
+}

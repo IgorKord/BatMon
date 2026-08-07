@@ -128,8 +128,11 @@ extern float FirmwareVersion;     //Version 3.0
 // time_delay for trigger alarm saved as 1 count = 100 ms (0.1 sec, deciSecond)
 #define MIN_time_delay                        1.0f  // min allowed time delay      1 sec
 #define INIT_time_delay                       2.0f  // time delay set              2 sec
-#define MAX_time_delay                       59.0f  // max allowed time delay      59 sec
 #define INCREMENT_time_delay                  1.0f  // time delay increment        1 sec
+#define MAX_time_delay                       60.0f  // max allowed time delay      60 sec
+
+#define MAX_ALARM_GRACE_PERIOD_ms           (int)(MAX_time_delay * 1000) // 60 sec
+
 
 // dealing with ripple created by battery charger type. =1 for single phase charger (120 Hz ripple), =3 for three phase charger (360 Hz ripple)
 // 1 = one (single) phase or 3 (three phases), correlates to 120Hz or 360Hz ripple
@@ -496,10 +499,6 @@ typedef int                  int16;
 #define BAD_SIO_CMD_ERR			SIO_CMD_ERROR	//	 Bad SI/O cmd error bit
 #define BAD_VALUE_ERR			PARAM_ERROR		//	 Bad SI/O parameter value
 
-#define LOOP_SAMPLE_FREQUENCY    (float)(10000.0)   //not less than 1000!, it drives Tick_timer ISR and buttons
-#define LOOP_RATE                ((long)LOOP_SAMPLE_FREQUENCY)	// used as long. derivative of LOOP_SAMPLE_FREQUENCY, which is float const
-#define TICKS_IN_mSEC				(LOOP_RATE/1000)    // !!! LOOP_RATE MUST BE >=1000 !!!
-
 // IK20250814 Bits used with former 'Display_Info.LED_status', now lower byte of Display_Info.Status
 // IK20250814 if combine PULSE_BIT used for Pulse LED and DISP_STATE_PulseON_BIT for producing pulses on Relay board,
 // using Pulse LED for time measuring would cause pulce generation on Relay board
@@ -555,7 +554,6 @@ typedef int                  int16;
 
 #define DELAY_ms_BEFORE_ALARM_ACCEPTED      25 // wait 25 ms (counter reaches 25) before raising the 'alarm detected' event / set the flag
 #define ALARM_COUNTER_CAP_ms                DELAY_ms_BEFORE_ALARM_ACCEPTED*2 // 50 ms maximum counter allowed to increment, because it would count down from 2x25 ms to 25 ms to clear alarm
-
 
 // to access buttons as array or shift bits according to button
 #define BTN_INDEX_AUTO      0
@@ -1123,6 +1121,7 @@ void Create_Relay_Board_setting(void);
 #define analog_points input_type[0]			// number of active analog input points - first element in array input_type[0], the rest: input_type[1] is former input_1
 
 #ifdef PC
+extern void PC_sim_slowdown(void);
 #define NUM_INPUT_FIELDS   4 // on windows simulator form, text boxes for Vbat, vGnd, Vrip, Irip
 extern double UserValue[NUM_INPUT_FIELDS];
 enum SimInputIndex {

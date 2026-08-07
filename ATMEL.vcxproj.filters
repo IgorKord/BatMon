@@ -29,9 +29,6 @@
     <ClCompile Include="SourceCode\DNP.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ASCII_commands.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceCode\GLOBALS.H">

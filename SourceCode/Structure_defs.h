@@ -158,7 +158,7 @@ extern __eeprom  SYS_SPECIFIC_DATA EEPROM_SysData;// located in EEPROM @ EE_SYS_
 
 
 
-//********** Display_Info.alarm_status definitions
+//********** Display_Info.alarm_status and rt.alarm_detection definitions
 #define Alarm_BatVoltageHIGH_BitNum     0	// Battery Voltage High, above Vmax setting
 #define Alarm_BatVoltageLOW_BitNum      1	// Battery Voltage LOW, below Vmin setting
 #define Alarm_PlusGND_FAULT_BitNum      2	// Ground Voltage High, above V_GND_Plus setting
@@ -276,14 +276,30 @@ typedef struct  { // RealTimeVars
 	char   HostRxBuff[HOST_RX_BUFF_LEN];		// [256] used with UART
 	uint16 ADC_buff[8];							//-!- IK20250602 ! for test ! holds results of ADC conversion
 	// alarm event counters, used in Check_Alarms()
-	uint8  h_battery_fault_cntr;				// High Battery Voltage detection event counter
-	uint8  l_battery_fault_cntr;				// Low Battery Voltage detection event counter
-	uint8  p_gf_cntr;							// Positive Ground Fault detection event counter
-	uint8  m_gf_cntr;							// Negative Ground Fault detection event counter
-	uint8  rv_cntr;								// Ripple Voltage detection event counter
-	uint8  ri_cntr;								// Ripple Current detection event counter
-	uint8  high_impedance_cntr;					// High Z (impedance) detection event counter
-	uint8  ac_cntr;								// AC loss detection event counter
+	uint16 alarm_detection;						// IK20260806 added to detect and remove transients and spikes when checking alarm conditions
+
+	uint8  h_battery_fault_cntr;				// debouncing High Battery Voltage detection event counter
+	uint8  l_battery_fault_cntr;				// debouncing Low Battery Voltage detection event counter
+	uint8  p_gf_cntr;							// debouncing Positive Ground Fault detection event counter
+	uint8  m_gf_cntr;							// debouncing Negative Ground Fault detection event counter
+	uint8  rv_cntr;								// debouncing Ripple Voltage detection event counter
+	uint8  ri_cntr;								// debouncing Ripple Current detection event counter
+	uint8  high_impedance_cntr;					// debouncing High Z (impedance) detection event counter
+	uint8  ac_cntr;								// debouncing AC loss detection event counter
+
+#ifdef LAST_GASP
+	uint8  lg_cntr;								// debouncing Last gasp detection event counter
+	uint16 e_bat_tmr;
+#endif // #ifdef LAST_GASP
+	uint16 hi_bat_tmr;  						// Grace period High Battery Voltage detection counter
+	uint16 low_bat_tmr;							// Grace period Low Battery Voltage detection counter
+	uint16 pgf_tmr;								// Grace period Positive Ground Fault detection counter
+	uint16 mgf_tmr;								// Grace period Negative Ground Fault detection counter
+	uint16 ripple_v_tmr;						// Grace period Ripple Voltage detection counter
+	uint16 ripple_i_tmr;						// Grace period Ripple Current detection counter
+	uint16 ac_tmr;								// Grace period High Z (impedance) detection counter
+	uint16 hi_z_tmr;							// Grace period AC loss detection counter
+
 } RealTimeVars;	//real time variables in a structure
 extern RealTimeVars rt;
 

@@ -129,7 +129,6 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="ASCII_commands.c" />
     <ClCompile Include="SourceCode\ASCII_commands.c" />
     <ClCompile Include="SourceCode\DNP.c" />
     <ClCompile Include="SourceCode\eeprom.c" />
