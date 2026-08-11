@@ -159,6 +159,7 @@ extern __eeprom  SYS_SPECIFIC_DATA EEPROM_SysData;// located in EEPROM @ EE_SYS_
 
 
 //********** Display_Info.alarm_status and rt.alarm_detection definitions
+// it is also an index of bit array for alalrm detection
 #define Alarm_BatVoltageHIGH_BitNum     0	// Battery Voltage High, above Vmax setting
 #define Alarm_BatVoltageLOW_BitNum      1	// Battery Voltage LOW, below Vmin setting
 #define Alarm_PlusGND_FAULT_BitNum      2	// Ground Voltage High, above V_GND_Plus setting
@@ -242,6 +243,20 @@ typedef union          // this union is an alias of a structure, allows to acses
 	float measurement_f[8];
 	Measurements_f measured;
 } MeasuredData;
+typedef union  {
+	uint16 AlarmTimer[NUM_ALARMS];
+	struct {
+		uint16 hi_bat_tmr;  						// index[0] Grace period High Battery Voltage detection counter
+		uint16 low_bat_tmr;							// index[1] Grace period Low Battery Voltage detection counter
+		uint16 pgf_tmr;								// index[2] Grace period Positive Ground Fault detection counter
+		uint16 mgf_tmr;								// index[3] Grace period Negative Ground Fault detection counter
+		uint16 ripple_v_tmr;						// index[4] Grace period Ripple Voltage detection counter
+		uint16 ripple_i_tmr;						// index[5] Grace period Ripple Current detection counter
+		uint16 ac_tmr;								// index[6] Grace period High Z (impedance) detection counter
+		uint16 hi_z_tmr;							// index[7] Grace period AC loss detection counter
+		uint16 e_bat_tmr;							// index[8] Grace period Last gasp detectioncounter
+	};
+}alarm_timers;
 
 typedef struct  { // RealTimeVars
 	volatile uint16 OperStatusWord;				// each bit calls different diagnostic or test, bit definitions in main.h
@@ -286,20 +301,9 @@ typedef struct  { // RealTimeVars
 	uint8  ri_cntr;								// debouncing Ripple Current detection event counter
 	uint8  high_impedance_cntr;					// debouncing High Z (impedance) detection event counter
 	uint8  ac_cntr;								// debouncing AC loss detection event counter
-
-#ifdef LAST_GASP
-	uint8  lg_cntr;								// debouncing Last gasp detection event counter
 	uint16 e_bat_tmr;
-#endif // #ifdef LAST_GASP
-	uint16 hi_bat_tmr;  						// Grace period High Battery Voltage detection counter
-	uint16 low_bat_tmr;							// Grace period Low Battery Voltage detection counter
-	uint16 pgf_tmr;								// Grace period Positive Ground Fault detection counter
-	uint16 mgf_tmr;								// Grace period Negative Ground Fault detection counter
-	uint16 ripple_v_tmr;						// Grace period Ripple Voltage detection counter
-	uint16 ripple_i_tmr;						// Grace period Ripple Current detection counter
-	uint16 ac_tmr;								// Grace period High Z (impedance) detection counter
-	uint16 hi_z_tmr;							// Grace period AC loss detection counter
 
+	alarm_timers Atmr;					// IK20260811 change timers to union to simplify alarm detection function
 } RealTimeVars;	//real time variables in a structure
 extern RealTimeVars rt;
 
@@ -366,6 +370,8 @@ typedef struct 	// Encapsulate into structure to keep timer variables together
 	volatile uint16 InfoLED_blink_ms;		// controls InfoLED indicators blink mode
 	volatile Uint32 limit_mode_timeout_ms;	// allows automatic switch back from LIMIT mode after 10 min of user inactivity
 	volatile Uint32 time_keep;				// increasing with 100 us interval
+	volatile uint16 manual_relay_control_ms;// timer for manual relay control via "relays=" command
+	volatile uint16 manual_led_control_ms;	// timer for manual LED control via "eleds=" command
 	// alarm timers
 } TIMERS;
 extern TIMERS timer;
