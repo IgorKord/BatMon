@@ -1128,87 +1128,6 @@ void SetGetAlarm(void)
 Exception:
 	Send_RCI_Param_Error_as_FlashConst("rv ri ac hz enab disa only");
 }
-
-/// <summary>
-/// Common helper function for setting/getting relay and LED states
-/// </summary>
-/// <param name="state_ptr">Pointer to the state variable (Display_Info.Relays_state or ExtLED_state)</param>
-/// <param name="timer_ptr">Pointer to the timer variable (timer.manual_relay_control_ms or manual_led_control_ms)</param>
-/// <param name="num_outputs">Number of outputs to display (5 for relays, 6 for LEDs)</param>
-/// <param name="labels">Array of label strings for verbose output</param>
-/// <param name="cmd_name">Command name for error messages</param>
-/// <param name="cmd_suffix">Command suffix character (e.g., 's' for "eleds")</param>
-void SetGetRelayLEDsetting(uint8* state_ptr, volatile uint16* timer_ptr, uint8 num_outputs,
-						   const char FL* const* labels, const char FL* cmd_name, char cmd_suffix)
-{
-	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
-	uint8 equals_offset = (cmd_suffix == 's') ? 1 : 2; // eleds has ending [eled]'s', relays ending [rela]"ys"
-
-	if (temp_Inp_str[CMD_LEN + equals_offset] != '=')
-	{
-		// Return current state
-		Put_CMD_as_chars();
-		if (cmd_suffix == 's')
-			printf("s=%02X", *state_ptr);
-		else
-			printf("ys=%02X", *state_ptr);
-
-		if (rt.Host & CmdVerboseResponse)
-		{
-			char txtON[] = "ON ";
-			char txtOFF[] = "OFF";
-			uint8 bitNum;
-			char* bitState[6]; // max 6 outputs
-
-			for (bitNum = 0; bitNum < num_outputs; bitNum++)
-			{
-				if (*state_ptr & (1 << bitNum))
-					bitState[bitNum] = txtON;
-				else
-					bitState[bitNum] = txtOFF;
-			}
-
-			// Build verbose message based on number of outputs
-			if (num_outputs == 5)
-				sprintf(RCI_message, "Hex=0x%02X (%d Dec), %s %s, %s %s, %s %s, %s %s, %s %s",
-					*state_ptr, *state_ptr,
-					labels[0], bitState[0], labels[1], bitState[1], labels[2], bitState[2],
-					labels[3], bitState[3], labels[4], bitState[4]);
-			else if (num_outputs == 6)
-				sprintf(RCI_message, "Hex=0x%02X (%d Dec), %s %s, %s %s, %s %s, %s %s, %s %s, %s %s",
-					*state_ptr, *state_ptr,
-					labels[0], bitState[0], labels[1], bitState[1], labels[2], bitState[2],
-					labels[3], bitState[3], labels[4], bitState[4], labels[5], bitState[5]);
-
-			Send_verbose_comment(RCI_message);
-		}
-		return;
-	}
-	else
-	{
-		// Set new state
-		char HexHigh = temp_Inp_str[CMD_LEN + equals_offset + 1];
-		char HexLow = temp_Inp_str[CMD_LEN + equals_offset + 2];
-		int ValueHigh = ASCIIToHexChar(HexHigh);
-		int ValueLow = ASCIIToHexChar(HexLow);
-
-		if (ValueHigh < 0 || ValueLow < 0)
-		{
-			char error_msg[32];
-			sprintf(error_msg, "%s=HH or %s?", cmd_name, cmd_name);
-			Send_RCI_Param_Error(error_msg);
-		}
-		else
-		{
-			// Set manual control for alarm_delay_sec_f period
-			uint16 manual_delay_ms = (uint16)SysData.NV_UI.alarm_delay_sec_f * 1000;
-			*state_ptr = (ValueHigh << 4) | ValueLow;
-			*timer_ptr = manual_delay_ms;
-		}
-		return;
-	}
-}
-
 /// <summary>
 /// Relays set/get: 'Relays? returns Set command syntax 'relays=H' in hexadecimal format. Setting in flash is updated after 'save' command.
 /// relays? returns current state of relays: relays=HH. currently range 0...1F
@@ -1220,10 +1139,47 @@ void SetGetRelayLEDsetting(uint8* state_ptr, volatile uint16* timer_ptr, uint8 n
 /// <param name=""></param>
 void SetGetRelays(void)
 {
-	// Setup unique parameters for Relays
-	const char FL* relay_labels[] = {"K1", "K2", "K3", "K4", "Pulses"};
-	SetGetRelayLEDsetting(&Display_Info.Relays_state, &timer.manual_relay_control_ms,
-						  5, relay_labels, "relays", '\0');
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
+	if (temp_Inp_str[CMD_LEN + 2] != '=') { // 'relays' returns current state of relays: relays=HH.
+		Put_CMD_as_chars();
+		printf("ys=%02X", Display_Info.Relays_state); //return to PC "relays=HH"
+		if (rt.Host & CmdVerboseResponse)
+		{
+			char txtON[] = "ON ";
+			char txtOFF[] = "OFF";
+			uint8 bitNum;
+			char* bitState[5];// = { txtOFF, txtOFF, txtOFF, txtOFF, txtOFF };
+			for (bitNum = 0; bitNum < 5; bitNum++)
+			{
+				if (Display_Info.Relays_state & (1 << bitNum))
+					bitState[bitNum] = txtON;
+				else
+					bitState[bitNum] = txtOFF;
+			}
+			sprintf(RCI_message, "Hex=0x%02X (%d Dec), K1 %s, K2 %s, K3 %s, K4 %s, Pulses %s", Display_Info.Relays_state, bitState[0], bitState[1], bitState[2], bitState[3], bitState[4]); // states of relays and pulse
+			Send_verbose_comment(RCI_message);
+		}
+		return;
+	}
+	else //if (temp_Inp_str[CMD_LEN + 2] == '=') // relays=HH changes state of relays, where HH is a hexadecimal value representing the state of four relays and pulse.
+	{
+		char HexHigh = temp_Inp_str[CMD_LEN + 3];
+		char HexLow = temp_Inp_str[CMD_LEN + 4];
+		int RelayHigh = ASCIIToHexChar(HexHigh);
+		int RelayLow = ASCIIToHexChar(HexLow);
+		if (RelayHigh < 0 || RelayLow < 0)// check if HH is a valid hexadecimal digit (0-9, A-F)
+		{
+			Send_RCI_Param_Error_as_FlashConst("relays=HH or relays?");
+		}
+		else
+		{
+			// Set manual relay control for alarm_delay_sec_f period
+			uint16 manual_delay_ms = (uint16)SysData.NV_UI.alarm_delay_sec_f * 1000;
+			Display_Info.Relays_state = (RelayHigh << 4) | RelayLow; // Set relay state directly (5 bits: K1-K4 + Pulse)
+			timer.manual_relay_control_ms = manual_delay_ms; // Enable manual control timer
+		}
+		return;
+	}
 }
 
 
@@ -1290,10 +1246,55 @@ void SetGetRelayTriggers(void)
 /// </summary>
 /// <param name=""></param>
 void SetGetExtLEDs() {
-	// Setup unique parameters for External LEDs
-	const char FL* led_labels[] = {"L1", "L2", "L3", "L4", "L5", "L6"};
-	SetGetRelayLEDsetting(&Display_Info.ExtLED_state, &timer.manual_led_control_ms,
-						  6, led_labels, "eleds", 's');
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
+	if (temp_Inp_str[CMD_LEN] == 'S') {
+		if (temp_Inp_str[CMD_LEN + 1] != '=') // eleds returns current state of external LEDs: eleds=HH.
+		{
+			Put_CMD_as_chars();
+			printf("s=%02X", Display_Info.ExtLED_state); //return to PC "eleds=HH"
+			if (rt.Host & CmdVerboseResponse)
+			{
+				char txtON[] = "ON ";
+				char txtOFF[] = "OFF";
+				uint8 bitNum;
+				char* bitState[5];// = { txtOFF, txtOFF, txtOFF, txtOFF, txtOFF };
+				for (bitNum = 0; bitNum < 5; bitNum++)
+				{
+					if (Display_Info.ExtLED_state & (1 << bitNum))
+						bitState[bitNum] = txtON;
+					else
+						bitState[bitNum] = txtOFF;
+				}
+				sprintf(RCI_message, "Hex=0x%02X (%d Dec), L1 %s, L2 %s, L3 %s, L4 %s, L5 %s, L6 %s", Display_Info.ExtLED_state, bitState[0], bitState[1], bitState[2], bitState[3], bitState[4], bitState[4]); // states of external LEDs
+				Send_verbose_comment(RCI_message);
+			}
+			return;
+		}
+		else //if (temp_Inp_str[CMD_LEN + 2] != '=') // eleds=HH changes state of external LEDs, where HH is a hexadecimal value representing the state of six LEDs.
+		{
+			char HexHigh = temp_Inp_str[CMD_LEN + 2];
+			char HexLow = temp_Inp_str[CMD_LEN + 3];
+			int LEDhigh = ASCIIToHexChar(HexHigh);
+			int LEDlow = ASCIIToHexChar(HexLow);
+			if (LEDhigh < 0 || LEDlow < 0)// check if HH is a valid hexadecimal digit (0-9, A-F)
+			{
+				goto eleds_error;
+			}
+			else
+			{
+				// Set manual LED control for alarm_delay_sec_f period
+				uint16 manual_delay_ms = (uint16)SysData.NV_UI.alarm_delay_sec_f * 1000;
+				Display_Info.ExtLED_state = (LEDhigh << 4) | LEDlow; // Set LED state directly
+				timer.manual_led_control_ms = manual_delay_ms; // Enable manual control timer
+			}
+			return;
+		}
+	}
+	else 
+	{
+eleds_error:
+		Send_RCI_Param_Error_as_FlashConst("eleds=HH or eleds?");
+	}
 }
 
 /// <summary>
