@@ -1139,13 +1139,13 @@ Exception:
 /// <param name="cmd_name">Command name for error messages</param>
 /// <param name="cmd_suffix">Command suffix character (e.g., 's' for "eleds")</param>
 void SetGetRelayLEDsetting(uint8* state_ptr, volatile uint16* timer_ptr, uint8 num_outputs,
-						   const char FL* const* labels, const char FL* cmd_name, char cmd_suffix)
+							const char __flash **labels, const char __flash * cmd_name, char cmd_suffix)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
 	uint8 equals_offset = (cmd_suffix == 's') ? 1 : 2; // eleds has ending [eled]'s', relays ending [rela]"ys"
 
-	if (temp_Inp_str[CMD_LEN + equals_offset] != '=')
-	{
+	if (temp_Inp_str[CMD_LEN + equals_offset] != '=') 
+	{ 
 		// Return current state
 		Put_CMD_as_chars();
 		if (cmd_suffix == 's')
@@ -1221,7 +1221,7 @@ void SetGetRelayLEDsetting(uint8* state_ptr, volatile uint16* timer_ptr, uint8 n
 void SetGetRelays(void)
 {
 	// Setup unique parameters for Relays
-	const char FL* relay_labels[] = {"K1", "K2", "K3", "K4", "Pulses"};
+	const char __flash * relay_labels[] = {"K1", "K2", "K3", "K4", "Pulses"};
 	SetGetRelayLEDsetting(&Display_Info.Relays_state, &timer.manual_relay_control_ms,
 						  5, relay_labels, "relays", '\0');
 }
@@ -1291,7 +1291,7 @@ void SetGetRelayTriggers(void)
 /// <param name=""></param>
 void SetGetExtLEDs() {
 	// Setup unique parameters for External LEDs
-	const char FL* led_labels[] = {"L1", "L2", "L3", "L4", "L5", "L6"};
+	const char __flash * led_labels[] = {"L1", "L2", "L3", "L4", "L5", "L6"};
 	SetGetRelayLEDsetting(&Display_Info.ExtLED_state, &timer.manual_led_control_ms,
 						  6, led_labels, "eleds", 's');
 }
