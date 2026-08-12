@@ -61,6 +61,10 @@ extern float FirmwareVersion;     //Version 3.0
 #define DEF_24V_low_bat_threshold           21.0f  // 24V default low alarm threshold      21.0V
 #define MAX_24V_low_bat_threshold           25.0f  // 24V max allowed low alarm threshold  25.0V
 
+#define MIN_24V_crit_low_bat_threshold      15.0f // 24V min allowed low alarm threshold  15.0V
+#define DEF_24V_crit_low_bat_threshold      20.0f // 24V default low alarm threshold      20.0V
+#define MAX_24V_crit_low_bat_threshold      25.0f // 24V max allowed high alarm threshold 25.0V
+
 #define MIN_24V_minus_gf_threshold           2.6f  // 24V min allowed minus ground fault threshold     2.6V
 #define DEF_24V_minus_gf_threshold           2.6f  // 24V default minus ground fault alarm threshold   2.6V
 #define MAX_24V_minus_gf_threshold          20.0f  // 24V max allowed minus ground fault threshold    20.0V
@@ -77,9 +81,13 @@ extern float FirmwareVersion;     //Version 3.0
 #define DEF_48V_low_bat_threshold           42.0f  // 48V default low alarm threshold      42.0V
 #define MAX_48V_low_bat_threshold           50.0f  // 48V max allowed high alarm threshold 50.0V
 
-#define MIN_48V_minus_gf_threshold           5.2f  // 24V min allowed minus ground fault threshold     5.2V
+#define MIN_48V_crit_low_bat_threshold      35.0f // 48V min allowed low alarm threshold  35.0V
+#define DEF_48V_crit_low_bat_threshold      40.0f // 48V default low alarm threshold      40.0V
+#define MAX_48V_crit_low_bat_threshold      48.0f // 48V max allowed high alarm threshold 48.0V
+
+#define MIN_48V_minus_gf_threshold           5.2f  // 48V min allowed minus ground fault threshold     5.2V
 #define DEF_48V_minus_gf_threshold           5.4f  // 48V default minus ground fault alarm threshold   5.4V
-#define MAX_48V_minus_gf_threshold          40.0f  // 24V max allowed minus ground fault threshold    40.0V
+#define MAX_48V_minus_gf_threshold          40.0f  // 48V max allowed minus ground fault threshold    40.0V
 
 #define MIN_48V_plus_gf_threshold         MIN_48V_minus_gf_threshold // 48V min allowed plus ground fault threshold
 #define DEF_48V_plus_gf_threshold         DEF_48V_minus_gf_threshold // 48V default plus ground fault threshold
@@ -92,6 +100,10 @@ extern float FirmwareVersion;     //Version 3.0
 #define MIN_125V_low_bat_threshold          100.0f // 125V min allowed low alarm threshold  100.0V
 #define DEF_125V_low_bat_threshold          104.0f // 125V default low alarm threshold      104.0V
 #define MAX_125V_low_bat_threshold          125.0f // 125V max allowed high alarm threshold 125.0V
+
+#define MIN_125V_crit_low_bat_threshold      95.0f // 125V min allowed low alarm threshold  95.0V
+#define DEF_125V_crit_low_bat_threshold     100.0f // 125V default low alarm threshold      100.0V
+#define MAX_125V_crit_low_bat_threshold     125.0f // 125V max allowed high alarm threshold 125.0V
 
 #define MIN_125V_minus_gf_threshold          13.0f // 125V min allowed minus ground fault threshold     13.0V
 #define DEF_125V_minus_gf_threshold          13.0f // 125V default minus ground fault alarm threshold   13.0V
@@ -108,6 +120,10 @@ extern float FirmwareVersion;     //Version 3.0
 #define MIN_250V_low_bat_threshold          200.0f // 250V min allowed low alarm threshold  200.0V
 #define DEF_250V_low_bat_threshold          210.0f // 250V default low alarm threshold      210.0V
 #define MAX_250V_low_bat_threshold          250.0f // 250V max allowed high alarm threshold 250.0V
+
+#define MIN_250V_crit_low_bat_threshold     190.0f // 250V min allowed low alarm threshold  190.0V
+#define DEF_250V_crit_low_bat_threshold     200.0f // 250V default low alarm threshold      200.0V
+#define MAX_250V_crit_low_bat_threshold     250.0f // 250V max allowed high alarm threshold 250.0V
 
 #define MIN_250V_minus_gf_threshold          26.0f // 250V min allowed minus ground fault threshold     26.0V
 #define DEF_250V_minus_gf_threshold          27.0f // 250V default minus ground fault alarm threshold   27.0V

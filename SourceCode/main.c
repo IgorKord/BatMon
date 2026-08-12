@@ -1899,7 +1899,10 @@ void Check_Alarms(void)
 
 	//****** Check for low battery alarm *******
 	CheckAlarmBit(rt.OutData.measured.battery_voltage_f, SysData.NV_UI.low_bat_threshold_V_f, Set_alarm_if_value_BELOW_threshold, Alarm_BatVoltageLOW_Bit, &rt.l_battery_fault_cntr);   // Bit_1
-
+#ifdef LAST_GASP
+	//****** Check for low battery alarm *******
+	CheckAlarmBit(rt.OutData.measured.battery_voltage_f, SysData.NV_UI.Critically_Low_Bat_V_f, Set_alarm_if_value_BELOW_threshold, Alarm_BatVoltCRITICAL_Bit, &rt.crit_low_bat_chtr);   // Bit_8
+#endif	// LAST_GASP
 	//****** Check for plus ground fault alarm *******
 	if (rt.OutData.measured.G_fault_voltage_f >= 0)
 		tmp_fault_volts = rt.OutData.measured.G_fault_voltage_f;				// positive fault voltage
@@ -1947,10 +1950,9 @@ void Check_Alarms(void)
 	}
 
 	//****** Check for AC fail alarm *******
-	CheckAlarmBit((float)(relay_board_status & RELAY_BRD_AC_FAIL_BIT), 0, Set_alarm_if_BIT_is_set, Alarm_High_Impedance_Bit, &rt.ac_cntr);
+	CheckAlarmBit((float)(relay_board_status & RELAY_BRD_AC_FAIL_BIT), 0, Set_alarm_if_BIT_is_set, Alarm_AC_Loss_Bit, &rt.ac_cntr);
 
 	//******* Alarm Housekeeping **********
-
 	//Flash LED for  AC Fail, HI-Z, Ripple I, and Ripple V
 	if (latched_alarm_status & AlarmStatus_Instant_BITS)
 	{
@@ -3648,13 +3650,14 @@ void SetSysDataDefaultsInRAM(void)
 												// adr offset size
 	Sp->Data_Valid = TRUE;						// 0x000  2  // should not be FF
 	Sp->FWversion = FW_VERSION;					// 0x002  2  // FW version, 0030
-	Sp->NV_UI.high_bat_threshold_V_f = DEF_125V_high_bat_threshold;			// high alarm threshold 142.0
-	Sp->NV_UI.low_bat_threshold_V_f = DEF_125V_low_bat_threshold;			// low alarm threshold 105.0
-	Sp->NV_UI.minus_gf_threshold_V_f = DEF_125V_minus_gf_threshold;			// minus ground fault alarm threshold
-	Sp->NV_UI.plus_gf_threshold_V_f = DEF_125V_plus_gf_threshold;			// plus ground fault threshold 13.0
+	Sp->NV_UI.high_bat_threshold_V_f = DEF_125V_high_bat_threshold;		// high alarm threshold 142.0
+	Sp->NV_UI.low_bat_threshold_V_f = DEF_125V_low_bat_threshold;		// low alarm threshold 105.0
+	Sp->NV_UI.minus_gf_threshold_V_f = DEF_125V_minus_gf_threshold;		// minus ground fault alarm threshold
+	Sp->NV_UI.plus_gf_threshold_V_f = DEF_125V_plus_gf_threshold;		// plus ground fault threshold 13.0
 	Sp->NV_UI.ripple_V_threshold_mV_f = DEF_ripple_voltage_threshold;	// ripple voltage threshold 200 mV
 	Sp->NV_UI.ripple_I_threshold_mA_f = DEF_ripple_current_threshold;	// ripple current threshold 10 mA
-	Sp->NV_UI.alarm_delay_sec_f = INIT_time_delay;							// grace period delay after alarm condition is detected, before setting alarm
+	Sp->NV_UI.Critically_Low_Bat_V_f = DEF_125V_crit_low_bat_threshold;	// critically low battery voltage threshold 100.0V
+	Sp->NV_UI.alarm_delay_sec_f = INIT_time_delay;						// grace period delay after alarm condition is detected, before setting alarm
 
 	Sp->NV_UI.BRate_index = DEF_BAUD_RATE_INDEX;						// baud rate, index of default Baud_19200 ==9
 	Sp->NV_UI.baud_rate = DEF_BAUD_RATE;								// baud rate, default Baud_19200
@@ -4465,28 +4468,16 @@ void main(void)
 				measurement_ID = RELAY_DATA;
 			}//end if (measurement_ID == DISPLAY_DATA)
 
-			else if (measurement_ID == RELAY_DATA)														// == 21 time to send & rcv relay data
+			else if (measurement_ID == RELAY_DATA)									// == 21 time to send & rcv relay data
 			{
 				Create_Relay_Board_setting();
-				if (cal_status != CALIBRATION_DONE)														// if calibrating shut off pulse
+				if (cal_status != CALIBRATION_DONE)									// if calibrating shut off pulse
 					clearBit(Display_Info.Status, DISP_STATE_PulseON_BIT);
 
-				TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.alarm_status, Display_Info.Status); //-!- IK20260806 replace with
-				// Display_Info.Relays_state ;
-				// Display_Info.ExtLED_state ;
-				// to set relays and extLEDs
+				TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.Relays_state, Display_Info.ExtLED_state); // IK20260812 command to relay board to set relays and external LEDs
 				TWI_Read(RELAY_READ_ADR);
-				relay_board_status = twi.buffer[BYTE_2];												// get AC power fail bit
-				{
-					float t_f = SysData.NV_UI.alarm_delay_sec_f * 0.1f;
-					uint16 delay_deci_sec = (uint16)(t_f);
-					tmp_byte = delay_deci_sec >> 8; // msg_high
-					TWI_Write(RELAY_WRITE_ADR, TWI_ALARM_DELAY, delay_deci_sec & 0xFF, tmp_byte );
-				}
-#ifdef LAST_GASP
-				tmp_byte = Display_Info.alarm_status >> 8;
-				TWI_Write(RELAY_WRITE_ADR, SEND_TWI_ALARMS2, tmp_byte, NULL_BYTE);							// send 2nd byte of alarms
-#endif // #ifdef LAST_GASP
+				relay_board_status = twi.buffer[BYTE_2];							// get AC power fail bit and possible request to reset comm board
+
 				measurement_ID = IO_DATA;
 			}//end RELAY_DATA
 
@@ -4681,7 +4672,13 @@ const uint16 DefaultExternLEDmask[6] =
 	/* L5*/(0|	0|	0|	0|	0|	0|	0|ACL|	0|	0),	// ExtLED 5 maps to Alarm_AC_Loss_Bit (ACL)
 };
 
-///
+/// <summary>
+/// creates the relay board setting based on the current alarm status and manual control flags. 
+/// It generates the relay and external LED bytes to be sent to the relay board, taking into account any manual overrides for both relays and LEDs.
+/// The function also handles the excitation pulse for the relay board based on the Display_Info.Relays_state, bit 4.
+/// Updates Display_Info.Relays_state and Display_Info.ExtLED_state with the generated values.
+/// </summary>
+/// <param name=""></param>
 void Create_Relay_Board_setting(void) {
 	uint8 Relay_byte = 0;
 	uint8 LED_byte = 0;
@@ -4709,9 +4706,9 @@ void Create_Relay_Board_setting(void) {
 				Relay_byte ^= (1 << out_index);
 		}
 		if (Display_Info.Status & DISP_STATE_PulseON_BIT) // if Bit_14 is set
-			setBit(Relay_byte, RELAY_BRD_EXCIT_PULSE_BIT); // set Bit_6 in LED_byte; it will turn on excitation on relay board
+			setBit(Relay_byte, RELAY_BRD_EXCIT_PULSE_BIT); // set Bit_4 in Relay_byte; it will turn on excitation on relay board
 		else 
-			clearBit(Relay_byte, RELAY_BRD_EXCIT_PULSE_BIT); // clear Bit_6 in LED_byte; it will turn off excitation
+			clearBit(Relay_byte, RELAY_BRD_EXCIT_PULSE_BIT); // clear Bit_4 in Relay_byte; it will turn off excitation
 		Display_Info.Relays_state = Relay_byte;
 	}
 }

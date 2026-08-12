@@ -1,3 +1,11 @@
+20260812 
+added "eleds" command to set/get external LEDs state "eleds=HH" or "eleds?"
+added "relays" command to set/get external LEDs state "relays=HH" or "relays?"
+Now code transmits settings to relay board, and relay board transmits back to comm board the actual state of relays and LEDs.
+	TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.Relays_state, Display_Info.ExtLED_state); // IK20260812 command to relay board to set relays and external LEDs
+
+next: finish relay board firmware to set relays and LEDs based on received settings, and to transmit back actual state of relays and LEDs.
+
 20260804
 debugged led#, rel# commands
 
