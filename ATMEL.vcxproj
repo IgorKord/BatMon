@@ -157,6 +157,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Protocol_Switch_Implementation_Summary.md" />
+    <None Include="Relay_Board_Mapping_Tables.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
