@@ -13,7 +13,7 @@
   <PropertyGroup Label="Globals">
     <SccProjectName />
     <SccLocalPath />
-    <ProjectName>ATMEL</ProjectName>
+    <ProjectName>ATMEL_Comm</ProjectName>
     <ProjectGuid>{9E8D8E94-9FC4-8261-C3F1-9AFACD7612F8}</ProjectGuid>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
