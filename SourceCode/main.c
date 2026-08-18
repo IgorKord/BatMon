@@ -4320,8 +4320,9 @@ void main(void)
 #endif // JUST_IN_CASE_RECOVERY_BR
 
 			//timer.TWI_lockup = 13000;							// keep this board from timing out, 13 sec
-			TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, 0, 0);		// Also, Send TWI stuff
+			TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.Relays_state, Display_Info.ExtLED_state);		// Also, Send TWI stuff
 			TWI_Read(RELAY_READ_ADR);								// to keep other boards from timing out and resetting
+			relay_board_status = twi.buffer[BYTE_2];							// get AC power fail bit and possible request to reset comm board
 
 			//TWI_Write(DISPLAY_WRITE_ADR, TWI_BATT_VOLTS, 0, 0);	// and resetting
 

@@ -1,3 +1,7 @@
+20260818 
+this version stopped reading ADC correctly, BAT =0
+changed code to work with Relay board
+
 20260812 
 added "eleds" command to set/get external LEDs state "eleds=HH" or "eleds?"
 added "relays" command to set/get external LEDs state "relays=HH" or "relays?"

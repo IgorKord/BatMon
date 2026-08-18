@@ -191,8 +191,6 @@ extern float FirmwareVersion;     //Version 3.0
 #define TWI_SET_DISPLAY_LEDs    13 // 0x0D IK20250106 - command to Display board to turn ON / OFF LEDs
 
 #define TWI_MSG_ALARMS          14 // 0x0E if (send_type == TWI_ALARMS) { TWI_Write(DISPLAY_WRITE_ADR, TWI_DISPLAY_BD_STATUS, relay_board_status, unit_type);...
-#define TWI_ALARM_DELAY         15 // 0x0F Comm writes if (measurement_ID == RELAY_DATA)(...TWI_Write(RELAY_WRITE_ADR, ALARM_DELAY, tmp_word, tmp_byte);
-#define TWI_MSG_DISPLAY_BAUD    16 // used in CommBoard
 #define TWI_MSG_COMM_ADDRESS    17 // if (send_type == TWI_COMM_ADDRESS) { ... TWI_Write(DISPLAY_WRITE_ADR, TWI_COMM_ADDRESS, tmp_byte, meter_address);
 
 #define TWI_RESTART_CMD         19 // not used in CommBoard
