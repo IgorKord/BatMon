@@ -654,9 +654,9 @@ void Send_RCI_Param_Error(char* valid_msg)
 /******************************************************************************/
 void Send_RCI_Param_Error_as_FlashConst(char FL* valid_msg)
 {
-	CopyConstString(valid_msg, printf_buff);
+	CopyConstString(valid_msg, printf_arg_buff);
 	ErrorStatus = PARAM_ERROR;
-	printf(">~ERR BAD param %s; valid: %s", rt.HostRxBuff, printf_buff);
+	printf(">~ERR BAD param %s; valid: %s", rt.HostRxBuff, printf_arg_buff);
 }
 
 
@@ -1156,7 +1156,7 @@ void SetGetRelays(void)
 				else
 					bitState[bitNum] = txtOFF;
 			}
-			sprintf(RCI_message, "Hex=0x%02X (%d Dec), K1 %s, K2 %s, K3 %s, K4 %s, Pulses %s", Display_Info.Relays_state, bitState[0], bitState[1], bitState[2], bitState[3], bitState[4]); // states of relays and pulse
+			sprintf(RCI_message, "Hex=0x%02X (%d Dec), K1 %s, K2 %s, K3 %s, K4 %s, Pulses %s", Display_Info.Relays_state, Display_Info.Relays_state, bitState[0], bitState[1], bitState[2], bitState[3], bitState[4]); // states of relays and pulse
 			Send_verbose_comment(RCI_message);
 		}
 		return;
@@ -1265,7 +1265,7 @@ void SetGetExtLEDs() {
 					else
 						bitState[bitNum] = txtOFF;
 				}
-				sprintf(RCI_message, "Hex=0x%02X (%d Dec), L1 %s, L2 %s, L3 %s, L4 %s, L5 %s, L6 %s", Display_Info.ExtLED_state, bitState[0], bitState[1], bitState[2], bitState[3], bitState[4], bitState[4]); // states of external LEDs
+				sprintf(RCI_message, "Hex=0x%02X (%d Dec), L1 %s, L2 %s, L3 %s, L4 %s, L5 %s, L6 %s", Display_Info.ExtLED_state, Display_Info.ExtLED_state,bitState[0], bitState[1], bitState[2], bitState[3], bitState[4], bitState[4]); // states of external LEDs
 				Send_verbose_comment(RCI_message);
 			}
 			return;
@@ -1290,7 +1290,7 @@ void SetGetExtLEDs() {
 			return;
 		}
 	}
-	else 
+	else
 	{
 eleds_error:
 		Send_RCI_Param_Error_as_FlashConst("eleds=HH or eleds?");

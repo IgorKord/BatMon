@@ -1,8 +1,11 @@
-20260818 
+20260819
+erasing EEPROM fixed ADC reading problem
+
+20260818
 this version stopped reading ADC correctly, BAT =0
 changed code to work with Relay board
 
-20260812 
+20260812
 added "eleds" command to set/get external LEDs state "eleds=HH" or "eleds?"
 added "relays" command to set/get external LEDs state "relays=HH" or "relays?"
 Now code transmits settings to relay board, and relay board transmits back to comm board the actual state of relays and LEDs.
@@ -17,15 +20,15 @@ debugged led#, rel# commands
 Added pulse bit to Display_Info.Relay_State, to transfer pulse enabled/disabled information to relay board.
 
 20260722
-modified "relay" command: split command in two: 
-"rel#" to set relay mask SysData.Relay_MASK[4] and 
+modified "relay" command: split command in two:
+"rel#" to set relay mask SysData.Relay_MASK[4] and
 "relays" to set/get relays state "relays=H" or "relays?"
 created similar functions for extLEDs
-"led#" to set relay mask SysData.ExtLED_MASK[6] and 
+"led#" to set relay mask SysData.ExtLED_MASK[6] and
 "leds" to set/get relays state "leds=H" or "leds?"
 
-20260720 
-created "relay" command to set/get either relay state "relay=H" or "relay?" 
+20260720
+created "relay" command to set/get either relay state "relay=H" or "relay?"
 or set relay mask "relay#=XXXX" or  "relay#?" to get relay mask
 
 20260715 in process:

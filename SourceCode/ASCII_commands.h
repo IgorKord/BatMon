@@ -27,6 +27,7 @@ extern Uint32 ErrorStatus;						// 0 - no error, other values - error code
 extern SettingsStruct Existing;					// keep current setting to detect change vs SysData.NV_UI
 extern uint8  restart_op;							// used to restart system using WDT
 extern char printf_buff[0x40];						// [64] to copy flash strings into RAM
+extern char printf_arg_buff[0x40];					// [64] second buffer for string arguments in printf
 extern const char FL* ProtocolNames[];
 extern uint8 Num_RCI_commands; // = sizeof(rci) / sizeof(t_rci_commands);
 extern uint8 const UnitTypes[4];

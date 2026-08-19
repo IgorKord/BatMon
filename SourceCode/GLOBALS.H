@@ -1136,7 +1136,7 @@ void Create_Relay_Board_setting(void);
 
 #ifdef PC
 extern void PC_sim_slowdown(void);
-#define NUM_INPUT_FIELDS   4 // on windows simulator form, text boxes for Vbat, vGnd, Vrip, Irip
+#define NUM_INPUT_FIELDS   5 // on windows simulator form, text boxes for Vbat, vGnd, Vrip, Irip, Vac
 extern double UserValue[NUM_INPUT_FIELDS];
 enum SimInputIndex {
 	Vbat = 0,
@@ -1144,6 +1144,7 @@ enum SimInputIndex {
 //	V_gf = 2,
 	Vrip,// = 3,
 	Irip,// = 4
+	Vac,// = 5
 };
   extern int dummy_function();
 

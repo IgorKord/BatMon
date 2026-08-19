@@ -249,6 +249,7 @@ const char FL* FiveSpaces = "     "; // used in display blinking
 //---- General System variables
 DisplayInfo Display_Info;
 char printf_buff[0x40];						// [64] to copy flash strings into RAM
+char printf_arg_buff[0x40];					// [64] second buffer for string arguments in printf
 uint8  tmp_byte;							// general working register
 uint8  ADC_Status;							// what operation is the ADC in
 uint8  measurement_ID;						// what measurement is being made
@@ -395,6 +396,8 @@ Uint32 Convert_4_ASCII_to_Uint32(char* pstr);
 
 #ifdef PC
 extern FILE* g_fhOutput ;
+float VAC_simulated; // IK20260819 to enter simulated VAC value for testing
+extern double UserValue[];
 // Add this to the top of your file, after other #includes if not already present
 
 //extern int putch(int);
@@ -4254,9 +4257,10 @@ void main(void)
 		delay_us(1000); //Sleep(1);
 		TIMER2_COMPA_interrupt();								// CHECK IF CMD RECEIVED FROM HOST
 		check_ch(&i);											// PC input stored in rt.HostRxBuff, button emulation is in "i"
+		VAC_simulated = (float)UserValue[Vac];					// Update VAC_simulated from GUI textbox
 #endif
-		WATCHDOG_RESET();
-		// periodic display refresh
+	WATCHDOG_RESET();
+	// periodic display refresh
 		if (Display_Info.DisplayNeedsUpdateFlag == SET)			// flag is set each 20 ms in a timer interrupt
 		{
 #ifdef TIME_TESTING
@@ -4321,8 +4325,14 @@ void main(void)
 
 			//timer.TWI_lockup = 13000;							// keep this board from timing out, 13 sec
 			TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.Relays_state, Display_Info.ExtLED_state);		// Also, Send TWI stuff
-			TWI_Read(RELAY_READ_ADR);								// to keep other boards from timing out and resetting
-			relay_board_status = twi.buffer[BYTE_2];							// get AC power fail bit and possible request to reset comm board
+			TWI_Read(RELAY_READ_ADR);							// to keep other boards from timing out and resetting
+#ifdef PC
+			if (VAC_simulated < 36)
+				setBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
+			else
+				clearBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
+#endif // PC
+			relay_board_status = twi.buffer[BYTE_1];			// get AC power fail bit and reset request from first byte
 
 			//TWI_Write(DISPLAY_WRITE_ADR, TWI_BATT_VOLTS, 0, 0);	// and resetting
 
@@ -4477,7 +4487,13 @@ void main(void)
 
 				TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.Relays_state, Display_Info.ExtLED_state); // IK20260812 command to relay board to set relays and external LEDs
 				TWI_Read(RELAY_READ_ADR);
-				relay_board_status = twi.buffer[BYTE_2];							// get AC power fail bit and possible request to reset comm board
+#ifdef PC
+				if (VAC_simulated < 36)
+					setBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
+				else
+					clearBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
+#endif // PC
+				relay_board_status = twi.buffer[BYTE_1];							// get AC power fail bit and reset request from first byte
 
 				measurement_ID = IO_DATA;
 			}//end RELAY_DATA

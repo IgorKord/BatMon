@@ -129,13 +129,13 @@
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ASCII_commands.c" />
+    <ClCompile Include="main.c" />
     <ClCompile Include="SourceCode\ASCII_commands.c" />
     <ClCompile Include="SourceCode\DNP.c" />
     <ClCompile Include="SourceCode\eeprom.c" />
     <ClCompile Include="SourceCode\Front_menu.c" />
-    <ClCompile Include="SourceCode\Main.c">
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">CompileAsCpp</CompileAs>
-    </ClCompile>
+    <ClCompile Include="SourceCode\main.c" />
     <ClCompile Include="SourceCode\PC_SUPP.C" />
   </ItemGroup>
   <ItemGroup>
@@ -158,6 +158,8 @@
   <ItemGroup>
     <None Include="Protocol_Switch_Implementation_Summary.md" />
     <None Include="Relay_Board_Mapping_Tables.md" />
+    <None Include="TWI_Byte_Ordering_Fix_FINAL.md" />
+    <None Include="TWI_Byte_Ordering_Test.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

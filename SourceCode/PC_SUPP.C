@@ -243,7 +243,7 @@ RECT * rect_LED[number_of_LEDs]; // pointers to static rectangles
 
 double UserValue[NUM_INPUT_FIELDS] = { 0 };   // Parsed numeric values
 int editControlIDs[NUM_INPUT_FIELDS] = {
-	IDC_V_BATT, IDC_V_GND, IDC_V_RIP, IDC_I_RIP
+	IDC_V_BATT, IDC_V_GND, IDC_V_RIP, IDC_I_RIP, IDC_VAC
 };
 
 typedef enum {
@@ -888,6 +888,7 @@ BOOL CALLBACK ToolDlgProc(HWND hDlg, UINT Message, WPARAM wParam, LPARAM lParam)
 		UserValue[Vgnd] = 62.5;		// Volts
 		UserValue[Vrip] = 222.2;	// mVolts
 		UserValue[Irip] = 55.5;		// mAmperes
+		UserValue[Vac] = 120.0;		// Volts AC
 		SetFocus(hDlg);	// ensure the dialog receives keyboard input.
 		return TRUE;
 	}
