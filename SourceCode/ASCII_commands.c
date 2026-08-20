@@ -1133,25 +1133,30 @@ void ShowRelayResponse(char* preffix, uint8 source_byte)
 {
     char txtON[] = "ON ";
     char txtOFF[] = "OFF";
-		if (rt.Host & CmdVerboseResponse)
+	if (*preffix == 'S') // set command
+		cputs("ys="); // create 'relays='
+	printf("%02X", source_byte); //return to PC "HH"
+	if (rt.Host & CmdVerboseResponse)
+	{
+		uint8 bitNum;
+		char* bitState[5];// = { txtOFF, txtOFF, txtOFF, txtOFF, txtOFF };
+		for (bitNum = 0; bitNum < 5; bitNum++)
 		{
-			uint8 bitNum;
-			char* bitState[5];// = { txtOFF, txtOFF, txtOFF, txtOFF, txtOFF };
-			for (bitNum = 0; bitNum < 5; bitNum++)
-			{
-				if (source_byte & (1 << bitNum))
-					bitState[bitNum] = txtON;
-				else
-					bitState[bitNum] = txtOFF;
-			}
-			sprintf(RCI_message, "%s Hex=0x%02X (%d Dec), K1 %s, K2 %s, K3 %s, K4 %s, Pulses %s", preffix, Display_Info.Relays_state, Display_Info.Relays_state, bitState[0], bitState[1], bitState[2], bitState[3], bitState[4]); // states of relays and pulse
-			Send_verbose_comment(RCI_message);
+			if (source_byte & (1 << bitNum))
+				bitState[bitNum] = txtON;
+			else
+				bitState[bitNum] = txtOFF;
 		}
+		sprintf(RCI_message, "%s Hex=0x%02X (%d Dec), K1 %s, K2 %s, K3 %s, K4 %s, Pulses %s", preffix, source_byte, source_byte, bitState[0], bitState[1], bitState[2], bitState[3], bitState[4]); // states of relays and pulse
+		Send_verbose_comment(RCI_message);
+	}
 }
+
 /// <summary>
 /// Relays set/get: 'Relays? returns Set command syntax 'relays=HH' in hexadecimal format. Setting in flash is updated after 'save' command.
 /// 'relays?' returns current state of relays sent to Relay board: relays=HH. currently range 0...1F
-/// 'relays>read' returns current status of relays retrieved from the Relay board: relays>read HH.
+/// 'relays>read' or 'relays read' (searching for 'read') returns current status of relays retrieved from the Relay board:
+/// example: " // Read Hex=0x08 (8 Dec), K1 OFF, K2 OFF, K3 ON , K4 OFF, Pulses OFF"
 /// relays=HH changes state of relays, where HH is a hexadecimal value representing the state of four relays plus pulse excitation.
 /// Each bit in HH corresponds to a relay, with 1 indicating the relay is on and 0 indicating it is off.
 /// Bit 4 controls excitation pulses generation to detect discontinuity.
@@ -1165,16 +1170,15 @@ void SetGetRelays(void)
     char txtRead[] = "Read";
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 3]); // starting at 3 bytes after command, expecting "read"
 
-	if (temp_Inp_str[CMD_LEN + 2] != '=') { // 'relays' returns current state of relays: relays=HH.
-		Put_CMD_as_chars();
-		printf("ys=%02X", Display_Info.Relays_state); //return to PC "relays=HH"
-        ShowRelayResponse(txtSet, Display_Info.Relays_state);
-		return;
-	}
-	else if (param == (('r' + 256 * 'e') + ('a' + 256 * 'd') * 65536)) // relays=HH changes state of relays, where HH is a hexadecimal value representing the state of four relays and pulse.
+	if (param == (('r' + 256 * 'e') + ('a' + 256 * 'd') * 65536)) // relays=HH changes state of relays, where HH is a hexadecimal value representing the state of four relays and pulse.
     {
         ShowRelayResponse(txtRead, relays_status);
     }
+	else if (temp_Inp_str[CMD_LEN + 2] != '=') { // 'relays' returns current state of relays: relays=HH.
+		Put_CMD_as_chars();
+        ShowRelayResponse(txtSet, Display_Info.Relays_state);
+		return;
+	}
 	else //if (temp_Inp_str[CMD_LEN + 2] == '=') // relays=HH changes state of relays, where HH is a hexadecimal value representing the state of four relays and pulse.
 	{
 		char HexHigh = temp_Inp_str[CMD_LEN + 3];
@@ -1183,7 +1187,7 @@ void SetGetRelays(void)
 		int RelayLow = ASCIIToHexChar(HexLow);
 		if (RelayHigh < 0 || RelayLow < 0)// check if HH is a valid hexadecimal digit (0-9, A-F)
 		{
-			Send_RCI_Param_Error_as_FlashConst("relays=HH or relays?");
+			Send_RCI_Param_Error_as_FlashConst("'relays=HH' or 'relays?' or 'relays read'");
 		}
 		else
 		{
@@ -1195,7 +1199,6 @@ void SetGetRelays(void)
 		return;
 	}
 }
-
 
 /// <summary>
 /// Helper function to output trigger mask value and verbose explanation
@@ -1251,37 +1254,55 @@ void SetGetRelayTriggers(void)
 	}
 }
 
+void ShowRelayBrdLEDstates(char* preffix, uint8 source_byte)
+{
+	char txtON[] = "ON ";
+	char txtOFF[] = "OFF";
+	if (*preffix == 'S') // set command
+		cputs("s="); // create 'eleds='
+	printf("%02X", source_byte); //return to PC "HH"
+	if (rt.Host & CmdVerboseResponse)
+	{
+		uint8 bitNum;
+		char* bitState[6];// = { txtOFF, txtOFF, txtOFF, txtOFF, txtOFF, txtOFF };
+		for (bitNum = 0; bitNum < 6; bitNum++)
+		{
+			if (source_byte & (1 << bitNum))
+				bitState[bitNum] = txtON;
+			else
+				bitState[bitNum] = txtOFF;
+		}
+		sprintf(RCI_message, "%s Hex=0x%02X (%d Dec), L1 %s, L2 %s, L3 %s, L4 %s, L5 %s, L6 %s",preffix, source_byte, source_byte, bitState[0], bitState[1], bitState[2], bitState[3], bitState[4], bitState[5]); // states of external LEDs
+		Send_verbose_comment(RCI_message);
+	}
+}
+
 /// <summary>
 /// External LEDs set/get: 'eleds? returns Set command syntax 'eleds=HH' in hexadecimal format. Setting in flash is updated after 'save' command.
 /// eleds? returns current state of External LEDs: eled=HH.
 /// eleds=HH changes state of LEDs, where H is a hexadecimal value representing the state of six LEDs.
+/// 'eleds>read' or 'eleds read' (searching for 'read') returns current status of external LEDs retrieved from the Relay board:
+/// example: " // Read Hex=0x0C (12 Dec), L1 OFF, L2 OFF, L3 ON , L4 ON, L5 OFF, L6 OFF"
 /// Each bit in H corresponds to an LED, with 1 indicating the LED is on and 0 indicating it is off.
 /// The changes will be sent to relay board via TWI and take effect immediately but can be overwritten if alarm condition persists.
 /// </summary>
 /// <param name=""></param>
 void SetGetExtLEDs() {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
-	if (temp_Inp_str[CMD_LEN] == 'S') {
+	char txtSet[] = "Set "; // first letter, 'R' or 'S', gets checked in ShowRelayBrdLEDstates
+	char txtRead[] = "Read";
+	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 2]); // starting at 2 bytes after command, expecting "read"
+
+	if (param == (('r' + 256 * 'e') + ('a' + 256 * 'd') * 65536)) // relays=HH changes state of relays, where HH is a hexadecimal value representing the state of four relays and pulse.
+	{
+		ShowRelayBrdLEDstates(txtRead, leds_status);
+	}
+	else if (toLower(temp_Inp_str[CMD_LEN]) == 's') {
 		if (temp_Inp_str[CMD_LEN + 1] != '=') // eleds returns current state of external LEDs: eleds=HH.
 		{
 			Put_CMD_as_chars();
-			printf("s=%02X", Display_Info.ExtLED_state); //return to PC "eleds=HH"
-			if (rt.Host & CmdVerboseResponse)
-			{
-				char txtON[] = "ON ";
-				char txtOFF[] = "OFF";
-				uint8 bitNum;
-				char* bitState[5];// = { txtOFF, txtOFF, txtOFF, txtOFF, txtOFF };
-				for (bitNum = 0; bitNum < 5; bitNum++)
-				{
-					if (Display_Info.ExtLED_state & (1 << bitNum))
-						bitState[bitNum] = txtON;
-					else
-						bitState[bitNum] = txtOFF;
-				}
-				sprintf(RCI_message, "Hex=0x%02X (%d Dec), L1 %s, L2 %s, L3 %s, L4 %s, L5 %s, L6 %s", Display_Info.ExtLED_state, Display_Info.ExtLED_state,bitState[0], bitState[1], bitState[2], bitState[3], bitState[4], bitState[4]); // states of external LEDs
-				Send_verbose_comment(RCI_message);
-			}
+			//printf("s=%02X", Display_Info.ExtLED_state); //return to PC "eleds=HH"
+			ShowRelayBrdLEDstates(txtSet, Display_Info.ExtLED_state);
 			return;
 		}
 		else //if (temp_Inp_str[CMD_LEN + 2] != '=') // eleds=HH changes state of external LEDs, where HH is a hexadecimal value representing the state of six LEDs.
@@ -1307,7 +1328,7 @@ void SetGetExtLEDs() {
 	else
 	{
 eleds_error:
-		Send_RCI_Param_Error_as_FlashConst("eleds=HH or eleds?");
+		Send_RCI_Param_Error_as_FlashConst("'eleds=HH' or 'eleds?' or 'eleds read'");
 	}
 }
 
@@ -2179,8 +2200,8 @@ const t_rci_commands rci[] =
 	/*+*/	"expo",		(void*)&Export_settings,		// "expo" //creates play-back list of commands to restore settings
 	///////"expo" ends auto param list
 
-	/*+*/	"rela",		(void*)&SetGetRelays,			// Relays set/get: 'Relay? returns Set command syntax 'relay=H' in hexadecimal format. Test command, state is not set in flash.
-	/*+*/	"eled",		(void*)&SetGetExtLEDs,			// External LEDs set/get: "eleds" returns Set command syntax 'eleds=H' in hexadecimal format.Test command, state is not set in flash.
+	/*+*/	"rela",		(void*)&SetGetRelays,			// Relays set/get: 'Relays? returns Set cmd syntax 'relays=HH' as hex. 'relays read' returns real state of relays. Test command, state is not set in flash.
+	/*+*/	"eled",		(void*)&SetGetExtLEDs,			// External LEDs set/get: "eleds" returns Set cmd syntax 'eleds=HH' as hex. 'eleds read' returns real state of external LEDs. Test command, state is not set in flash.
 	/*+*/	"cpar",		(void*)&SetGetCalParam,			// "cpar#$=GGG.GGG" Set/get calibration parameter.
 	/*+*/	"cali",		(void*)&SetCalibrationValue,	// "cali#$=GGG.GGG" Set Calibration value.
 	/*+*/	"save",		(void*)&SaveCal,				// "save"  transfers data from RAM to FLASH. Use "SAVE" to permanently update it in FLASH

@@ -1,3 +1,7 @@
+20260820
+debugged 'relays read' and eleds read' commands, created in Relay board reporting back the status of real GPIOs controlling LEDs and Relays
+But, the battery voltage reads once correctly and then does not change when power suplly varies
+
 20260819
 erasing EEPROM fixed ADC reading problem
 

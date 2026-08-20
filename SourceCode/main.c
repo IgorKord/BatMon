@@ -4217,8 +4217,8 @@ void Communicate_w_Relay_board(void)
         setBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
     else
         clearBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
-    twi.buffer[BYTE_2] |= TWI_TO_RELAY_BRD_K4_BIT;      // set for PC simulation
-    twi.buffer[BYTE_3] |= TWI_TO_RELAY_BRD_LED1_BIT;    // set for PC simulation
+    twi.buffer[BYTE_2] = TWI_TO_RELAY_BRD_K3_BIT;      // set for PC simulation
+    twi.buffer[BYTE_3] = TWI_TO_RELAY_BRD_LED2_BIT;    // set for PC simulation
 #endif // PC
     relay_board_status = twi.buffer[BYTE_1];			// get AC power fail bit and reset request from first byte
     relays_status = twi.buffer[BYTE_2];					// get actual relay GPIO states from second byte
