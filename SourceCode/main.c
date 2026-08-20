@@ -262,6 +262,8 @@ uint8  calibr_step;							// what are you calibrating
 uint8  debug = 0;							// IK20250522 ! FOR TEST, debug is not explicitly initialized, zero! delay 0.5 ms before switching to transmit mode
 
 uint8  relay_board_status;					// updated via TWI when read RelayBoard, holds relay board status, AC power loss bit
+uint8  relays_status;                       // Relay board reads into this byte real GPIO pins where relays are connected and sends as confirmation to Comm board via TWI
+uint8  leds_status;                         // Relay board reads into this byte real GPIO pins where LEDs are connected and sends as confirmation to Comm board via TWI
 uint8  RxGreen_TxRed_LED_op;				// determines whether the comm LED is red or green
 uint8  tmp_display_status;					// used for detection if Phase or bbpulse selection changed
 uint8  io_update;							// need to update IO in Relay board
@@ -4097,7 +4099,7 @@ void Delay_ms(uint16 Delay)
 #ifdef PC
 		Sleep(0);
 #else
-        __no_operation();
+		__no_operation();
 #endif
 	}
 }
@@ -4142,16 +4144,16 @@ uint8 ReadButtons() {
 /// <summary>
 /// Function works after void CheckAlarmBit() which debounces the alarm condition(25 ms typical) and sets/clears the rt.alarm_detection word bits
 /// reads real time status from rt.alarm_detection
-/// if alarm condition is detected after debouncing in 'rt.alarm_detection' the appropriated timer start counting; ex: rt.h_battery_fault_cntr. 
+/// if alarm condition is detected after debouncing in 'rt.alarm_detection' the appropriated timer start counting; ex: rt.h_battery_fault_cntr.
 /// if time reaches SysData.NV_UI.alarm_delay_sec_f the 'Display_Info.alarm_status' gets updated in this function
 /// Other functions in main.c check the 'Display_Info.alarm_status' and if it is set,
 /// the front panel LED starts blinking, relay and external LEDs varables get updated so a new settings are sent to relay board
 /// In this function,
 /// if alarm condition is cleared before timer expired the timer is reset and relay and external LEDs varables are not changed
-/// if (SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) 
+/// if (SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit)
 /// and condition persists for more than SysData.NV_UI.alarm_delay_sec_f the Display_Info.alarm_status bit is set;
 /// if (SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) and if alarm condition is removed, the alarm bit is not cleared
-/// 
+///
 /// if (Display_Info.alarm_status & Alarm_BatVoltageLOW_Bit)
 /// </summary>
 /// <param name=""></param>
@@ -4204,6 +4206,23 @@ void Process_Alarms(void)
 			}
 		}
 	}
+}
+
+void Communicate_w_Relay_board(void)
+{
+    TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.Relays_state, Display_Info.ExtLED_state);		// Also, Send TWI stuff
+    TWI_Read(RELAY_READ_ADR);							// to keep other boards from timing out and resetting
+#ifdef PC
+    if (VAC_simulated < 36)
+        setBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
+    else
+        clearBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
+    twi.buffer[BYTE_2] |= TWI_TO_RELAY_BRD_K4_BIT;      // set for PC simulation
+    twi.buffer[BYTE_3] |= TWI_TO_RELAY_BRD_LED1_BIT;    // set for PC simulation
+#endif // PC
+    relay_board_status = twi.buffer[BYTE_1];			// get AC power fail bit and reset request from first byte
+    relays_status = twi.buffer[BYTE_2];					// get actual relay GPIO states from second byte
+    leds_status = twi.buffer[BYTE_3];					// get actual LED GPIO states from third byte
 }
 
 /*************************************************************/
@@ -4324,16 +4343,7 @@ void main(void)
 #endif // JUST_IN_CASE_RECOVERY_BR
 
 			//timer.TWI_lockup = 13000;							// keep this board from timing out, 13 sec
-			TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.Relays_state, Display_Info.ExtLED_state);		// Also, Send TWI stuff
-			TWI_Read(RELAY_READ_ADR);							// to keep other boards from timing out and resetting
-#ifdef PC
-			if (VAC_simulated < 36)
-				setBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
-			else
-				clearBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
-#endif // PC
-			relay_board_status = twi.buffer[BYTE_1];			// get AC power fail bit and reset request from first byte
-
+			Communicate_w_Relay_board();
 			//TWI_Write(DISPLAY_WRITE_ADR, TWI_BATT_VOLTS, 0, 0);	// and resetting
 
 			//---------> this executes ONCE after initial 6 seconds in SETUP protocol if there is no commands arrive <-------------------------------------------
@@ -4484,18 +4494,7 @@ void main(void)
 				Create_Relay_Board_setting();
 				if (cal_status != CALIBRATION_DONE)									// if calibrating shut off pulse
 					clearBit(Display_Info.Status, DISP_STATE_PulseON_BIT);
-
-				TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.Relays_state, Display_Info.ExtLED_state); // IK20260812 command to relay board to set relays and external LEDs
-				TWI_Read(RELAY_READ_ADR);
-#ifdef PC
-				if (VAC_simulated < 36)
-					setBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
-				else
-					clearBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
-#endif // PC
-				relay_board_status = twi.buffer[BYTE_1];							// get AC power fail bit and reset request from first byte
-
-				measurement_ID = IO_DATA;
+				Communicate_w_Relay_board();
 			}//end RELAY_DATA
 
 			else if (measurement_ID == IO_DATA) // time to send & rcv data to IO
@@ -4661,7 +4660,7 @@ void main(void)
 	}
 } // main() end
 
-//uint8 Relay_mapping[4][NUM_ALARMS] =  
+//uint8 Relay_mapping[4][NUM_ALARMS] =
 //{
 //// alarm bits BVH,BVL,PGF,MGF,RVH,RCL,ACL,HIZ, BCL
 //	/* K1 */	0,	0,	1,	0,	0,	0,	0,	0,	0,	// Relay 1 (K1) maps to Alarm_PlusGND_FAULT_Bit (PGF)
@@ -4690,7 +4689,7 @@ const uint16 DefaultExternLEDmask[6] =
 };
 
 /// <summary>
-/// creates the relay board setting based on the current alarm status and manual control flags. 
+/// creates the relay board setting based on the current alarm status and manual control flags.
 /// It generates the relay and external LED bytes to be sent to the relay board, taking into account any manual overrides for both relays and LEDs.
 /// The function also handles the excitation pulse for the relay board based on the Display_Info.Relays_state, bit 4.
 /// Updates Display_Info.Relays_state and Display_Info.ExtLED_state with the generated values.
@@ -4704,7 +4703,7 @@ void Create_Relay_Board_setting(void) {
 	// Generate LED byte if manual LED control is not active
 	if (timer.manual_led_control_ms == 0) {
 		for (out_index = 0; out_index < 6; out_index++) {
-			if (Display_Info.alarm_status & SysData.ExtLED_MASK[out_index]) 
+			if (Display_Info.alarm_status & SysData.ExtLED_MASK[out_index])
 				LED_byte |= (1 << out_index);
 		}
 		Display_Info.ExtLED_state = LED_byte;
@@ -4714,17 +4713,17 @@ void Create_Relay_Board_setting(void) {
 	if (timer.manual_relay_control_ms == 0) {
 		for (out_index = 0; out_index < 4; out_index++) {
 			uint16 RelayMSK = SysData.Relay_MASK[out_index] & ~INV; // mask out the INV bit for checking
-			if (Display_Info.alarm_status & RelayMSK) 
+			if (Display_Info.alarm_status & RelayMSK)
 				Relay_byte |= (1 << out_index);
 		}
 		for (out_index = 0; out_index < 4; out_index++) {
 			uint16 Relay_invert = (SysData.Relay_MASK[out_index] & INV); // check if the relay mask has the INV bit set
-			if (Relay_invert) 
+			if (Relay_invert)
 				Relay_byte ^= (1 << out_index);
 		}
 		if (Display_Info.Status & DISP_STATE_PulseON_BIT) // if Bit_14 is set
 			setBit(Relay_byte, RELAY_BRD_EXCIT_PULSE_BIT); // set Bit_4 in Relay_byte; it will turn on excitation on relay board
-		else 
+		else
 			clearBit(Relay_byte, RELAY_BRD_EXCIT_PULSE_BIT); // clear Bit_4 in Relay_byte; it will turn off excitation
 		Display_Info.Relays_state = Relay_byte;
 	}

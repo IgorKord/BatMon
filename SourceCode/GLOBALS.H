@@ -8,7 +8,7 @@
 * Last Saved Revision $Author:  $
 *
 * Original Author:  Igor Kordunsky
-* Date: 18-July-2024
+* Date: 20-Aug-2026
 *
 * File Description: All global variables, macros and function definitions
 *
@@ -551,7 +551,7 @@ typedef int                  int16;
 #define DISP_BRD_I_CAL_MODE (DISP_STATE_LOmA_BIT | DISP_STATE_HImA_BIT)
 #define DISP_BRD_CAL_MODE   (DISP_BRD_I_CAL_MODE | DISP_STATE_VoltCal_BIT)
 
-// used with 'alarm_status', 'latched_alarm_status'
+// used with 'alarm_status', 'latched_alarm_status' 'Display_Info.Relays_state'
 #define TWI_TO_RELAY_BRD_K1_BIT Bit_0
 #define TWI_TO_RELAY_BRD_K2_BIT Bit_1
 #define TWI_TO_RELAY_BRD_K3_BIT Bit_2
@@ -563,9 +563,16 @@ typedef int                  int16;
 #define RELAY_BRD_REQ_RESET_BIT     Bit_1 // if ((relay_board_status & 0x02) == 0x02)   //ext. reset from relay board?
 #define RELAY_BRD_EXCIT_PULSE_BIT   TWI_TO_RELAY_BRD_PULSE_BIT // in Display_Info.Relays_state. set excitation pulsing on relay board to test discontinuity
 
-#define ALARM_BLINK_RATE_ms                 300
+// used with 'Display_Info.Ext_LEDs_state'
+#define TWI_TO_RELAY_BRD_LED1_BIT Bit_0
+#define TWI_TO_RELAY_BRD_LED2_BIT Bit_1
+#define TWI_TO_RELAY_BRD_LED3_BIT Bit_2
+#define TWI_TO_RELAY_BRD_LED4_BIT Bit_3
+#define TWI_TO_RELAY_BRD_LED5_BIT Bit_4
+#define TWI_TO_RELAY_BRD_LED6_BIT Bit_5
 
 
+#define ALARM_BLINK_RATE_ms                 300 // for LED on the front panel
 #define DELAY_ms_BEFORE_ALARM_ACCEPTED      25 // wait 25 ms (counter reaches 25) before raising the 'alarm detected' event / set the flag
 #define ALARM_COUNTER_CAP_ms                DELAY_ms_BEFORE_ALARM_ACCEPTED*2 // 50 ms maximum counter allowed to increment, because it would count down from 2x25 ms to 25 ms to clear alarm
 
@@ -616,6 +623,8 @@ extern /*volatile*/ uint8  all_stations_msg;			// indicates if this is a DNP bro
 extern uint16 send_dnp;							// instructs what msg to send if any; uint16 because it could get OBJECT_1_RESPONSE = 1024
 extern const uint16 DefaultRelayMask[4];
 extern const uint16 DefaultExternLEDmask[6];
+extern uint8  relays_status;                       // Relay board reads into this byte real GPIO pins where relays are connected and sends as confirmation to Comm board via TWI
+extern uint8  leds_status;                         // Relay board reads into this byte real GPIO pins where LEDs are connected and sends as confirmation to Comm board via TWI
 
 /*------------------------- Structures -----------------------------*/
 //typedef struct    // Encapsulate into structure to allow addressing in assembler with increment
@@ -846,8 +855,8 @@ enum Board_Addresses
 	DISPLAY_READ_ADR = 0x41,	// IK20241226 used after TWI_Write(DISPLAY_WRITE_ADR,xxxx
 	IO_WRITE_ADR = 0x82,		// IK20250417 used to set up analog switch and change transfer function of voltage ripple preamp for 1 Phase (Off) or 3 Phase (On)
 	IO_READ_ADR = 0x83,			// IK20240122 Display board does not communicate with Relay board
-	ADC_WRITE_ADR = 0xD0,		// used in Measure() -> TWI_Write(ADC_WRITE_ADR, 0x88, NULL_BYTE, NULL_BYTE);     //15sps for 16 bits
-	ADC_READ_ADR = 0xD1,		// used in Measure() -> TWI_Read(ADC_READ_ADR);
+	ADC_WRITE_ADR = 0xD0,		// On Comm board used in Measure() -> TWI_Write(ADC_WRITE_ADR, 0x88, NULL_BYTE, NULL_BYTE);     //15sps for 16 bits
+	ADC_READ_ADR = 0xD1,		// On Comm board used in Measure() -> TWI_Read(ADC_READ_ADR);
 };
 
 /*---------  TWI RCV'd Bytes --------*/

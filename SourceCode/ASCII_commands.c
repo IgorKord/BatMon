@@ -1128,10 +1128,31 @@ void SetGetAlarm(void)
 Exception:
 	Send_RCI_Param_Error_as_FlashConst("rv ri ac hz enab disa only");
 }
+
+void ShowRelayResponse(char* preffix, uint8 source_byte)
+{
+    char txtON[] = "ON ";
+    char txtOFF[] = "OFF";
+		if (rt.Host & CmdVerboseResponse)
+		{
+			uint8 bitNum;
+			char* bitState[5];// = { txtOFF, txtOFF, txtOFF, txtOFF, txtOFF };
+			for (bitNum = 0; bitNum < 5; bitNum++)
+			{
+				if (source_byte & (1 << bitNum))
+					bitState[bitNum] = txtON;
+				else
+					bitState[bitNum] = txtOFF;
+			}
+			sprintf(RCI_message, "%s Hex=0x%02X (%d Dec), K1 %s, K2 %s, K3 %s, K4 %s, Pulses %s", preffix, Display_Info.Relays_state, Display_Info.Relays_state, bitState[0], bitState[1], bitState[2], bitState[3], bitState[4]); // states of relays and pulse
+			Send_verbose_comment(RCI_message);
+		}
+}
 /// <summary>
-/// Relays set/get: 'Relays? returns Set command syntax 'relays=H' in hexadecimal format. Setting in flash is updated after 'save' command.
-/// relays? returns current state of relays: relays=HH. currently range 0...1F
-/// relays=HH changes state of relays, where HH is a hexadecimal value representing the state of four relays.
+/// Relays set/get: 'Relays? returns Set command syntax 'relays=HH' in hexadecimal format. Setting in flash is updated after 'save' command.
+/// 'relays?' returns current state of relays sent to Relay board: relays=HH. currently range 0...1F
+/// 'relays>read' returns current status of relays retrieved from the Relay board: relays>read HH.
+/// relays=HH changes state of relays, where HH is a hexadecimal value representing the state of four relays plus pulse excitation.
 /// Each bit in HH corresponds to a relay, with 1 indicating the relay is on and 0 indicating it is off.
 /// Bit 4 controls excitation pulses generation to detect discontinuity.
 /// The changes will be sent to relay board via TWI and take effect immediately but can be overwritten if alarm condition persists.
@@ -1140,27 +1161,20 @@ Exception:
 void SetGetRelays(void)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
+    char txtSet[]  = "Set ";
+    char txtRead[] = "Read";
+	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 3]); // starting at 3 bytes after command, expecting "read"
+
 	if (temp_Inp_str[CMD_LEN + 2] != '=') { // 'relays' returns current state of relays: relays=HH.
 		Put_CMD_as_chars();
 		printf("ys=%02X", Display_Info.Relays_state); //return to PC "relays=HH"
-		if (rt.Host & CmdVerboseResponse)
-		{
-			char txtON[] = "ON ";
-			char txtOFF[] = "OFF";
-			uint8 bitNum;
-			char* bitState[5];// = { txtOFF, txtOFF, txtOFF, txtOFF, txtOFF };
-			for (bitNum = 0; bitNum < 5; bitNum++)
-			{
-				if (Display_Info.Relays_state & (1 << bitNum))
-					bitState[bitNum] = txtON;
-				else
-					bitState[bitNum] = txtOFF;
-			}
-			sprintf(RCI_message, "Hex=0x%02X (%d Dec), K1 %s, K2 %s, K3 %s, K4 %s, Pulses %s", Display_Info.Relays_state, Display_Info.Relays_state, bitState[0], bitState[1], bitState[2], bitState[3], bitState[4]); // states of relays and pulse
-			Send_verbose_comment(RCI_message);
-		}
+        ShowRelayResponse(txtSet, Display_Info.Relays_state);
 		return;
 	}
+	else if (param == (('r' + 256 * 'e') + ('a' + 256 * 'd') * 65536)) // relays=HH changes state of relays, where HH is a hexadecimal value representing the state of four relays and pulse.
+    {
+        ShowRelayResponse(txtRead, relays_status);
+    }
 	else //if (temp_Inp_str[CMD_LEN + 2] == '=') // relays=HH changes state of relays, where HH is a hexadecimal value representing the state of four relays and pulse.
 	{
 		char HexHigh = temp_Inp_str[CMD_LEN + 3];
