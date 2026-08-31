@@ -194,8 +194,6 @@ extern float FirmwareVersion;     //Version 3.0
 #define TWI_MSG_COMM_ADDRESS    17 // if (send_type == TWI_COMM_ADDRESS) { ... TWI_Write(DISPLAY_WRITE_ADR, TWI_COMM_ADDRESS, tmp_byte, meter_address);
 
 #define TWI_RESTART_CMD         19 // not used in CommBoard
-#define SEND_TWI_ALARMS         TWI_ALARMS
-//#define SEND_TWI_ALARMS2        1
 
 //#define SEND_VIA_TWI_BAUD_RATE  TWI_MSG_DISPLAY_BAUD //-!- IK20240319 mixed local identifier and between-the-boards TWI identifier
 #define DISPLAY_DATA            20 // if (measurement_ID != DISPAY_DATA) { ... TWI_Write(ADC_WRITE_ADR, 0x88, NULL_BYTE, NULL_BYTE);

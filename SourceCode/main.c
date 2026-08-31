@@ -2898,9 +2898,9 @@ uint16 result;
 		ADC_Status = ADC_READ_RESULT;
 		break;
 	case ADC_READ_RESULT:	// ==13
-		if ((measurement_ID != DISPLAY_DATA)	// 20
-			&& (measurement_ID != RELAY_DATA)	// 21
-			&& (measurement_ID != IO_DATA)		// 22
+		if ((measurement_ID != DISPLAY_DATA)	// 20, 0x14
+			&& (measurement_ID != RELAY_DATA)	// 21, 0x15
+			&& (measurement_ID != IO_DATA)		// 22, 0x16
 			)
 		{
 #ifdef TIME_TESTING
@@ -4495,6 +4495,7 @@ void main(void)
 				if (cal_status != CALIBRATION_DONE)									// if calibrating shut off pulse
 					clearBit(Display_Info.Status, DISP_STATE_PulseON_BIT);
 				Communicate_w_Relay_board();
+				measurement_ID = IO_DATA;
 			}//end RELAY_DATA
 
 			else if (measurement_ID == IO_DATA) // time to send & rcv data to IO
