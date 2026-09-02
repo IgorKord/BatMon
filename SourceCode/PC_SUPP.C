@@ -1736,7 +1736,8 @@ char check_ch(int* ptrKEY)
 		*ptrKEY = NO_PRESSED_BUTTONS; //return "NO BUTTONS PRESSED", any button pressed - appropriate bit =0
 		if (received_char != 0)
 		{
-			UDR0 = toupper(received_char); //place received char into UART data register to simulate UART reception
+			//IK20260831 removed toupper  UDR0 = toupper(received_char); //place received char into UART data register to simulate UART reception
+			UDR0 = received_char; //place received char into UART data register to simulate UART reception
 			USART0_RX_interrupt(); //call UART RX interrupt handler to process received char
 			*ptrKEY = NO_PRESSED_BUTTONS; //return "NO BUTTONS PRESSED", any button pressed - appropriate bit =0
 			return (received_char);

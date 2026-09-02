@@ -1170,7 +1170,7 @@ void SetGetRelays(void)
     char txtRead[] = "Read";
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 3]); // starting at 3 bytes after command, expecting "read"
 
-	if (param == (('r' + 256 * 'e') + ('a' + 256 * 'd') * 65536)) // relays=HH changes state of relays, where HH is a hexadecimal value representing the state of four relays and pulse.
+	if (param == (('r' + 256 * 'e') + ('a' + 256 * 'd') * 65536)) // relays read checks state of relays reported by relay board, where HH is a hexadecimal value representing the state of four relays and pulse.
     {
         ShowRelayResponse(txtRead, relays_status);
     }

@@ -1,3 +1,7 @@
+20260831 
+Added to solution Relay project to debug together.
+fixed the bug "bat voltage does not update" in Comm firmware: measurement_ID stuck in RELAY_DATA, was to advanced to IO_DATA
+
 20260820
 debugged 'relays read' and eleds read' commands, created in Relay board reporting back the status of real GPIOs controlling LEDs and Relays
 But, the battery voltage reads once correctly and then does not change when power suplly varies
