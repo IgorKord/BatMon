@@ -103,14 +103,16 @@ char FL * mode_strings[] = {				// used in Front_menu.c, strings for display mod
 "BAT ",			// 28  VOLTS,				// 28th item
 "+BUS",			// 29  PLUS_GND_VOLTS,
 "-BUS",			// 30  MINUS_GND_VOLTS,
-"GFV ",			// 31  GND_FAULT_VOLTS,
-"RVV ",			// "RIPV",			// 32  RIPPLE_VOLTS,
-"RIV ",			// "RIPI",			// 33  RIPPLE_CURRENT,
-"TD  ",			// 34  TIME_DELAY_SHOW,
-"PH  ",			// 35  PHASE_SHOW,			// 35th
-"ARGA",			// 36  INIT,
-"OUTU",			// 37  OUTPUT_UPPER_STRING,
-"OUTL",			// 38  OUTPUT_LOWER_STRING,
+"GF V",			// 31  GND_FAULT_VOLTS,
+"GF R",			// 32  GF_RESISTANCE,
+"RVV ",			// 33  RIPPLE_VOLTS,
+"RIV ",			// 34  RIPPLE_CURRENT,
+"TD  ",			// 35  TIME_DELAY_SHOW,
+"PH  ",			// 36  PHASE_SHOW,			// 35th
+"ARGA",			// 37  INIT,
+"OUTU",			// 38  OUTPUT_UPPER_STRING,
+"OUTL",			// 39  OUTPUT_LOWER_STRING,
+"AU_S",			// 40  AUTO_CHANGE_RATE,
 };
 
 /*********************************************************************/
@@ -375,6 +377,14 @@ void ProcessUPbutton() {
 				if (SysData.NV_UI.alarm_delay_sec_f <= (MAX_time_delay - INCREMENT_time_delay))
 					SysData.NV_UI.alarm_delay_sec_f += INCREMENT_time_delay;            //plus 1 second
 			}
+			else if (display_mode == AUTO_CHANGE_RATE)
+			{
+				//Increase AUTO_CHANGE_RATE();
+				if (SysData.NV_UI.refresh_rate_sec_f <=	(9.0f))			// cannot go more than 10 seconds
+					SysData.NV_UI.refresh_rate_sec_f += INCREMENT_time_delay;            //plus 1 second
+				else
+					SysData.NV_UI.refresh_rate_sec_f = 10.0f;
+			}
 
 			else if ((display_mode == CAL2_4mA) || (display_mode == CAL6_0mA))// (Display_Info.Status & DISP_STATE_LOmA_BIT)			// 4 mA setting
 			{
@@ -582,6 +592,15 @@ void ProcessDOWNbutton() {
 					SysData.NV_UI.alarm_delay_sec_f -= INCREMENT_time_delay;            //minus 1 second
 
 			}
+			else if (display_mode == AUTO_CHANGE_RATE)
+			{
+				//Decrease AUTO_CHANGE_RATE();
+				if (SysData.NV_UI.refresh_rate_sec_f >= INCREMENT_time_delay)	// auto change rate delay stating it cannot go above 10.0 or below 0
+					SysData.NV_UI.refresh_rate_sec_f -= INCREMENT_time_delay;            //minus 1 second
+				else
+					SysData.NV_UI.refresh_rate_sec_f = INCREMENT_time_delay; 	// min time
+
+			}
 			else if (display_mode == PHASE_STATE_SET)
 			{
 				clearBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);
@@ -700,7 +719,8 @@ NextMenuItem next_LIMIT_display_mode[] =
 	LATCHED_STATE_SET,	SHOW_FW_VER,
 	SHOW_FW_VER,		CAL1_SET_4_20_MODE,
 	CAL1_SET_4_20_MODE,	SELECT_PROTOCOL,
-	SELECT_PROTOCOL,	LIMIT_START,
+	SELECT_PROTOCOL,	AUTO_CHANGE_RATE, // add new line showing auto rate scale here
+	AUTO_CHANGE_RATE,	LIMIT_START,
 	END_MENU,			END_MENU, // to indicate the end of the menu
 };
 
@@ -798,7 +818,7 @@ void Operation(void)
 		{
 			if (display_mode < VOLTS) display_mode = VOLTS;				// <28? =28. in manual mode limit range between VOLTS and PHASE_SHOW
 			else  display_mode++; //increment display mode
-			if (display_mode > PHASE_SHOW) display_mode = VOLTS;		// >35
+			if (display_mode > PHASE_SHOW) display_mode = VOLTS;		// >36
 
 			rt.InfoLED_blink_eq1 = FALSE;
 			last_display_mode = display_mode;
@@ -839,7 +859,8 @@ void Operation(void)
 				if ((display_mode > CAL1_SET_4_20_MODE)  // 13 - block CAL menu items (14-19)
 					&& (display_mode != SELECT_PROTOCOL) // 24 - allow only SELECT_PROTOCOL
 					&& (display_mode != VOLTS)           // 28 - allow VOLTS
-					) // Only CAL1(13), SELECT_PROTOCOL(24), and VOLTS(28) allowed above LIMIT items
+					&& (display_mode != AUTO_CHANGE_RATE)
+					) // Only CAL1(13), SELECT_PROTOCOL(24), and VOLTS(28), and AUTO_CHANGE_RATE are allowed above LIMIT items
 					display_mode = LIMIT_START; // = 0
 			}
 		}
@@ -997,7 +1018,7 @@ void Operation(void)
 		else  display_mode++; //increment display mode
 		if (display_mode > PHASE_SHOW) display_mode = VOLTS;
 		*/
-		timer.disp_var_change_ms = 1000;                   //change again in 2 seconds
+		timer.disp_var_change_ms = (uint16)(SysData.NV_UI.refresh_rate_sec_f * 1000.0f);//change again in 'refresh_rate_sec_f' seconds
 	}
 
 	if ((display_mode == CAL2_4mA) || (display_mode == CAL6_0mA))
@@ -1042,7 +1063,7 @@ void Operation(void)
 //	float * NumericLEDshow;
 //} DisplayMode;
 
-float NoShow = -999.9f; // to indicate no value to show
+float NoShow = -9.9E9f; // to indicate no value to show
 /*********************************************************************/
 float* NumLED_Display_Var[] =
 {
@@ -1085,20 +1106,21 @@ float* NumLED_Display_Var[] =
 	&NoShow,								//27 0x1B */    AUTO_MAN_MODE,		 // "AUTO",
 
 	//  IK20250724 do not change order of enums from VOLTS to PHASE_SHOW, they are used in front menu to change next value in manual mode
-	&rt.OutData.measured.battery_voltage_f,					//28 0x1C */    VOLTS,				 // "BAT "
-	&rt.OutData.measured.plus_gnd_volts_f,					//29 0x1D */    PLUS_GND_VOLTS,		 // "+BUS"
-	&rt.OutData.measured.minus_gnd_volts_f,					//30 0x1E */    MINUS_GND_VOLTS,	 // "-BUS"
-	&rt.OutData.measured.G_fault_voltage_f,					//31 0x1F */    GND_FAULT_VOLTS,	 // "GFV "
-	&rt.OutData.measured.ripple_mV_f,						//32 0x20 */    RIPPLE_VOLTS,		 // "RVV "
-	&rt.OutData.measured.ripple_mA_f,						//33 0x21 */    RIPPLE_CURRENT,		 // "RIV "
-	& SysData.NV_UI.alarm_delay_sec_f,		//34 0x22 */    TIME_DELAY_SHOW,	 // "TD  "
-	&NoShow,								//35 0x23 */    PHASE_SHOW,			 // "PH  "
+	&rt.OutData.measured.battery_voltage_f,	//28 0x1C */    VOLTS,				 // "BAT "
+	&rt.OutData.measured.plus_gnd_volts_f,	//29 0x1D */    PLUS_GND_VOLTS,		 // "+BUS"
+	&rt.OutData.measured.minus_gnd_volts_f,	//30 0x1E */    MINUS_GND_VOLTS,	 // "-BUS"
+	&rt.OutData.measured.G_fault_voltage_f,	//31 0x1F */    GND_FAULT_VOLTS,	 // "GFV "
+	&rt.OutData.measured.GF_Resistance_Ohm,//32 0x20 */    GF_RESISTANCE,		 // "GF R"
+	&rt.OutData.measured.ripple_mV_f,		//33 0x21 */    RIPPLE_VOLTS,		 // "RVV "
+	&rt.OutData.measured.ripple_mA_f,		//34 0x22 */    RIPPLE_CURRENT,		 // "RIV "
+	& SysData.NV_UI.alarm_delay_sec_f,		//35 0x23 */    TIME_DELAY_SHOW,	 // "TD  "
+	&NoShow,								//36 0x24 */    PHASE_SHOW,			 // "PH  "
 
 	// IK20250724 do not change order of items, they are used in front menu to change next value in manual mode
-	&FirmwareVersion,						//36 0x24 */    INIT,				 // "ARGA"
-	&NoShow,								//37 0x25 */    OUTPUT_UPPER_STRING, // "OUTU"
-	&NoShow,								//38 0x26 */    OUTPUT_LOWER_STRING, // "OUTL"
-
+	&FirmwareVersion,						//37 0x25 */    INIT,				 // "ARGA"
+	&NoShow,								//38 0x26 */    OUTPUT_UPPER_STRING, // "OUTU"
+	&NoShow,								//39 0x27 */    OUTPUT_LOWER_STRING, // "OUTL"
+	&SysData.NV_UI.refresh_rate_sec_f,		//40 0x28 */	AUTO_CHANGE_RATE,	 // "AU_S"
 };
 
 char* ReplaceDoubleII(char* str)
@@ -1217,6 +1239,19 @@ void DisplayPrepare(void)
 		if ((display_mode == COMM_ADDR) || (display_mode == COMM_BAUD)) // takes less FLASH: 53467, 56 bytes less vs comparing pointers.
 			//if((NumLED_Display_Var[display_mode] == &Existing.meter_address) ||(NumLED_Display_Var[display_mode] == &Existing.baud_rate))  // takes more FLASH: 53523
 			sprintf(Display_Info.DigitalStr, "%5.0f", display_value); // show float as integer, 5 digit size
+		else if (display_mode == GF_RESISTANCE)
+		{
+			char tStr[16];
+			if (display_value>= 0)
+				sprintf(tStr, "%1.2E", display_value); // show float Ground fault resistance in scientific notation "1.37E+02" or "-1.33E+05"
+			else
+				sprintf(tStr, "%1.1E", display_value); // show float Ground fault resistance in scientific notation "-1.3E+05"
+
+			// compact power "E+03" into E3
+			tStr[5] = tStr[7]; // result "1.37E202"
+			tStr[6] = 0; // result "1.37E2"
+			memcpy(Display_Info.DigitalStr, tStr, 7);
+		}
 		else{
 			if ((Display_Info.InfoStr[0] == 'A') && (Display_Info.InfoStr[1] == 'R')) // ARGA initial message
 			{

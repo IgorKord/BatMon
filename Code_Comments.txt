@@ -1,3 +1,11 @@
+20261008 ST a bug: 
+>>>BUG using pulse command 'pulse>enabled' it does accept command and change bit but something else resets it somewhere
+>>>
+
+20261008 IK a bug:
+>>>BUG the 'w' command shows states of buzzer and latch reversed
+>>>FIXED by reversed logic in the if statement cputs(TEXT_EN[((SysData.NV_UI.SavedStatusWord & Buzzer_ON_eq1_Bit) == 0)]); not equal to equal 
+
 20260831 
 Added to solution Relay project to debug together.
 fixed the bug "bat voltage does not update" in Comm firmware: measurement_ID stuck in RELAY_DATA, was to advanced to IO_DATA

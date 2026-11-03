@@ -477,9 +477,9 @@ void Print_System_Info(Schar PrintType)
 	cputs(" ALARMS | ");
 	if (PrintType == FULL_SNAPSHOT) {
 		printf("grace period % 4.1f sec | Buzzer: ", SysData.NV_UI.alarm_delay_sec_f);
-		cputs(TEXT_EN[((SysData.NV_UI.SavedStatusWord & Buzzer_ON_eq1_Bit) != 0)]);
+		cputs(TEXT_EN[((SysData.NV_UI.SavedStatusWord & Buzzer_ON_eq1_Bit) == 0)]); //-!- IK20261008 check discrepancy between bit is set => "enabled" vs real bit is disabled  and it shows "enabled"
 		cputs("      |  Latch: ");
-		cputs(TEXT_EN[((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) != 0)]);
+		cputs(TEXT_EN[((SysData.NV_UI.SavedStatusWord & Latch_ON_eq1_Bit) == 0)]);
 		PrintNewLine();
 
 		print_table_separator_80chars();
@@ -565,6 +565,43 @@ void SetRealTimeMonitoring(void) {
 
 }
 
+//*******************************************************************
+/// <summary>
+/// Getting the ground fault resistance which is calculated on background
+/// </summary>
+/// <param name=""></param>
+/// if calculated resitance is above 1 MOhm, prints '>1MOhm'
+
+void Get_Resistance(void) {
+
+	float r = rt.OutData.measured.GF_Resistance_Ohm;
+
+
+	if (fabsf(r) > 1000000.0f)
+	{
+		cputs("R is greater than 1 Mega Ohm");
+		return;
+	}
+	else if (r < 0)
+		sprintf(RCI_message, " Negative Ground Fault, R = %6.0f Ohm", -r);
+	else
+		sprintf(RCI_message, "Postive Ground Fault, R = %6.0f Ohm", r);
+
+	cputs(RCI_message);
+}
+
+// {
+//	//float vnegb = fabsf(rt.OutData.measured.minus_gnd_volts_f); // fabsf gives the absolute value for the current negative value, so the difference could be calculated.
+//	float vposb = rt.OutData.measured.battery_voltage_f - vnegb;
+//	float diff = vposb - vnegb;
+//	float low;
+
+//	if (vposb < vnegb)
+//	sprintf(RCI_message, "Psitive deviation, R = %f Ohm", rt.OutData.GF_Resistance_Ohm);
+//	else
+//	sprintf(RCI_message, "Negative deviation, R = %f Ohm", rt.OutData.GF_Resistance_Ohm);
+//  cputs(RCI_message);
+//  }
 /*****************************************************************/
 void InitATMEL(void)
 {
@@ -1013,9 +1050,9 @@ void Show_ADCcounts_and_Volts(void)
 {
 	uint8 ch;
 	//	cputs(" Channel  |NotConn|Battery| Fault | -GND  |NotConn|RipCurr|RipVolt|NotConn\r\nADC counts");
-	cputs(" Channel  |NotConn|Battery| Fault |-GndBus|NC/+Bus|RipCurr|RipVolt|NotConn");
+	cputs(" Channel  |NotConn|Battery| Fault |-GndBus|NC/+Bus|RipCurr|RipVolt|GFR_Ohm");
 	cputs("\r\nADC counts");
-	for (ch = 0; ch < 8; ch++) {
+	for (ch = 0; ch < 7; ch++) {
 		printf("| %5d ", rt.ADC_buff[ch]);
 	}
 
@@ -1131,8 +1168,8 @@ Exception:
 
 void ShowRelayResponse(char* preffix, uint8 source_byte)
 {
-    char txtON[] = "ON ";
-    char txtOFF[] = "OFF";
+	char txtON[] = "ON ";
+	char txtOFF[] = "OFF";
 	if (*preffix == 'S') // set command
 		cputs("ys="); // create 'relays='
 	printf("%02X", source_byte); //return to PC "HH"
@@ -1166,17 +1203,17 @@ void ShowRelayResponse(char* preffix, uint8 source_byte)
 void SetGetRelays(void)
 {
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
-    char txtSet[]  = "Set ";
-    char txtRead[] = "Read";
+	char txtSet[]  = "Set ";
+	char txtRead[] = "Read";
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 3]); // starting at 3 bytes after command, expecting "read"
 
-	if (param == (('r' + 256 * 'e') + ('a' + 256 * 'd') * 65536)) // relays read checks state of relays reported by relay board, where HH is a hexadecimal value representing the state of four relays and pulse.
-    {
-        ShowRelayResponse(txtRead, relays_status);
-    }
+	if (param == (('r' + 256 * 'e') + ('a' + 256 * 'd') * 65536)) // checks state of relays reported by relay board, where HH is a hexadecimal value representing the state of four relays and pulse.
+	{
+		ShowRelayResponse(txtRead, relays_status);
+	}
 	else if (temp_Inp_str[CMD_LEN + 2] != '=') { // 'relays' returns current state of relays: relays=HH.
 		Put_CMD_as_chars();
-        ShowRelayResponse(txtSet, Display_Info.Relays_state);
+		ShowRelayResponse(txtSet, Display_Info.Relays_state);
 		return;
 	}
 	else //if (temp_Inp_str[CMD_LEN + 2] == '=') // relays=HH changes state of relays, where HH is a hexadecimal value representing the state of four relays and pulse.
@@ -1410,15 +1447,19 @@ void SetGetDelay(void)
 	SysData.NV_UI.alarm_delay_sec_f = (uint16)temp_N;
 }
 
-/************************************************************* /
-uint16 SetProtocolMaxAddress() {
-	uint16 MaxAdr = 255;
-	if (SysData.NV_UI.StartUpProtocol == DNP3) MaxAdr = 65000; // MAX_DNP3_ADDRESS = ((uint16)65519)
-	//else if (SysData.NV_UI.StartUpProtocol == MODBUS) MaxAdr = 255.0f;
-	return MaxAdr;
+/*****************************************************************/
+// Auto-scan mode delay set:
+///
+
+void AutoScanRefreshRate(void)
+{
+	float temp_N = SysData.NV_UI.refresh_rate_sec_f;// uint16, in seconds
+	sprintf(RCI_message, "Display Refresh Rate (Range should be between 1-10):"); // grace period between event happen till alarm is triggered, in seconds
+	SetGet_param(0 + SHOW_Qfloat, 1.0f, 10.0f, &temp_N, RCI_message); // this is "delay" command, 5 chars, shows float
+	SysData.NV_UI.refresh_rate_sec_f = (uint16)temp_N;
 }
 
-/ *************************************************************/
+/*************************************************************/
 void SetGetAddress(uint8 host_0_or_meter_1)	// 0 for host, 1 for meter
 {
 	char* temp_Inp_str = CommStr; // pointer to rt.RxBuff[0]

@@ -2924,6 +2924,65 @@ uint16 result;
 }
 
 /// <summary>
+/// Function
+/// </summary>
+/// <param name=""
+/// <param name=""
+
+#define TEST_CALCS_R_LEAKAGE
+
+float Calc_Leak(float V_bat, float V_GF)
+{
+	float R_MAX = 1000000.0f;
+	float R_O = 30800.0f;
+	float vgf_min = 0;
+	float R_leak = -77777.7;
+
+#ifdef TEST_CALCS_R_LEAKAGE
+	V_bat = 125.0f;             V_GF = 13.0f; // should return 132676.9231
+#endif
+	// avoid division by zero here
+	if (V_GF == 0)
+		return 1.0e9f;
+	vgf_min = 0.5f * R_O * V_bat / (R_MAX + (0.5f * R_O));
+	if (fabsf(V_GF) < vgf_min)
+		return 1.0e9f;
+	else
+		R_leak = 0.5f * R_O * (V_bat - fabsf(V_GF)) / (V_GF);
+	return R_leak;
+}
+
+/// <summary>
+/// calculates resistance, 
+/// //-!- SHOULD IT RETURN NEGATIVE R OR ONLY POSITIVE? 
+/// there are 
+/// </summary>
+/// <param name=""></param>
+/// <returns></returns>
+float CalculateRtoGround_Ohm(void) {
+	float R_MAX = 1000000.0f;
+	float R_O = 30800.0f;
+	float vgf_min = 0;
+	float R_leak = -77777.7;
+	float R = 0;                                                  //'R_leak =-1/2*R_0*(V_bat+V_GF)/V_GF
+	float V_bat = rt.OutData.measured.battery_voltage_f;
+	float V_GF = rt.OutData.measured.G_fault_voltage_f;
+
+#ifdef TEST_CALCS_R_LEAKAGE
+	V_bat = 125.0f;             V_GF = -13.0f; // V_bat = 125, V_GF=13 should return 132676.9231
+#endif
+	// avoid division by zero here
+	if (V_GF == 0)
+		return 1.0E9f; // in Ohms
+	vgf_min = 0.5f * R_O * V_bat / (R_MAX + (0.5f * R_O));
+	if (fabsf(V_GF) < vgf_min)
+		return 1.0E9f; // in Ohms
+	else
+		R_leak = 0.5f * R_O * (V_bat - fabsf(V_GF)) / (V_GF);
+	return R_leak; // in Ohms
+}
+
+/// <summary>
 /// Function saves calibration structure from SysData to EEPROM, calculates offset of start address vs &SysData
 /// </summary>
 /// <param name="CalStructureAdr">calibration structure start address, must be in SysData</param>
@@ -3797,6 +3856,9 @@ void SetDefaultsInRAM(void)
 /*********************************************************************/
 void Init_Parameters(void)
 {
+	// new addition ST 20261027
+	timer.PWM_calibration = 1000;
+
 	__disable_interrupt();
 	SetDefaultsInRAM();	// IK20240104 first - load default data
 
@@ -3840,6 +3902,11 @@ void Init_Parameters(void)
 
 	iien1 = 0x80;                              // set restart
 	iien2 = 0;                                 // clr iin2
+
+	if (isnan(SysData.NV_UI.refresh_rate_sec_f) ||
+		(SysData.NV_UI.refresh_rate_sec_f < 1.0f) ||
+		(SysData.NV_UI.refresh_rate_sec_f > 10.0f))
+		SysData.NV_UI.refresh_rate_sec_f = 1.0f;
 
 	Existing.BRate_index = SysData.NV_UI.BRate_index; // call from Init_Parameters() after Get_EEPROM_params()
 	__enable_interrupt();												// enable global interrupts
@@ -3935,6 +4002,7 @@ void init(void)
 {
 	uint16 i;
 	FirmwareVersion = FW_ver_float;					// initialization of global variable with firmware version number
+	rt.OutData.measured.GF_Resistance_Ohm = 12345.6f;	// init to something initially, will be recalculated
 #ifdef PC
 	initEEsimulator();
 #endif
@@ -4210,19 +4278,19 @@ void Process_Alarms(void)
 
 void Communicate_w_Relay_board(void)
 {
-    TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.Relays_state, Display_Info.ExtLED_state);		// Also, Send TWI stuff
-    TWI_Read(RELAY_READ_ADR);							// to keep other boards from timing out and resetting
+	TWI_Write(RELAY_WRITE_ADR, TWI_MSG_ALARMS, Display_Info.Relays_state, Display_Info.ExtLED_state);		// Also, Send TWI stuff
+	TWI_Read(RELAY_READ_ADR);							// to keep other boards from timing out and resetting
 #ifdef PC
-    if (VAC_simulated < 36)
-        setBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
-    else
-        clearBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
-    twi.buffer[BYTE_2] = TWI_TO_RELAY_BRD_K3_BIT;      // set for PC simulation
-    twi.buffer[BYTE_3] = TWI_TO_RELAY_BRD_LED2_BIT;    // set for PC simulation
+	if (VAC_simulated < 36)
+		setBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
+	else
+		clearBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
+	twi.buffer[BYTE_2] = TWI_TO_RELAY_BRD_K3_BIT;      // set for PC simulation
+	twi.buffer[BYTE_3] = TWI_TO_RELAY_BRD_LED2_BIT;    // set for PC simulation
 #endif // PC
-    relay_board_status = twi.buffer[BYTE_1];			// get AC power fail bit and reset request from first byte
-    relays_status = twi.buffer[BYTE_2];					// get actual relay GPIO states from second byte
-    leds_status = twi.buffer[BYTE_3];					// get actual LED GPIO states from third byte
+	relay_board_status = twi.buffer[BYTE_1];			// get AC power fail bit and reset request from first byte
+	relays_status = twi.buffer[BYTE_2];					// get actual relay GPIO states from second byte
+	leds_status = twi.buffer[BYTE_3];					// get actual LED GPIO states from third byte
 }
 
 /*************************************************************/
@@ -4444,6 +4512,7 @@ void main(void)
 			//IK20250528 Measure() takes 121 ms due to while() loop inside waiting for ADC conversion to finish
 			//IK20250605 refactored Measure() so it does not have the while() loop inside
 			Measure(); // uses globals measurement_ID, ADC_Status
+			rt.OutData.measured.GF_Resistance_Ohm = CalculateRtoGround_Ohm();
 			//IK20250605 at the end of Measure() when state machine is reset, ADC_Status changes to ADC_SETUP but timer.ADC_ms is not set yet
 			if ((timer.ADC_ms == 0)
 				&& (ADC_Status == ADC_SETUP)) // ==8

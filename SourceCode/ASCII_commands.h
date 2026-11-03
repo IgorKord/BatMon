@@ -44,6 +44,7 @@ extern void SendMsgToPC(char FL* Msg);
 extern void Put_CMD_as_chars(void);
 extern void Print_FW_Version(void);
 extern int NumOfCommands(void);
+extern void AutoScanRefreshRate(void);		// delay for auto-scan button
 
 #ifdef PC
 #ifndef UCSR0C // = 0x06;                              //no UART_parity, async, 1 stop,

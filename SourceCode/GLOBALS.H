@@ -746,15 +746,17 @@ enum Display_Modes {	// -- used with display_mode --
 	/*29 0x1D */    PLUS_GND_VOLTS,		 // "+BUS"
 	/*30 0x1E */    MINUS_GND_VOLTS,	 // "-BUS"
 	/*31 0x1F */    GND_FAULT_VOLTS,	 // "GFV "
-	/*32 0x20 */    RIPPLE_VOLTS,		 // "RVV "
-	/*33 0x21 */    RIPPLE_CURRENT,		 // "RIV "
-	/*34 0x22 */    TIME_DELAY_SHOW,	 // "TD  "
-	/*35 0x23 */    PHASE_SHOW,			 // "PH  "
+	/*32 0x20 */    GF_RESISTANCE,		 // "GF_R"  Graund fault resistance
+	/*33 0x21 */    RIPPLE_VOLTS,		 // "RVV "
+	/*34 0x22 */    RIPPLE_CURRENT,		 // "RIV "
+	/*35 0x23 */    TIME_DELAY_SHOW,	 // "TD  "
+	/*36 0x24 */    PHASE_SHOW,			 // "PH  "
 
 // IK20250724 do not change order of items, they are used in front menu to change next value in manual mode
-	/*36 0x24 */    INIT,				 // "ARGA"
-	/*37 0x25 */    OUTPUT_UPPER_STRING, // "OUTU"
-	/*38 0x26 */    OUTPUT_LOWER_STRING, // "OUTL"
+	/*37 0x25 */    INIT,				 // "ARGA"
+	/*38 0x26 */    OUTPUT_UPPER_STRING, // "OUTU"
+	/*39 0x27 */    OUTPUT_LOWER_STRING, // "OUTL"
+	/*40 0x28 */    AUTO_CHANGE_RATE,	 // "ACR "  change rate (or periodicity) of auto scan, seconds
 };
 
 
