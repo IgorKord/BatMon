@@ -1752,6 +1752,17 @@ void Write_ASCII_Display_FlashString(char FL * str_f_ptr) {
 		CopyConstString(str_f_ptr, Display_Info.InfoStr);
 	else
 		CopyConstString(FiveSpaces, Display_Info.InfoStr);
+	if (display_mode == GF_RESISTANCE)
+	{
+		float display_value = rt.OutData.measured.GF_Resistance_Ohm;
+		if (display_value < 0)
+		{
+			Display_Info.InfoStr[0] = '-';
+		}
+		else {
+			Display_Info.InfoStr[0] = '+';
+		}
+	}
 	Write_ASCII_Display(Display_Info.InfoStr);
 }
 
@@ -1909,12 +1920,18 @@ void Check_Alarms(void)
 	CheckAlarmBit(rt.OutData.measured.battery_voltage_f, SysData.NV_UI.Critically_Low_Bat_V_f, Set_alarm_if_value_BELOW_threshold, Alarm_BatVoltCRITICAL_Bit, &rt.crit_low_bat_chtr);   // Bit_8
 #endif	// LAST_GASP
 	//****** Check for plus ground fault alarm *******
-	if (rt.OutData.measured.G_fault_voltage_f >= 0)
-		tmp_fault_volts = rt.OutData.measured.G_fault_voltage_f;				// positive fault voltage
-	else
-		tmp_fault_volts = -rt.OutData.measured.G_fault_voltage_f;				// negative fault voltage
-
-	CheckAlarmBit(tmp_fault_volts, SysData.NV_UI.minus_gf_threshold_V_f, Set_alarm_if_value_ABOVE_threshold, Alarm_MinusGND_FAULT_Bit, &rt.m_gf_cntr); // Bit_3
+	tmp_fault_volts = rt.OutData.measured.G_fault_voltage_f;
+	if (tmp_fault_volts > SysData.NV_UI.plus_gf_threshold_V_f)
+	{
+		CheckAlarmBit(tmp_fault_volts, SysData.NV_UI.plus_gf_threshold_V_f, Set_alarm_if_value_ABOVE_threshold, Alarm_PlusGND_FAULT_Bit, &rt.p_gf_cntr); // Bit_3
+	}else if (tmp_fault_volts < -SysData.NV_UI.minus_gf_threshold_V_f)
+	{
+		tmp_fault_volts = -tmp_fault_volts;				// negative fault voltage
+		CheckAlarmBit(tmp_fault_volts, SysData.NV_UI.minus_gf_threshold_V_f, Set_alarm_if_value_ABOVE_threshold, Alarm_MinusGND_FAULT_Bit, &rt.m_gf_cntr); // Bit_2
+	}else //within limits, this will clear alarm
+	{
+		CheckAlarmBit(tmp_fault_volts, SysData.NV_UI.plus_gf_threshold_V_f, Set_alarm_if_value_ABOVE_threshold, (Alarm_MinusGND_FAULT_Bit | Alarm_PlusGND_FAULT_Bit), &rt.p_gf_cntr); // Bit_3
+	}
 
 	// ****** Check for ripple voltage alarm *******
 	CheckAlarmBit(rt.OutData.measured.ripple_mV_f, SysData.NV_UI.ripple_V_threshold_mV_f, Set_alarm_if_value_ABOVE_threshold, Alarm_Ripple_Voltage_Bit, &rt.rv_cntr);
@@ -2924,41 +2941,13 @@ uint16 result;
 }
 
 /// <summary>
-/// Function
-/// </summary>
-/// <param name=""
-/// <param name=""
-
-#define TEST_CALCS_R_LEAKAGE
-
-float Calc_Leak(float V_bat, float V_GF)
-{
-	float R_MAX = 1000000.0f;
-	float R_O = 30800.0f;
-	float vgf_min = 0;
-	float R_leak = -77777.7;
-
-#ifdef TEST_CALCS_R_LEAKAGE
-	V_bat = 125.0f;             V_GF = 13.0f; // should return 132676.9231
-#endif
-	// avoid division by zero here
-	if (V_GF == 0)
-		return 1.0e9f;
-	vgf_min = 0.5f * R_O * V_bat / (R_MAX + (0.5f * R_O));
-	if (fabsf(V_GF) < vgf_min)
-		return 1.0e9f;
-	else
-		R_leak = 0.5f * R_O * (V_bat - fabsf(V_GF)) / (V_GF);
-	return R_leak;
-}
-
-/// <summary>
-/// calculates resistance, 
-/// //-!- SHOULD IT RETURN NEGATIVE R OR ONLY POSITIVE? 
-/// there are 
+/// Function calculates resistance to ground
 /// </summary>
 /// <param name=""></param>
 /// <returns></returns>
+
+//#define TEST_CALCS_R_LEAKAGE
+
 float CalculateRtoGround_Ohm(void) {
 	float R_MAX = 1000000.0f;
 	float R_O = 30800.0f;

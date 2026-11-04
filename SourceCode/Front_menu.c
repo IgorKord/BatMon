@@ -104,7 +104,7 @@ char FL * mode_strings[] = {				// used in Front_menu.c, strings for display mod
 "+BUS",			// 29  PLUS_GND_VOLTS,
 "-BUS",			// 30  MINUS_GND_VOLTS,
 "GF V",			// 31  GND_FAULT_VOLTS,
-"GF R",			// 32  GF_RESISTANCE,
+" GFR",			// 32  GF_RESISTANCE, will show +GFR or -GFR
 "RVV ",			// 33  RIPPLE_VOLTS,
 "RIV ",			// 34  RIPPLE_CURRENT,
 "TD  ",			// 35  TIME_DELAY_SHOW,
@@ -1242,10 +1242,11 @@ void DisplayPrepare(void)
 		else if (display_mode == GF_RESISTANCE)
 		{
 			char tStr[16];
-			if (display_value>= 0)
-				sprintf(tStr, "%1.2E", display_value); // show float Ground fault resistance in scientific notation "1.37E+02" or "-1.33E+05"
-			else
-				sprintf(tStr, "%1.1E", display_value); // show float Ground fault resistance in scientific notation "-1.3E+05"
+			if (display_value < 0)
+			{
+				display_value = -display_value;
+			}
+			sprintf(tStr, "%1.2E", display_value); // show float Ground fault resistance in scientific notation "1.37E+02" or "-1.33E+05"
 
 			// compact power "E+03" into E3
 			tStr[5] = tStr[7]; // result "1.37E202"

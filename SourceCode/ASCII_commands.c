@@ -587,7 +587,7 @@ void Get_Resistance(void) {
 	else
 		sprintf(RCI_message, "Postive Ground Fault, R = %6.0f Ohm", r);
 
-	cputs(RCI_message);
+	PutStr(RCI_message);
 }
 
 // {

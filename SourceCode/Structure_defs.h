@@ -87,21 +87,21 @@ typedef struct                      // this structure must be initialized, DO NO
 	float ripple_V_threshold_mV_f;	// 0x010 ripple voltage in mVolts, , menu changes value by 1 mV increments/decrements
 	float ripple_I_threshold_mA_f;	// 0x014 ripple current in mAmperes, menu changes value by 1 mA increments/decrements
 	float Critically_Low_Bat_V_f;	// 0x018 Critically low voltage, used when #ifdef LAST_GASP, then menu changes value by 0.1 V increments/decrements
-	float alarm_delay_sec_f;		// 0x020 grace period delay from event is triggered until alarm is set, menu changes value by 1 sec increments/decrements
-	float refresh_rate_sec_f;		// 0x024 refresh rate of updating measurement automatically on the LCD screen in "Auto" scan mode.
-	float meter_address;			// 0x028 battery monitor address, menu changes value by 1 increment/decrement. If hold longer, changes by 10, even longer - by 100
-	float baud_rate;				// 0x02C baud rate, default is Baud_19200. //IK20250826 included 115200, thus, need Uint32, menu changes value based on a list of possible baud rates
-	Schar  BRate_index;				// 0x02D IK202601714 index of baud rate in Baud_Rates[] array, used to set SysData.NV_UI.baud_rate and Existing.baud_rate. if after reading EEPROM it is -1 (0xFF), (negative)  - unprogrammed EEPROM
-	uint8  StartUpProtocol;			// 0x02E only valid values:    SETUP = 0x00,	DNP3 = 0x01,	MODBUS = 0x02,	ASCII_CMDS = 0x03
-	uint8  unit_type;				// 0x02F only valid values 24, 48, 125, 250
-	uint8  unit_index;				// 0x030 corresponds to unit_type, range (0...3), used to access array Alarm_Limits[]
-	uint16 host_address;			// 0x032 host address, not changed during operation
-	uint16 disabled_alarms;			// 0x034 the bit == 1 disables a partcular alarm, Two bytes to include Last Gasp bit 8
-	uint16 V4;						// 0x036  4 mA voltage point (Voltage when current loop produces 4 mA or 0 mA)
-	uint16 V20;						// 0x038 20 ma voltage point (Voltage when current loop produces 20 mA or 1 mA)
-	uint16 SavedStatusWord;			// 0x03A non-volatile user-chosen saved states as bits: buzzer on/off, latch on/off, 1 or 3 phase, current output I01 or I420
-	uint8  modbus_first_reg;		// 0x03B IK2025501 added Modbus starting register to fix problem when first register becomes 3 when it should be 0 or 1
-	uint8  extra_bytes[4];			//   4 // future use
+	float alarm_delay_sec_f;		// 0x01C grace period delay from event is triggered until alarm is set, menu changes value by 1 sec increments/decrements
+	float refresh_rate_sec_f;		// 0x020 refresh rate of updating measurement automatically on the LCD screen in "Auto" scan mode.
+	float meter_address;			// 0x024 battery monitor address, menu changes value by 1 increment/decrement. If hold longer, changes by 10, even longer - by 100
+	float baud_rate;				// 0x028 baud rate, default is Baud_19200. //IK20250826 included 115200, thus, need Uint32, menu changes value based on a list of possible baud rates
+	Schar  BRate_index;				// 0x02C IK202601714 index of baud rate in Baud_Rates[] array, used to set SysData.NV_UI.baud_rate and Existing.baud_rate. if after reading EEPROM it is -1 (0xFF), (negative)  - unprogrammed EEPROM
+	uint8  StartUpProtocol;			// 0x02D only valid values:    SETUP = 0x00,	DNP3 = 0x01,	MODBUS = 0x02,	ASCII_CMDS = 0x03
+	uint8  unit_type;				// 0x02E only valid values 24, 48, 125, 250
+	uint8  unit_index;				// 0x02F corresponds to unit_type, range (0...3), used to access array Alarm_Limits[]
+	uint16 host_address;			// 0x030 host address, not changed during operation
+	uint16 disabled_alarms;			// 0x032 the bit == 1 disables a partcular alarm, Two bytes to include Last Gasp bit 8
+	uint16 V4;						// 0x034  4 mA voltage point (Voltage when current loop produces 4 mA or 0 mA)
+	uint16 V20;						// 0x036 20 ma voltage point (Voltage when current loop produces 20 mA or 1 mA)
+	uint16 SavedStatusWord;			// 0x038 non-volatile user-chosen saved states as bits: buzzer on/off, latch on/off, 1 or 3 phase, current output I01 or I420
+	uint8  modbus_first_reg;		// 0x03A IK2025501 added Modbus starting register to fix problem when first register becomes 3 when it should be 0 or 1
+	uint8  extra_bytes[5];			// 0x03B  5 // future use
 }SettingsStruct;	// sizeof = 0x040 = 64 bytes, 0x00 to 0x03F
 
 // using pointer to Calibr2points to access members directly by name: float param = BatteryVolts.Y1_lowCalibrVal; param = BatteryVolts.Y2_highCalibrVal
