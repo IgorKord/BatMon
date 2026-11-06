@@ -24,7 +24,7 @@
 #define WATCHDOG_RESET __watchdog_reset
 #endif
 
-extern float FirmwareVersion;     //Version 3.0
+extern float CommFWversion;     //Version 3.0
 #define STRINGS_IN_FLASH // FOR IAR compiler; TO WORK, THIS OPTION MUST BE DEFINED in project options->compiler->extra options! --string_literals_in_flash   to place strings in flash
 
 #define DEF_BAT_MONITOR_ADDR	2			// default Battery Monitor RS-485 address
@@ -599,30 +599,31 @@ typedef int                  int16;
 
 //---- General System variables
 extern uint8 debug;
-extern uint8 I420_calibr_lock;					// Locks (prevents) saving to EEPROM. Calibration Timer is simultaneously set to 5000 ms and starts counting down. After 3000 ms when timer reches below 2000 ms, auto firmware does saving to EEprom
+extern uint8 I420_calibr_lock;						// Locks (prevents) saving to EEPROM. Calibration Timer is simultaneously set to 5000 ms and starts counting down. After 3000 ms when timer reches below 2000 ms, auto firmware does saving to EEprom
 
 // IK20231214 not checked //extern uint8  debug1;
-extern uint8  tmp_byte;                            //general working register
+extern uint8  tmp_byte;								//general working register
 //extern uint8  i;
-extern uint8 wrk_str[HOST_XMT_BUFF_LEN];         // building & sending msg
+extern uint8 wrk_str[HOST_XMT_BUFF_LEN];			// building & sending msg
 //extern uint8 num_of_inchars;
-extern volatile uint8 msg_status;               // holds status of any rcvd msgs
-extern volatile uint8 num_of_inbytes;           // number of bytes in buffer
+extern volatile uint8 msg_status;					// holds status of any rcvd msgs
+extern volatile uint8 num_of_inbytes;				// number of bytes in buffer
 
-extern uint8  limit_mode;                          //indicates whether limit mode is active
-extern uint8  Is_in_auto_mode;                  // IK20251007 combined auto and manual mode in one variable. == TRUE means 'Auto', == FALSE means 'Manual' //indicate whether auto mode is active
+extern uint8  limit_mode;							//indicates whether limit mode is active
+extern uint8  Is_in_auto_mode;						// IK20251007 combined auto and manual mode in one variable. == TRUE means 'Auto', == FALSE means 'Manual' //indicate whether auto mode is active
 //extern uint8  manual_mode;                         //indicates whether manual mode is active
-extern uint16 latched_alarm_status;                  // defined in Front_Menu.c, indicates alarms active for local use
+extern uint16 latched_alarm_status;					// defined in Front_Menu.c, indicates alarms active for local use
 extern uint8  calibr_step;							// what are you calibrating
 extern volatile uint8  cal_status;					// used in DNP calibration, indicates what is being calibrated
 extern /*volatile*/ uint8  iien1;		// IIN byte 1
 extern /*volatile*/ uint8  iien2;		// IIN byte 2
-extern /*volatile*/ uint8  all_stations_msg;			// indicates if this is a DNP broadcast message to all stations
-extern uint16 send_dnp;							// instructs what msg to send if any; uint16 because it could get OBJECT_1_RESPONSE = 1024
+extern /*volatile*/ uint8  all_stations_msg;		// indicates if this is a DNP broadcast message to all stations
+extern uint16 send_dnp;								// instructs what msg to send if any; uint16 because it could get OBJECT_1_RESPONSE = 1024
 extern const uint16 DefaultRelayMask[4];
 extern const uint16 DefaultExternLEDmask[6];
-extern uint8  relays_status;                       // Relay board reads into this byte real GPIO pins where relays are connected and sends as confirmation to Comm board via TWI
-extern uint8  leds_status;                         // Relay board reads into this byte real GPIO pins where LEDs are connected and sends as confirmation to Comm board via TWI
+extern uint8 relay_board_status;					// updated via TWI when read RelayBoard, holds relay board status, AC power loss bit and Reset signal. Upper half byte has FW_ID
+extern uint8 relays_status;							// Relay board reads into this byte real GPIO pins where relays are connected and sends as confirmation to Comm board via TWI
+extern uint8 relay_brd_ExtLEDs_status;							// Relay board reads into this byte real GPIO pins where LEDs are connected and sends as confirmation to Comm board via TWI
 
 /*------------------------- Structures -----------------------------*/
 //typedef struct    // Encapsulate into structure to allow addressing in assembler with increment

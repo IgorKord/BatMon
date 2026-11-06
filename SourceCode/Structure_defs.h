@@ -219,7 +219,6 @@ extern __eeprom  SYS_SPECIFIC_DATA EEPROM_SysData;// located in EEPROM @ EE_SYS_
 //#define   CmdPendingFlag              Bit_3	// not used
 #define   CmdAvailFlag                  Bit_4	// initiates parsing of a command on '\r' detection
 #define   Waiting_User_Input            Bit_5	// temporary suppress PC output when showing real-time diagnostic on PC and entering some value in variable,
-//#define   In_menu_RCI_cmd             Bit_6	// tells Parse_RCI to check excluded from "in-menu" command, like call "`oltf" or "`menu" from menu.
 #define   CmdVerboseResponse            Bit_7	// "echo>verbose" sets diagnostics verbosity.  Affects return messages: returns will show command comments, like scaling factors names, etc.
 
 //==============================================================
@@ -456,7 +455,7 @@ typedef struct  {				// use received from front board (via TWI communication) st
 	uint16 PressTimeStamp[NUM_BUTTONS];		// works with FreeRunningCounter to calculate duration of hold for auto increment/decrement
 	uint8 long_press_fired;					// Add the byte tracking presses for 5 buttons (bits 0-4)
 	volatile char  ButtonStateChanged;		// indicates new button pressed 0=CLR; 1=SET (pressed); 2=BTN_RELEASED
-	volatile char  ProcessingButton;		// indicates that menu is or was called. Blocks other button presses in firmware or, in simulation, Windows multiple events
+	volatile uint8  DisplayFWversion;		// Display board firmware version received via TWI in twi.buffer[BYTE_3] with TWI_SEND_FRONT_BUTTONS response
 	volatile char  DisplayNeedsUpdateFlag;	// display needs update. Sets after button pressed or measurement (ex: battery voltage) is ready and needs to be shown
 	volatile uint8  last_butt_pressed;		// updates only on new hit, does not reset to zero. if button pressed bit is set to 1
 	char  Info_segments_on_off;				// this creates blinking info display

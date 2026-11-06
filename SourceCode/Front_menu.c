@@ -112,7 +112,7 @@ char FL * mode_strings[] = {				// used in Front_menu.c, strings for display mod
 "ARGA",			// 37  INIT,
 "OUTU",			// 38  OUTPUT_UPPER_STRING,
 "OUTL",			// 39  OUTPUT_LOWER_STRING,
-"AU_S",			// 40  AUTO_CHANGE_RATE,
+"SCAN",			// 40  AUTO_CHANGE_RATE,
 };
 
 /*********************************************************************/
@@ -1083,7 +1083,7 @@ float* NumLED_Display_Var[] =
 	&NoShow,								// 9 0x09 */    PULSE_STATE_SET,	 // "PULS"
 	&NoShow,								//10 0x0A */    BUZZER_STATE_SET,	 // "BUZZ"
 	&NoShow,								//11 0x0B */    LATCHED_STATE_SET,	 // "LTCH"
-	&FirmwareVersion,						//12 0x0C */    SHOW_FW_VER,		 // "SYS "
+	&CommFWversion,						//12 0x0C */    SHOW_FW_VER,		 // "SYS "
 
 	// CAL menu, used in CURRENT CALIBRATION mode
 	&NoShow,								//13 0x0D */    CAL1_SET_4_20_MODE,	 // "CAL1"
@@ -1117,7 +1117,7 @@ float* NumLED_Display_Var[] =
 	&NoShow,								//36 0x24 */    PHASE_SHOW,			 // "PH  "
 
 	// IK20250724 do not change order of items, they are used in front menu to change next value in manual mode
-	&FirmwareVersion,						//37 0x25 */    INIT,				 // "ARGA"
+	&CommFWversion,						//37 0x25 */    INIT,				 // "ARGA"
 	&NoShow,								//38 0x26 */    OUTPUT_UPPER_STRING, // "OUTU"
 	&NoShow,								//39 0x27 */    OUTPUT_LOWER_STRING, // "OUTL"
 	&SysData.NV_UI.refresh_rate_sec_f,		//40 0x28 */	AUTO_CHANGE_RATE,	 // "AU_S"
@@ -1168,7 +1168,11 @@ void Set_Show_Protocol(char FL ** InfoStr) {
 		Existing.BRate_index = Baud_19200_i;
 	}
 	else if (rt.operating_protocol == ASCII_CMDS) {
+#ifdef PC
+		*InfoStr = ("ASCII");
+#else
 		*InfoStr = ("ASC`");
+#endif
 		Existing.BRate_index = ASCII_BR_INDX;			// 115200 baud for ASCII
 	}
 	else if (rt.operating_protocol == SETUP)

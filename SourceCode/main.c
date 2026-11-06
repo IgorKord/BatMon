@@ -52,15 +52,15 @@
 //#define LAST_GASP
 #ifdef LAST_GASP
   #define EXTRA_DNP_BYTE  1
-char FW_PartNumber[] = "826-509-A";	// IK20230706 must be in RAM and not the char* for printf
+char FW_PartNumber[] = "826-509A";	// IK20230706 must be in RAM and not the char* for printf
 #else
   #define EXTRA_DNP_BYTE  0
-char FW_PartNumber[] = "826-501-A";	// IK20230706 must be in RAM and not the char* for printf
+char FW_PartNumber[] = "826-501A";	// IK20230706 must be in RAM and not the char* for printf
 #endif //#ifdef LAST_GASP
 
-char FW_Date[] = "25-Jun-2026";		// IK20230706 must be in RAM for printf
+char FW_Date[] = "05-Nov-2026";		// IK20230706 must be in RAM for printf
 #define FW_ver_float ((float)(FW_VERSION) + 0.01f)/10.0f
-float FirmwareVersion;				// to be shown as float on LED, "3.0", initialization to 'FW_ver_float' in init()
+float CommFWversion;				// to be shown as float on LED, "3.0", initialization to 'FW_ver_float' in init()
 
 #ifdef INCLUDE_DAY_TIME_INTO_FW // this includes "comp @ __DATE__ __TIME__" but in Vsual Studio just-in-time compile will not work
 // IK20230706 char FL* CompileDate = __DATE__; // this places pointer and the __TIME__ string in FLASH but printf_P requires string pointers and arg list to point into RAM
@@ -261,9 +261,9 @@ uint8  calibr_step;							// what are you calibrating
 
 uint8  debug = 0;							// IK20250522 ! FOR TEST, debug is not explicitly initialized, zero! delay 0.5 ms before switching to transmit mode
 
-uint8  relay_board_status;					// updated via TWI when read RelayBoard, holds relay board status, AC power loss bit
-uint8  relays_status;                       // Relay board reads into this byte real GPIO pins where relays are connected and sends as confirmation to Comm board via TWI
-uint8  leds_status;                         // Relay board reads into this byte real GPIO pins where LEDs are connected and sends as confirmation to Comm board via TWI
+uint8  relay_board_status;					// updated via TWI when read RelayBoard, holds relay board status, AC power loss bit and Reset signal. Upper half byte has FW_ID
+uint8  relays_status;						// Relay board reads into this byte real GPIO pins where relays are connected and sends as confirmation to Comm board via TWI
+uint8  relay_brd_ExtLEDs_status;			// Relay board reads into this byte real GPIO pins where LEDs are connected and sends as confirmation to Comm board via TWI
 uint8  RxGreen_TxRed_LED_op;				// determines whether the comm LED is red or green
 uint8  tmp_display_status;					// used for detection if Phase or bbpulse selection changed
 uint8  io_update;							// need to update IO in Relay board
@@ -272,7 +272,7 @@ uint16 old_alarm_status;					// detects new alarm by comparing with this variabl
 
 uint8  send_type;							// state machine in main(),the data type is sent via TWI, alarms or comm params
 uint8  I420_calibr_lock;					// Locks (prevents) saving to EEPROM. Calibration Timer is simultaneously set to 5000 ms and starts counting down. After 3000 ms when timer reches below 2000 ms, auto firmware does saving to EEprom
-extern uint16 DNP_time_delay;						// sets to 9000, and then shows in case
+extern uint16 DNP_time_delay;				// sets to 9000, and then shows in case
 //---TWI Variables
 u_TWI twi;									// IK20250604 union of array and structure instead of unaggregated vars
 
@@ -968,7 +968,7 @@ INTERRUPT void TWI_interrupt(void)
 /********************************************************************/
 /* DESCRIPTION: This interrupt is driven from the Mega644 Timer. This
 		timer is set up as a compare timer with a 1.0 ms tick.
-		When the timer get to the compare value an intrrupt
+		When the timer get to the compare value an interrupt
 		is generated and the counter automatically reset to 0.
 		The timer has a 10 ms component run by the timer extender.
 		The 1.0 ms tick is based on a 16 mhz clock crystal.
@@ -2952,8 +2952,7 @@ float CalculateRtoGround_Ohm(void) {
 	float R_MAX = 1000000.0f;
 	float R_O = 30800.0f;
 	float vgf_min = 0;
-	float R_leak = -77777.7;
-	float R = 0;                                                  //'R_leak =-1/2*R_0*(V_bat+V_GF)/V_GF
+	float R_leak = -77777.7;	//'R_leak =-1/2*R_0*(V_bat+V_GF)/V_GF
 	float V_bat = rt.OutData.measured.battery_voltage_f;
 	float V_GF = rt.OutData.measured.G_fault_voltage_f;
 
@@ -3990,7 +3989,7 @@ void Init_UART() {
 void init(void)
 {
 	uint16 i;
-	FirmwareVersion = FW_ver_float;					// initialization of global variable with firmware version number
+	CommFWversion = FW_ver_float;					// initialization of global variable with firmware version number
 	rt.OutData.measured.GF_Resistance_Ohm = 12345.6f;	// init to something initially, will be recalculated
 #ifdef PC
 	initEEsimulator();
@@ -4183,13 +4182,17 @@ uint8 ReadButtons() {
 	if (twi.s.error > 0) {
 		return 0x80; // upper bit set - receiving error
 	}
+#endif // #ifndef PC
 	if (twi.buffer[BYTE_1] == TWI_SEND_FRONT_BUTTONS) // Display board answers with first byte = TWI_MSG_ALARMS==14 or TWI_SEND_FRONT_BUTTONS ==12 (0x0C
 	{
 		Display_Info.buttons_hits = twi.buffer[BYTE_2]; // IK20250924 confirmed, it gets bits from Display board
-		if (twi.buffer[BYTE_2] != 0) // IK20250924 for test, remeber last pressed button (it is not cleared to 0 if button is released)
+#ifdef PC
+		twi.buffer[BYTE_3] = 29; // simulation of display board FW version
+#endif // #ifdef PC
+		Display_Info.DisplayFWversion = twi.buffer[BYTE_3]; // Display board FW version byte
+		if (twi.buffer[BYTE_2] != 0) // IK20250924 for test, remember last pressed button (it is not cleared to 0 if button is released)
 			Display_Info.last_butt_pressed = twi.buffer[BYTE_2];
 	}
-#endif // #ifndef PC
 	momentaryButtonsState = (uint8)Display_Info.buttons_hits;
 	//#ifdef TIME_TESTING
 	//	ClearTestPin44;										// IK20250523 reset test pin #44 (easy to solder to)
@@ -4274,12 +4277,14 @@ void Communicate_w_Relay_board(void)
 		setBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
 	else
 		clearBit(twi.buffer[BYTE_1], RELAY_BRD_AC_FAIL_BIT);
+	twi.buffer[BYTE_1] |= (3 << 4); // IK20261105 simulation of relay FW version 3
 	twi.buffer[BYTE_2] = TWI_TO_RELAY_BRD_K3_BIT;      // set for PC simulation
 	twi.buffer[BYTE_3] = TWI_TO_RELAY_BRD_LED2_BIT;    // set for PC simulation
+
 #endif // PC
 	relay_board_status = twi.buffer[BYTE_1];			// get AC power fail bit and reset request from first byte
 	relays_status = twi.buffer[BYTE_2];					// get actual relay GPIO states from second byte
-	leds_status = twi.buffer[BYTE_3];					// get actual LED GPIO states from third byte
+	relay_brd_ExtLEDs_status = twi.buffer[BYTE_3];		// get actual LED GPIO states from third byte
 }
 
 /*************************************************************/
@@ -4795,16 +4800,6 @@ void CheckExecuteFrontPanelCmd(void) //in firmware, it is called from main loop.
 {
 	ReadButtons();	 // read momentary states via TWI
 	Get_Button_Press();//	CHECK IF BUTTONS HAVE BEEN PUSHED in firmware
-	if ((Display_Info.ButtonStateChanged != CLR) && (Display_Info.DisplayNeedsUpdateFlag == CLR))		// Button pushed? actual button states are reflected in "Butt_states"
-	{
-		if (Display_Info.butt_states) // avoid too short button presses when no bits are set
-			if ((Display_Info.ProcessingButton != SET) && (Display_Info.ButtonStateChanged == BTN_RELEASED))
-			{
-				Display_Info.ProcessingButton = SET;
-				//Display_Info.ProcessingButton = CLR;
-//				Display_Info.DisplayNeedsUpdateFlag = SET;
-			}
-	}
 	Do_Front_menu();								// Buttons : BIT_0 = 1 LEFT pressed, BIT_3 = 1 central ENTER pressed, BIT_4 = 1 RIGHT pressed, BIT_5 = 1 UP pressed, BIT_6 = 1 DOWN pressed
 	if (Display_Info.DisplayNeedsUpdateFlag == SET)
 		DisplayPrepare(); // create needed display messages

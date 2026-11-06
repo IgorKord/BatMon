@@ -1,3 +1,14 @@
+20261105 IK
+Implemented 'vers all' command which shows:
+"BatMonFW Com 826-501A v3.0@05-Nov-2026; Disp 826-501B v3.1; Relay 826-501C v3.0"
+Fixed Relay FW so "eleds=ff" command does not turn on relay K1
+
+20261104 IK
+>>>BUG>> switching protocol to ASCII leaves EEPROM SysData with ModBus, because changing protocol updates EEPROM immediately,
+but ASCII is not saved into EEPROM. if unit is turned off in this condition, ModBus persists
+User changes from DNP3->MBUS (saved to EEPROM)->ASCII (no save)->MBUS (saved to EEPROM)->DNP3 (saved to EEPROM)
+>>>BUG>> 'eleds=ff' command turns all ext LEDs on and also Relay K1
+
 20261008 ST a bug: 
 >>>BUG using pulse command 'pulse>enabled' it does accept command and change bit but something else resets it somewhere
 >>>

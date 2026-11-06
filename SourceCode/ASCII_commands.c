@@ -67,12 +67,23 @@ void PrintNewLine(void) {
 // *************************************************************/
 void Print_FW_Version(void)
 {
-	//  float tf = ((float)(FW_VERSION) + 0.01f)/10.0f;
-#ifdef INCLUDE_DAY_TIME_INTO_FW // this includes "comp @ __DATE__ __TIME__" but in Vsual Studio just-in-time compile will not work
-	printf("Battery Monitor SW %s Ver %3.1f, comp %s %s", FW_PartNumber, FirmwareVersion, FW_Date, CompileDate, CompileTime);
+	Uint32 param = Convert_4_ASCII_to_Uint32(&CommStr[CMD_LEN]); // 'version', 'vers all'; CommStr is pointer to &RxBuff[0]
+	if (param == ((' ' + 256 * 'a') + ('l' + 256 * 'l') * 65536))
+	{ 
+		float DispFWver = (float)Display_Info.DisplayFWversion * 0.1f;
+		printf("BatMonFW Com %s v%3.1f@%s;", FW_PartNumber, CommFWversion, FW_Date);
+		printf(" Disp 826-501B v%3.1f;", DispFWver);
+		printf(" Relay 826-501C v%d.0", relay_board_status>>4);
+//prints: BatMon CommFW 826-501A v3.0 @ 05-Nov-2026; DispFW 826-501B v2.9; RelayFW 826-501C v3.0
+	}
+	else
+	{//  float tf = ((float)(FW_VERSION) + 0.01f)/10.0f;
+#ifdef INCLUDE_DAY_TIME_INTO_FW // this includes "comp @ __DATE__ __TIME__" but in Visual Studio just-in-time compile will not work
+	printf("Battery Monitor SW %s Ver %3.1f, comp %s %s", FW_PartNumber, CommFWversion, FW_Date, CompileDate, CompileTime);
 #else
-	printf("Battery Monitor SW %s Ver %3.1f @ %s", FW_PartNumber, FirmwareVersion, FW_Date);
+	printf("Battery Monitor SW %s Ver %3.1f @ %s", FW_PartNumber, CommFWversion, FW_Date);
 #endif
+	}
 }
 
 // if verbose is enabled add verbose comment , then \r\n
@@ -874,7 +885,7 @@ Value "ggg.ggg" starts on 8th place [7], and calibration factor can be in regula
 **************************************************************/
 void SetGetCalParam(void)
 {
-	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
 	CalPtr CalStructurePtr;
 	char Cal_Name[40]; // to fit Send_RCI_Param_Error("arg *# where # is: 0-Y1,1-X1,2-Y2,3-X2");
 	char CoordName[16];
@@ -963,7 +974,7 @@ Value "ggg.ggg" starts on 8th place [7], and calibration factor can be in regula
 **************************************************************/
 void SetCalibrationValue(void) //-!- K20251119 need special treatment for current loop calibration
 {
-	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
 	CalPtr CalStructurePtr;
 	char Cal_Name[40]; // to fit Send_RCI_Param_Error("arg *# where # is: 0-Y1,1-X1,2-Y2,3-X2");
 	char CoordName[16];
@@ -1019,7 +1030,7 @@ void SetCalibrationValue(void) //-!- K20251119 need special treatment for curren
 /*************************************************************/
 void Echo_Enab_Disab(void)
 {
-	Uint32 param = Convert_4_ASCII_to_Uint32(&CommStr[CMD_LEN]); //=dis, =ena; CommStr is pointer to &RxBuff[0] or &RxBuff[1] when command has preffix "`"
+	Uint32 param = Convert_4_ASCII_to_Uint32(&CommStr[CMD_LEN]); //=dis, =ena; CommStr is pointer to &RxBuff[0]
 	if (param == (('>' + 256 * 'e') + ('n' + 256 * 'a') * 65536))
 	{
 		setBit(rt.Host, CharEchoFlag);
@@ -1057,9 +1068,10 @@ void Show_ADCcounts_and_Volts(void)
 	}
 
 	cputs("\n\r Value    ");
-	for (ch = 0; ch < 8; ch++) {
+	for (ch = 0; ch < 7; ch++) {
 		printf("| %5.1f ", rt.OutData.measurement_f[ch]);
 	}
+	printf("| %1.3e", rt.OutData.measurement_f[7]); // print GF resistance in scientific notation
 }
 
 /*************************************************************/
@@ -1068,7 +1080,7 @@ void Excitation_Pulse(void)
 {
 	//if (SetGetStatus() != CALIBRATION_DONE)  //if calibrating shut off pulse
 		//clearBit(display_status, DISP_STATE_PulseON_BIT); // &= 0xBF;
-	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 2]); //"024v" or "048v" or "125v" or "250v" starting 1 bytes after command
 	if (temp_Inp_str[CMD_LEN + 1] == '>')
 	{
@@ -1102,7 +1114,7 @@ void Excitation_Pulse(void)
 /// <param name=""></param>
 void SetGetAlarm(void)
 {
-	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
 	Uint32 alarm_type = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //starting at 5 bytes after command
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 5]); //starting at 5 bytes after command
 
@@ -1274,7 +1286,7 @@ void OutputTriggerMaskVerbose(Uint16 mask_value, char identifier_char, char pref
 /// <param name=""></param>
 void SetGetRelayTriggers(void)
 {
-	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
 	uint8 relay_num = temp_Inp_str[CMD_LEN - 1] - '1'; //forth byte of command,the "#"; covert to integer 0-3 for relay index
 	Uint32 param;
 	//param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]);// FLASH = 56675
@@ -1332,7 +1344,7 @@ void SetGetExtLEDs() {
 
 	if (param == (('r' + 256 * 'e') + ('a' + 256 * 'd') * 65536)) // relays=HH changes state of relays, where HH is a hexadecimal value representing the state of four relays and pulse.
 	{
-		ShowRelayBrdLEDstates(txtRead, leds_status);
+		ShowRelayBrdLEDstates(txtRead, relay_brd_ExtLEDs_status);
 	}
 	else if (toLower(temp_Inp_str[CMD_LEN]) == 's') {
 		if (temp_Inp_str[CMD_LEN + 1] != '=') // eleds returns current state of external LEDs: eleds=HH.
@@ -1380,7 +1392,7 @@ eleds_error:
 /// <param name=""></param>
 void SetGetExtLEDTriggers(void)
 {
-	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
 	int led_num = temp_Inp_str[CMD_LEN - 1] - '0'; //fifth byte after command,the "#"; covert to integer 1-6 for LED number
 	Uint32 param = hex2int(&temp_Inp_str[CMD_LEN + 1]); // LED setting starting at 5th byte
 	// Handle led#=XXXX or led#? commands
@@ -1798,7 +1810,7 @@ void SetDNP3fromModbus(void)
 // Set / Get one-phase (120 Hz) or 3-phase (360 Hz) charger. Calibration parameters have 2 sets for 120 or 360 Hz
 void SetGetPhase(void)
 {
-	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //"3-ph" or "1-ph" starting 1 bytes after command
 	if (temp_Inp_str[CMD_LEN] == '>')
 	{
@@ -1862,7 +1874,7 @@ void SetGetBaudRate(void)
 // Current loop output Get 'iloo[p?]' returns Set command syntax 'iloop>i0-1', 'iloop>i420'. Setting in flash is updated after 'save' command.
 void SetGetCurrentLoopRange(void)
 {
-	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //"i420" or "i01\0" starting 1 bytes after command
 	if (temp_Inp_str[CMD_LEN] == '>')
 	{
@@ -1886,7 +1898,7 @@ void SetGetCurrentLoopRange(void)
 // Get 'unit[?]' returns Set command syntax 'unit>XXXv'. Command accepts only 24v, 48v, 125v, 250v. Setting in flash is updated after 'save' command.
 void SetGetVoltageRange(void)
 {
-	char* temp_Inp_str = CommStr; // pointer to RxBuff[0] or RxBuff[1] when command has preffix "`"
+	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //"024v" or "048v" or "125v" or "250v" starting 1 bytes after command
 	uint8 index;
 	if (temp_Inp_str[CMD_LEN] == '>')
