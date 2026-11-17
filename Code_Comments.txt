@@ -1,3 +1,12 @@
+20261115 IK
+>>>BUG>>> relay 4 should react on AC loss
+rel1=0004 // K1 triggers: bit 0...9 |   |   |+GF|   |   |   |   |   |   |
+rel2=0008 // K2 triggers: bit 0...9 |   |   |   |-GF|   |   |   |   |   |
+rel3=0001 // K3 triggers: bit 0...9 |HiB|   |   |   |   |   |   |   |   |
+rel4=10B2 // K4 triggers: bit 0...9 |   |LoB|   |   |RiV|RiC|   |HiZ|   |Inverted
+Should be:
+rel4=10F2 // K4 triggers: bit 0...9 |   |LoB|   |   |RiV|RiC|ACL|HiZ|   |Inverted
+
 20261105 IK
 Implemented 'vers all' command which shows:
 "BatMonFW Com 826-501A v3.0@05-Nov-2026; Disp 826-501B v3.1; Relay 826-501C v3.0"

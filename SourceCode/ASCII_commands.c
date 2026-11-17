@@ -2235,7 +2235,6 @@ const t_rci_commands rci[] =
 														// Set / Get one-phase (120 Hz) or 3-phase (360 Hz) charger. Calibration parameters have 2 sets for 120 or 360 Hz
 	/*+*/	"alar",		(void*)&SetGetAlarm,			// Alarm set/get: 'alarm rv>enab', 'alarm rv>disa'; 'alarm ri>enab', 'alarm ri>disa'; 'alarm ac>enab', 'alarm ac>disa'; 'alarm hz>enab', 'alarm hz>disa'
 	/*+*/	"dela",		(void*)&SetGetDelay,			// Delay set/get: 'delay?' returns Set command syntax 'delay=XX.X' in seconds. changes SysData.NV_UI.alarm_delay_sec_f. Setting in flash is updated after 'save' command.
-	/*+*/	"eled",		(void*)&SetGetExtLEDs,			// External LEDs set/get: 'eled? returns Set command syntax 'eled=HH' in hexadecimal format. This is test command.
 	/*+*/	"buzz",		(void*)&SetGetBuzzer,			// Buzzer set/get: 'buzz>on', 'buzz>off' - set right now; 'buzz>enab', 'buzz>disa' - set/get setting in flash after 'save' command.
 	/*+*/	"latc",		(void*)&SetGetLatch,			// Get 'latc[h?]' returns Set command syntax 'latch>enab', 'latch>disa'. Setting in flash is updated after 'save' command.
 	/*+*/	"rel1",		(void*)&SetGetRelayTriggers,	// rel#=XXXX sets lookup table for relay control, where # is the relay number (1-4) and XXXX is a 16-bit hexadecimal value.
@@ -2253,6 +2252,7 @@ const t_rci_commands rci[] =
 	/*+*/	"expo",		(void*)&Export_settings,		// "expo" //creates play-back list of commands to restore settings
 	///////"expo" ends auto param list
 
+	/*+*/	"eled",		(void*)&SetGetExtLEDs,			// External LEDs set/get: 'eled? returns Set command syntax 'eled=HH' in hexadecimal format. This is test command.
 	/*+*/	"rela",		(void*)&SetGetRelays,			// Relays set/get: 'Relays? returns Set cmd syntax 'relays=HH' as hex. 'relays read' returns real state of relays. Test command, state is not set in flash.
 	/*+*/	"eled",		(void*)&SetGetExtLEDs,			// External LEDs set/get: "eleds" returns Set cmd syntax 'eleds=HH' as hex. 'eleds read' returns real state of external LEDs. Test command, state is not set in flash.
 	/*+*/	"cpar",		(void*)&SetGetCalParam,			// "cpar#$=GGG.GGG" Set/get calibration parameter.
