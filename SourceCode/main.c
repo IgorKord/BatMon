@@ -4738,7 +4738,7 @@ const uint16 DefaultRelayMask[4] = // K4 is closed when there is no alarm, K1-K3
 	/* K1*/(0|	0|	0|PGF|	0|	0|	0|	0|	0|	0 | 0  ),	// Relay 1 (K1) state sent to Relay board in Bit_0 of Display_Info.Relays_state; it maps to Alarm_PlusGND_FAULT_Bit (PGF)
 	/* K2*/(0|	0|	0|	0|MGF|	0|	0|	0|	0|	0 | 0  ),	// Relay 2 (K2) maps to Alarm_MinusGND_FAULT_Bit (MGF)
 	/* K3*/(0|BVH|	0|	0|	0|	0|	0|	0|	0|	0 | 0  ),	// Relay 3 (K3) maps to Alarm_BatVoltageHIGH_Bit (BVH)
-	/* K4*/(0|	0|BVL|	0|	0|RVH|RCL|	0|HIZ|	0 | INV)	// Relay 4 (K4) maps to RVV, RIV, HIZ alarms (RVH,RCL,HIZ), with inversion
+	/* K4*/(0|	0|BVL|	0|	0|RVH|RCL|ACL|HIZ|	0 | INV)	// Relay 4 (K4) maps to ACL, RVV, RIV, HIZ alarms (RVH,RCL,HIZ), with inversion
 };
 
 const uint16 DefaultExternLEDmask[6] =
