@@ -1029,7 +1029,7 @@ void Send_DNP_Msg(uint16 type)
 #endif //#ifdef LAST_GASP
 		// ************  Add Object 30 - analog (Voltages) *****
 		wrk_str[21 + EXTRA_DNP_BYTE] = 30;										// object 30
-		wrk_str[22 + EXTRA_DNP_BYTE] = 1;										// variation 1: 32 bit with flag
+		wrk_str[22 + EXTRA_DNP_BYTE] = dnp16_transfer ? 2 : 1;					// variation 2:16-bit/1:32-bit with flag
 		wrk_str[23 + EXTRA_DNP_BYTE] = 0x00;									// qualifier
 		wrk_str[24 + EXTRA_DNP_BYTE] = 0;										// start
 #ifndef LAST_GASP
@@ -1046,6 +1046,66 @@ void Send_DNP_Msg(uint16 type)
 			SysData.analog_points = 1;											// just incase it is screwed up
 		if (SysData.analog_points > 5)
 			SysData.analog_points = 5;
+		if (dnp16_transfer)
+		{
+			str_ptr = 27 + EXTRA_DNP_BYTE;										// last written index before analog payload
+			crc_cntr = 0;
+			bytes_to_send = 28 + EXTRA_DNP_BYTE;
+			for (i = 1; i <= SysData.analog_points; i++)
+			{
+				Int16 point_value = 0;
+				if (i == 1)
+					point_value = battery_dnp16;
+				else if (i == 2)
+					point_value = fault_dnp16;
+				else if (i == 3)
+					point_value = minus_gnd_dnp16;
+				else if (i == 4)
+					point_value = ripple_v_dnp16;
+				else if (i == 5)
+					point_value = ripple_i_dnp16;
+
+				for (j = 0; j < 3; j++)
+				{
+					if (crc_cntr == DNP_FRAME_SIZE)
+					{
+						Calc_DNPCRC(&wrk_str[(str_ptr + 1) - crc_cntr], crc_cntr);
+						wrk_str[str_ptr + 1] = crc & 0x00FF;
+						str_ptr++;
+						wrk_str[str_ptr + 1] = crc >> 8;
+						str_ptr++;
+						bytes_to_send += 2;
+						crc_cntr = 0;
+					}
+
+					if (j == 0)
+						wrk_str[str_ptr + 1] = 0x01;
+					else if (j == 1)
+						wrk_str[str_ptr + 1] = (uint8)point_value;
+					else
+						wrk_str[str_ptr + 1] = (uint8)(point_value >> 8);
+
+					str_ptr++;
+					crc_cntr++;
+					bytes_to_send++;
+					temp_length++;
+				}
+			}
+
+			if ((events_requested == 0) && (crc_cntr != 0))
+			{
+				Calc_DNPCRC(&wrk_str[(str_ptr + 1) - crc_cntr], crc_cntr);
+				wrk_str[str_ptr + 1] = crc & 0x00FF;
+				str_ptr++;
+				wrk_str[str_ptr + 1] = crc >> 8;
+				str_ptr++;
+				bytes_to_send += 2;
+				crc_cntr = 0;
+			}
+			wrk_str[2] = temp_length;
+		}
+		else
+		{
 		for (i = 1; i <= SysData.analog_points; i++)
 		{
 			if (i == 1)
@@ -1171,6 +1231,7 @@ void Send_DNP_Msg(uint16 type)
 				wrk_str[2] = temp_length;
 				crc_cntr = 9 + EXTRA_DNP_BYTE;
 			}
+		}
 		}
 
 		// ****************** Add in class 1 ***********************
