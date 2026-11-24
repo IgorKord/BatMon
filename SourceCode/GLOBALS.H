@@ -803,10 +803,11 @@ extern uint16 const Baud_Rates[Last_Baud_Index];	// IK20250724 to simplify baud 
 enum Protocols	// IK20251230 CHANGED to regular number
 {
    SETUP = 0x00,
-   DNP3 =  0x01,		// 17d
-   MODBUS = 0x02,		// 34d
-   ASCII_CMDS = 0x03,	// 51d
-   ASCII_MENU = 0x04	// 68d not implemented
+   DNP3 =  0x01,		// 32-bit standard protocol
+   MODBUS = 0x02,		//
+   ASCII_CMDS = 0x03,	//
+   //IK20261123 adding DNP 16 bit
+   DNP3_16 =  0x11,		// 16-bit protocol: Bit_4 is set together with Bit_1
 };
 //#define PROTOCOL_SELECTION_INC_DEC  (DNP3 - SETUP) //
 

@@ -181,7 +181,9 @@ extern __eeprom  SYS_SPECIFIC_DATA EEPROM_SysData;// located in EEPROM @ EE_SYS_
 #define Buzzer_ON_eq1_Bit               Bit_9	// 0x0200 Bit enables / disables buzzer immediately, use bit in SysData.NV_UI.SavedStatusWord to be saved into flash.
 #define Latch_ON_eq1_Bit                Bit_10	// 0x0400 Bit enables / disables alarm latching immediately, use bit in SysData.NV_UI.SavedStatusWord to be saved into flash.
 #define SinglePhase_eq0_3ph_eq1_Bit     Bit_11	// 0x0800 Bit in SysData.NV_UI.SavedStatusWord to be saved into flash, selects 1 phase or 3-phase.
-#define CurOut_I420_eq0_I01_eq1_Bit     Bit_12	// 0x1000 Bit in SysData.NV_UI.SavedStatusWord to be saved into flash, selects current output 0...1mA when set or 4...20mA when bit is zero.
+#define CurOut_I420_eq0_I01_eq1_Bit     Bit_12	// 0x1000 Bit in SysData.NV_UI.SavedStatusWord to be saved into flash, selects current output 0...1mA when set or 4...20mA (delault) when bit is zero.
+#define DNP3_32bit_eq0_16bit_eq1_Bit    Bit_13	// 0x2000 Bit in SysData.NV_UI.SavedStatusWord to be saved into flash, selects 16-bit reporting when set or 32-bit (delault) when bit is zero.
+#define RS485_simplexEq0_duplexEq1_Bit  Bit_14	// 0x4000 Bit in SysData.NV_UI.SavedStatusWord to be saved into flash, selects 4-wire RS-485 when set or 2-wire (delault) when bit is zero.
 
 #define AlarmStatus_Instant_BITS        (Alarm_Ripple_Voltage_Bit | Alarm_Ripple_Current_Bit | Alarm_AC_Loss_Bit | Alarm_High_Impedance_Bit)
 #define AlarmStatus_ALL_BITS            (Alarm_BatVoltageHIGH_Bit | Alarm_BatVoltageLOW_Bit | Alarm_PlusGND_FAULT_Bit | Alarm_MinusGND_FAULT_Bit | AlarmStatus_Instant_BITS)

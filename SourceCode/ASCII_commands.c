@@ -69,7 +69,7 @@ void Print_FW_Version(void)
 {
 	Uint32 param = Convert_4_ASCII_to_Uint32(&CommStr[CMD_LEN]); // 'version', 'vers all'; CommStr is pointer to &RxBuff[0]
 	if (param == ((' ' + 256 * 'a') + ('l' + 256 * 'l') * 65536))
-	{ 
+	{
 		float DispFWver = (float)Display_Info.DisplayFWversion * 0.1f;
 		printf("BatMonFW Com %s v%3.1f@%s;", FW_PartNumber, CommFWversion, FW_Date);
 		printf(" Disp 826-501B v%3.1f;", DispFWver);
@@ -1663,9 +1663,26 @@ void SetGetRipCURRthreshold(void)
 // exit ASCII RCI Protocol and swith to DNP immediately
 void SwitchToDNP(void)
 {
-	cputs("Switching to DNP3\r\n>~OK\r\n");
-	Delay_ms(100);
-	Set_protocol_settings(DNP3); // Set protocol, baud rate, and show on display
+	char* temp_Inp_str = CommStr; // pointer to rt.RxBuff[0]
+	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 1]); //IK20260224 "now>" or "DNP3" or "SETUP"  or "ModBus" starting 1 bytes after command
+	if (temp_Inp_str[CMD_LEN] == '>')
+	{
+		// DNP3 32 bit or DNP3 16 - normal customer protocols that persist to EEPROM
+		// When restoring from parameter file (expo), protocol change must NOT affect runtime
+		// so remaining ASCII commands can be processed. Protocol takes effect on next reboot.
+		uint8 change_now = 0;
+		if (param == (('1' + 256 * '6') + ('b' + 256 * 'i') * 65536)) // command 'dnp3>16bit'
+		{
+			cputs("Switching to DNP3 16bit\r\n>~OK\r\n");
+			Delay_ms(100);
+			Set_protocol_settings(DNP3_16); // Set protocol, baud rate, and show on display
+		}
+	}
+	else {
+		cputs("Switching to DNP3 32bit\r\n>~OK\r\n");
+		Delay_ms(100);
+		Set_protocol_settings(DNP3); // Set protocol, baud rate, and show on display
+	}
 	//SysData.NV_UI.StartUpProtocol = DNP3; // no change in EEPROM
 }
 

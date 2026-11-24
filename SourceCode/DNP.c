@@ -180,6 +180,16 @@ int AddBinaryFloatToWorkString(float value, int start_pos)
 	return start_pos;
 }
 
+// DNP3 is Little-endian (LSB first).
+int Add_DNP_BinaryShortToWorkString(Int16 value, int start_pos)
+{
+	Int16 tShort = value;
+	wrk_str[start_pos] = (uint8)tShort;
+	start_pos++;
+	wrk_str[start_pos] = (uint8)(tShort >> 8);
+	return start_pos;
+}
+
 // DNP3 is Little - endian(LSB first).
 //-!- IK20250814 function is not used
 // // returns last written position in wrk_str
@@ -238,11 +248,17 @@ void Build_DNP_DLL_Header(uint8* buf, uint8 length, uint8 control)
 
 void Send_DNP_Msg(uint16 type)
 {
+	const uint8 dnp16_transfer = (rt.operating_protocol == DNP3_16);
 	Int32 battery_milliVolts = (Int32)(rt.OutData.measured.battery_voltage_f * V_to_mV);		// for DNP and Modbus transmission, 1 mV = 1 count
 	Int32 fault_millivolts = (Int32)(rt.OutData.measured.G_fault_voltage_f * V_to_mV);		// convert float to int for fault milli voltage
 	Int32 minus_gnd_millivolts = (Int32)(rt.OutData.measured.minus_gnd_volts_f * V_to_mV);	// convert float to int for minus gnd milli voltage
 	Int32 ripple_milliAmpers = (Int32)(rt.OutData.measured.ripple_mA_f);		// convert float to int for ripple current
 	Int32 ripple_milliVolts = (Int32)(rt.OutData.measured.ripple_mV_f);		// convert float to int for ripple voltage
+	Int16 battery_dnp16 = (Int16)(rt.OutData.measured.battery_voltage_f * 10.0f);		// 0.1V per count for DNP3 16-bit variant
+	Int16 fault_dnp16 = (Int16)(rt.OutData.measured.G_fault_voltage_f * 10.0f);		// 0.1V per count for DNP3 16-bit variant
+	Int16 minus_gnd_dnp16 = (Int16)(rt.OutData.measured.minus_gnd_volts_f * 10.0f);		// 0.1V per count for DNP3 16-bit variant
+	Int16 ripple_i_dnp16 = (Int16)(rt.OutData.measured.ripple_mA_f);				// 1mA per count
+	Int16 ripple_v_dnp16 = (Int16)(rt.OutData.measured.ripple_mV_f);				// 1mV per count
 	uint8 i;
 	uint8 temp_length, events_to_send, rec_ptr, bytes_to_send, j;
 	uint8 events_sent = 0;
@@ -316,7 +332,7 @@ void Send_DNP_Msg(uint16 type)
 		wrk_str[21] = Display_Info.alarm_status >> 8;	// last gasp
 		/************  Add Object 30 - analog (Voltages) *****/
 		wrk_str[21 + EXTRA_DNP_BYTE] = 30;				// object 30
-		wrk_str[22 + EXTRA_DNP_BYTE] = 3;				// variation 3
+		wrk_str[22 + EXTRA_DNP_BYTE] = dnp16_transfer ? 4 : 3;	// variation 4 (16-bit) or 3 (32-bit)
 		wrk_str[23 + EXTRA_DNP_BYTE] = 0x00;			// qualifier
 		wrk_str[24 + EXTRA_DNP_BYTE] = 0;				// start
 		Calc_DNPCRC(&wrk_str[10], 16);					// need CRC here because of each 16 bytes need CRC
@@ -326,7 +342,7 @@ void Send_DNP_Msg(uint16 type)
 #else
 		/************  Add Object 30 - analog (Voltages) *****/
 		wrk_str[21 + EXTRA_DNP_BYTE] = 30;							// object 30
-		wrk_str[22 + EXTRA_DNP_BYTE] = 3;							// variation 3
+		wrk_str[22 + EXTRA_DNP_BYTE] = dnp16_transfer ? 4 : 3;	// variation 4 (16-bit) or 3 (32-bit)
 		wrk_str[23 + EXTRA_DNP_BYTE] = 0x00;						// qualifier
 		wrk_str[24 + EXTRA_DNP_BYTE] = 0;							//start
 		wrk_str[25 + EXTRA_DNP_BYTE] = SysData.analog_points - 1;	// stop(number of active points)
@@ -344,74 +360,122 @@ void Send_DNP_Msg(uint16 type)
 		//>>>>>>>>>> ASSEMBLING DNP MESSAGE for Bat volts, fault, etc >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 		//for (i = 1; i <= SysData.analog_points; i++)
 		{
-			if (SysData.analog_points >= 1) // if (i == 1)				// place Battery millivolts into DNP que
+			if (SysData.analog_points >= 1) // if (i == 1)				// place Battery voltage into DNP queue
 			{
 				str_ptr = 27 + EXTRA_DNP_BYTE;						// point to last point written
-				Add_DNP_BinaryLongToWorkString(battery_milliVolts, str_ptr + 1);
-				bytes_to_send = 32 + EXTRA_DNP_BYTE;
+				if (dnp16_transfer)
+					Add_DNP_BinaryShortToWorkString(battery_dnp16, str_ptr + 1);
+				else
+					Add_DNP_BinaryLongToWorkString(battery_milliVolts, str_ptr + 1);
+				bytes_to_send = dnp16_transfer ? (30 + EXTRA_DNP_BYTE) : (32 + EXTRA_DNP_BYTE);
 				if (SysData.analog_points == 1)
 				{
-					Calc_DNPCRC(&wrk_str[28], 4 + EXTRA_DNP_BYTE);	// calc the CRC on 4 bytes if analog pts = 1
-					wrk_str[str_ptr + 5] = crc & 0x00FF;			// append crc low byte first
-					wrk_str[str_ptr + 6] = crc >> 8;				// append high byte of crc
+					Calc_DNPCRC(&wrk_str[28], dnp16_transfer ? (2 + EXTRA_DNP_BYTE) : (4 + EXTRA_DNP_BYTE));
+					wrk_str[str_ptr + (dnp16_transfer ? 3 : 5)] = crc & 0x00FF;
+					wrk_str[str_ptr + (dnp16_transfer ? 4 : 6)] = crc >> 8;
 					bytes_to_send += 2;
 				}
-				wrk_str[2] = 25 + EXTRA_DNP_BYTE;					// length 25 bytes for 1 analog point
+				wrk_str[2] = dnp16_transfer ? (23 + EXTRA_DNP_BYTE) : (25 + EXTRA_DNP_BYTE);
 			}
 			if (SysData.analog_points >= 2) // if (i == 2)				// fault voltage active? if so place fault millivolts into DNP que
 			{
-				wrk_str[2] = 29 + EXTRA_DNP_BYTE;					// length - 29 bytes for 2 analog points
-				Add_DNP_BinaryLongToWorkString(fault_millivolts, str_ptr + 5);
-				bytes_to_send = 36 + EXTRA_DNP_BYTE;
+				wrk_str[2] = dnp16_transfer ? (25 + EXTRA_DNP_BYTE) : (29 + EXTRA_DNP_BYTE);
+				if (dnp16_transfer)
+					Add_DNP_BinaryShortToWorkString(fault_dnp16, str_ptr + 3);
+				else
+					Add_DNP_BinaryLongToWorkString(fault_millivolts, str_ptr + 5);
+				bytes_to_send = dnp16_transfer ? (32 + EXTRA_DNP_BYTE) : (36 + EXTRA_DNP_BYTE);
 				if (SysData.analog_points == 2)
 				{
-					Calc_DNPCRC(&wrk_str[28], 8 + EXTRA_DNP_BYTE);	// calc the CRC on 8 bytes if analog pts = 2
-					wrk_str[str_ptr + 9] = crc & 0x00FF;			// append crc low byte first
-					wrk_str[str_ptr + 10] = crc >> 8;				// append high byte of crc
+					Calc_DNPCRC(&wrk_str[28], dnp16_transfer ? (4 + EXTRA_DNP_BYTE) : (8 + EXTRA_DNP_BYTE));
+					wrk_str[str_ptr + (dnp16_transfer ? 5 : 9)] = crc & 0x00FF;
+					wrk_str[str_ptr + (dnp16_transfer ? 6 : 10)] = crc >> 8;
 					bytes_to_send += 2;
 				}
 			}
 			if (SysData.analog_points >= 3) // if (i == 3)				// minus ground voltage active?
 			{
-				Add_DNP_BinaryLongToWorkString(minus_gnd_millivolts, str_ptr + 9);
-				bytes_to_send = 40 + EXTRA_DNP_BYTE;
+				if (dnp16_transfer)
+					Add_DNP_BinaryShortToWorkString(minus_gnd_dnp16, str_ptr + 5);
+				else
+					Add_DNP_BinaryLongToWorkString(minus_gnd_millivolts, str_ptr + 9);
+				bytes_to_send = dnp16_transfer ? (34 + EXTRA_DNP_BYTE) : (40 + EXTRA_DNP_BYTE);
 				if (SysData.analog_points == 3)
 				{
-					Calc_DNPCRC(&wrk_str[28], 12 + EXTRA_DNP_BYTE);	// calc CRC on 12 bytes if analog pts = 3
-					wrk_str[str_ptr + 13] = crc & 0x00FF;			// append crc low byte first
-					wrk_str[str_ptr + 14] = crc >> 8;				// append high byte of crc
+					Calc_DNPCRC(&wrk_str[28], dnp16_transfer ? (6 + EXTRA_DNP_BYTE) : (12 + EXTRA_DNP_BYTE));
+					wrk_str[str_ptr + (dnp16_transfer ? 7 : 13)] = crc & 0x00FF;
+					wrk_str[str_ptr + (dnp16_transfer ? 8 : 14)] = crc >> 8;
 					bytes_to_send += 2;
 				}
-				wrk_str[2] = 33 + EXTRA_DNP_BYTE;					// length - 33 bytes now
+				wrk_str[2] = dnp16_transfer ? (27 + EXTRA_DNP_BYTE) : (33 + EXTRA_DNP_BYTE);
 			}
 			if (SysData.analog_points >= 4) // if (i == 4)				// Send ripple voltage
 			{
-				wrk_str[str_ptr + 13] = (uint8)ripple_milliVolts;
-				wrk_str[str_ptr + 14] = (uint8)(ripple_milliVolts >> 8);
-				wrk_str[str_ptr + 15] = (uint8)(ripple_milliVolts >> 16);
+				if (dnp16_transfer)
+				{
+					wrk_str[str_ptr + 7] = (uint8)ripple_v_dnp16;
+					wrk_str[str_ptr + 8] = (uint8)(ripple_v_dnp16 >> 8);
+				}
+				else
+				{
+					wrk_str[str_ptr + 13] = (uint8)ripple_milliVolts;
+					wrk_str[str_ptr + 14] = (uint8)(ripple_milliVolts >> 8);
+					wrk_str[str_ptr + 15] = (uint8)(ripple_milliVolts >> 16);
+				}
 #ifdef LAST_GASP
-				Calc_DNPCRC(&wrk_str[28], 16);						// need CRC on 16 bytes here
-				wrk_str[str_ptr + 16] = crc & 0x00FF;				// append crc low byte first
-				wrk_str[str_ptr + 17] = crc >> 8;					// append high byte of crc
-				wrk_str[str_ptr + 18] = (uint8)(rt.ripple_milliVolts >> 24);	// wrk_str[str_ptr+18] = data5.ripple_volts_byte[3];
+				if (dnp16_transfer)
+				{
+					Calc_DNPCRC(&wrk_str[28], 8 + EXTRA_DNP_BYTE);
+					wrk_str[str_ptr + 9] = crc & 0x00FF;
+					wrk_str[str_ptr + 10] = crc >> 8;
+				}
+				else
+				{
+					Calc_DNPCRC(&wrk_str[28], 16);
+					wrk_str[str_ptr + 16] = crc & 0x00FF;
+					wrk_str[str_ptr + 17] = crc >> 8;
+					wrk_str[str_ptr + 18] = (uint8)(rt.ripple_milliVolts >> 24);
+				}
 #else
-				wrk_str[str_ptr + 16] = (uint8)(ripple_milliVolts >> 24);	// wrk_str[str_ptr+16] = data5.ripple_volts_byte[3];
-				Calc_DNPCRC(&wrk_str[28], 16);							// need CRC on 16 bytes here
-				wrk_str[str_ptr + 17] = crc & 0x00FF;					// append crc low byte first
-				wrk_str[str_ptr + 18] = crc >> 8;						// append high byte of crc
+				if (dnp16_transfer)
+				{
+					Calc_DNPCRC(&wrk_str[28], 8 + EXTRA_DNP_BYTE);
+					wrk_str[str_ptr + 9] = crc & 0x00FF;
+					wrk_str[str_ptr + 10] = crc >> 8;
+				}
+				else
+				{
+					wrk_str[str_ptr + 16] = (uint8)(ripple_milliVolts >> 24);
+					Calc_DNPCRC(&wrk_str[28], 16);
+					wrk_str[str_ptr + 17] = crc & 0x00FF;
+					wrk_str[str_ptr + 18] = crc >> 8;
+				}
 #endif //#ifdef LAST_GASP
 
-				bytes_to_send = 46 + EXTRA_DNP_BYTE;
-				wrk_str[2] = 37 + EXTRA_DNP_BYTE;
+				bytes_to_send = dnp16_transfer ? (36 + EXTRA_DNP_BYTE) : (46 + EXTRA_DNP_BYTE);
+				wrk_str[2] = dnp16_transfer ? (29 + EXTRA_DNP_BYTE) : (37 + EXTRA_DNP_BYTE);
 			}
 			if (SysData.analog_points >= 5) // if (i == 5)				// Send ripple current
 			{
-				Add_DNP_BinaryLongToWorkString((int)(rt.OutData.measured.ripple_mA_f), str_ptr + 19);
-				Calc_DNPCRC(&wrk_str[46 + EXTRA_DNP_BYTE], 4);			// end of msg so CRC needed on 4 bytes
-				wrk_str[str_ptr + 23] = crc & 0x00FF;					// append crc low byte first
-				wrk_str[str_ptr + 24] = crc >> 8;						// append high byte of crc
-				bytes_to_send = 52 + EXTRA_DNP_BYTE;					// 52
-				wrk_str[2] = 41 + EXTRA_DNP_BYTE;						// 41
+				if (dnp16_transfer)
+				{
+					wrk_str[str_ptr + 9] = (uint8)ripple_i_dnp16;
+					wrk_str[str_ptr + 10] = (uint8)(ripple_i_dnp16 >> 8);
+					Calc_DNPCRC(&wrk_str[38 + EXTRA_DNP_BYTE], 2);
+					wrk_str[str_ptr + 11] = crc & 0x00FF;
+					wrk_str[str_ptr + 12] = crc >> 8;
+					bytes_to_send = 40 + EXTRA_DNP_BYTE;
+					wrk_str[2] = 31 + EXTRA_DNP_BYTE;
+				}
+				else
+				{
+					Add_DNP_BinaryLongToWorkString((int)(rt.OutData.measured.ripple_mA_f), str_ptr + 19);
+					Calc_DNPCRC(&wrk_str[46 + EXTRA_DNP_BYTE], 4);
+					wrk_str[str_ptr + 23] = crc & 0x00FF;
+					wrk_str[str_ptr + 24] = crc >> 8;
+					bytes_to_send = 52 + EXTRA_DNP_BYTE;
+					wrk_str[2] = 41 + EXTRA_DNP_BYTE;
+				}
 			}
 		}
 		Calc_DNPCRC(&wrk_str[0], 8);									// Calc the Dll CRC on 8 bytes since length changed
@@ -541,6 +605,100 @@ void Send_DNP_Msg(uint16 type)
 		wrk_str[12] = 0x81;												// Appl. Response
 		wrk_str[13] = iien1;											// IIEN 1
 		wrk_str[14] = iien2;											// 10th item
+
+		if (dnp16_transfer)
+		{
+			uint8 crc_start = 10;
+			Int16 dnp16_value = 0;
+			if ((variation != 0) && (variation != 2) && (variation != 4))
+			{
+				iien2 = OBJECT_UNKNOWN;
+				Send_DNP_Msg(ERROR_RESPONSE);
+				break;
+			}
+
+			wrk_str[15] = 30;												// object 30
+			wrk_str[16] = 2;												// variation 2: 16-bit with flag
+			wrk_str[17] = 0x00;											// qualifier
+			bytes_to_send = 20;
+			temp_length = 15;
+			crc_cntr = 10;
+			if ((DNPqualifier == 6) || (DNPqualifier == 0))
+			{
+				wrk_str[18] = DNPstart - 1;										// start
+				wrk_str[19] = DNPstop - 1;										// stop
+				str_ptr = 20;												// next position in array
+				DNPqualifier = 0;
+			}
+			else if (DNPqualifier == 1)
+			{
+				wrk_str[17] = 0x01;
+				wrk_str[18] = DNPstart - 1;
+				wrk_str[19] = 0;
+				wrk_str[20] = DNPstop - 1;
+				wrk_str[21] = 0;
+				str_ptr = 22;
+				bytes_to_send = 22;
+				temp_length = 17;
+				crc_cntr = 12;
+			}
+
+			for (i = DNPstart; i <= DNPstop; i++)
+			{
+				switch (i)
+				{
+				case 1: dnp16_value = battery_dnp16; break;
+				case 2: dnp16_value = fault_dnp16; break;
+				case 3: dnp16_value = minus_gnd_dnp16; break;
+				case 4: dnp16_value = ripple_v_dnp16; break;
+				case 5: dnp16_value = ripple_i_dnp16; break;
+				default: continue;
+				}
+
+				for (j = 0; j < 3; j++)
+				{
+					if (crc_cntr == DNP_FRAME_SIZE)
+					{
+						Calc_DNPCRC(&wrk_str[crc_start], DNP_FRAME_SIZE);
+						wrk_str[str_ptr] = crc & 0x00FF;
+						str_ptr++;
+						wrk_str[str_ptr] = crc >> 8;
+						str_ptr++;
+						crc_start += (DNP_FRAME_SIZE + 2);
+						bytes_to_send += 2;
+						crc_cntr = 0;
+					}
+
+					if (j == 0)
+						wrk_str[str_ptr] = 0x01;
+					else if (j == 1)
+						wrk_str[str_ptr] = (uint8)dnp16_value;
+					else
+						wrk_str[str_ptr] = (uint8)(dnp16_value >> 8);
+
+					str_ptr++;
+					bytes_to_send++;
+					temp_length++;
+					crc_cntr++;
+				}
+			}
+
+			if (crc_cntr != 0)
+			{
+				Calc_DNPCRC(&wrk_str[(str_ptr)-crc_cntr], crc_cntr);
+				wrk_str[str_ptr] = crc & 0x00FF;
+				str_ptr++;
+				wrk_str[str_ptr] = crc >> 8;
+				bytes_to_send += 2;
+			}
+
+			wrk_str[2] = temp_length;
+			Calc_DNPCRC(&wrk_str[0], 8);											// Calc the Dll CRC on 8 bytes
+			wrk_str[8] = crc & 0x00FF;
+			wrk_str[9] = crc >> 8;
+			Send_232(bytes_to_send);
+			break;
+		}
 
 		// ************  Add Object 30 - analog (Voltages) *****
 		// ************  variation 0 or 1 - 32 bit analog with flag ***
@@ -1273,8 +1431,8 @@ void DNP_App(void)
 		{
 			DNPqualifier = object_string[obj_ptr + 2];			// get qualifier
 			variation = object_string[obj_ptr + 1];				// get variation
-			if ((variation == 0) || (variation == 1) ||			// Check for allowed
-				(variation == 3))								// variations
+			if ((variation == 0) || (variation == 1) || (variation == 3) ||
+				((rt.operating_protocol == DNP3_16) && ((variation == 2) || (variation == 4))))
 			{
 				iien2 = PARAMETER_ERROR;						// point out of range
 				if (DNPqualifier == 6)							// Qualifier 6 ?

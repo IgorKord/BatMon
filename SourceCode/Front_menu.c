@@ -1160,7 +1160,11 @@ uint8 previous_protocol; // used to detect protocol change for output to console
 void Set_Show_Protocol(char FL ** InfoStr) {
 	// Display the CURRENT operating protocol, not the startup protocol
 	if (rt.operating_protocol == DNP3) {
-		*InfoStr = ("DNP3");
+		*InfoStr = ("DN32");
+		Existing.BRate_index = Baud_19200_i;
+	}
+	else if (rt.operating_protocol == DNP3_16) {
+		*InfoStr = ("DN16");
 		Existing.BRate_index = Baud_19200_i;
 	}
 	else if (rt.operating_protocol == MODBUS) {

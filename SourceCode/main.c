@@ -514,8 +514,9 @@ void Set_USART_UBBRregister(Uint32 BaudRate) // IK20250206
 /// <param name="protocol_index"> Desired protocol (SETUP, DNP3, MODBUS, or ASCII_CMDS)</param>
 void Set_protocol_settings(uint8 protocol_index)
 {
-	// Validate protocol index is in valid range
-	if (protocol_index > ASCII_CMDS) {
+	if ((protocol_index != SETUP) && (protocol_index != DNP3) &&
+		(protocol_index != DNP3_16) && (protocol_index != MODBUS) &&
+		(protocol_index != ASCII_CMDS)) {
 		return;  // Invalid protocol, do nothing
 	}
 
@@ -526,6 +527,7 @@ void Set_protocol_settings(uint8 protocol_index)
 	switch (protocol_index)
 	{
 		case DNP3:
+		case DNP3_16:
 		case MODBUS:
 			// Restore saved user baud rate when leaving ASCII
 			Set_BaudRate(SysData.NV_UI.BRate_index);

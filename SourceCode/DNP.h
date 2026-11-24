@@ -63,6 +63,7 @@ void Build_DNP_DLL_Header(uint8* buf, uint8 length, uint8 control);
 void Calc_DNPCRC(uint8* p, uint16 count);
 
 int Add_DNP_BinaryLongToWorkString(Int32 value, int start_pos);
+int Add_DNP_BinaryShortToWorkString(Int16 value, int start_pos);
 int AddBinaryFloatToWorkString(float value, int start_pos);
 
 // UART transmission
