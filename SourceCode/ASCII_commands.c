@@ -425,7 +425,7 @@ void Print_System_Info(Schar PrintType)
 		//	SysData.NV_UI.V4,
 		//	(SysData.NV_UI.SavedStatusWord & CurOut_I420_eq0_I01_eq1_Bit) ? "20" : " 1",
 		//	SysData.NV_UI.V20,
-		//	TEXT_YESNO[rt.pulse!=0]
+		//	TEXT_YESNO[testBit(Display_Info.Status, RELAY_BRD_PulseON_BIT)!=0)]
 		//);
 		print_line_80chars(); // puts("-------------------------------------------------------------------------------");
 		cputs("Curr Loop Output|");
@@ -435,7 +435,7 @@ void Print_System_Info(Schar PrintType)
 		printf(" mA => %4uV | ", SysData.NV_UI.V4);
 		cputs((SysData.NV_UI.SavedStatusWord & CurOut_I420_eq0_I01_eq1_Bit) ? "1" : "20");
 		printf(" mA => %3uV | PulseTest: ", SysData.NV_UI.V20);
-		cputs(TEXT_YESNO[rt.pulse == 0]);
+		cputs(TEXT_YESNO[testBit(Display_Info.Status, RELAY_BRD_PulseON_BIT) == 0]);
 
 		// IK20250825 IAR printf could not pring %s because it expects pointers to DATA space
 		// Have to use cputs()
@@ -1079,26 +1079,26 @@ void Show_ADCcounts_and_Volts(void)
 void Excitation_Pulse(void)
 {
 	//if (SetGetStatus() != CALIBRATION_DONE)  //if calibrating shut off pulse
-		//clearBit(display_status, DISP_STATE_PulseON_BIT); // &= 0xBF;
+		//clearBit(display_status, RELAY_BRD_PulseON_BIT); // &= 0xBF;
 	char* temp_Inp_str = CommStr; // pointer to RxBuff[0]
 	Uint32 param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 2]); //"024v" or "048v" or "125v" or "250v" starting 1 bytes after command
 	if (temp_Inp_str[CMD_LEN + 1] == '>')
 	{
 		if (param == (('e' + 256 * 'n') + ('a' + 256 * 'b') * 65536))
-			setBit(Display_Info.Status, DISP_STATE_PulseON_BIT);
+			setBit(Display_Info.Status, RELAY_BRD_PulseON_BIT);
 		else if (param == (('d' + 256 * 'i') + ('s' + 256 * 'a') * 65536))
-			clearBit(Display_Info.Status, DISP_STATE_PulseON_BIT);
+			clearBit(Display_Info.Status, RELAY_BRD_PulseON_BIT);
 		else if (param == (('o' + 256 * 'n') + ('\0' + 256 * '\0') * 65536))
-			setBit(Display_Info.Status, DISP_STATE_PulseON_BIT);
+			setBit(Display_Info.Status, RELAY_BRD_PulseON_BIT);
 		else if (param == (('o' + 256 * 'f') + ('f' + 256 * '\0') * 65536))
-			clearBit(Display_Info.Status, DISP_STATE_PulseON_BIT);
+			clearBit(Display_Info.Status, RELAY_BRD_PulseON_BIT);
 		else Send_RCI_Param_Error_as_FlashConst("on off enab disa");
 	}
 	else
 	{
 		Put_CMD_as_chars();
 		PutTwoChars(256 * 'e' + '>');// 256 * '\r' + '\n'
-		if (Display_Info.Status & DISP_STATE_PulseON_BIT)
+		if (Display_Info.Status & RELAY_BRD_PulseON_BIT)
 			cputs("enabled");
 		else cputs("disabled");
 		Send_verbose_comment_as_FlashConst("Current status not EEPROM-saved");
@@ -2263,7 +2263,7 @@ const t_rci_commands rci[] =
 	/*+*/	"vers" ,	(void*)&Print_FW_Version,
 	/*+*/	"hadr",		(void*)&SetGetHostAddress,		// DNP/ModBus Host Address set/get: 'hadr? returns Set command syntax 'hadr=NNNN', DNP range up to 65000, ModBus pange up to 255.  Setting in flash is updated after 'save' command.
 	/*+*/	"madr",		(void*)&SetGetMeterAddress,		// DNP/ModBus Meter Address set/get: 'madr? returns Set command syntax 'madr=NNNN', DNP range up to 65000, ModBus pange up to 255.  Setting in flash is updated after 'save' command.
-	/*+*/	"prot",		(void*)&SetGetProtocol,			// Protocol set/get: DNP or ModBus after startup 'prot>dnp3' temporary or 'prot>dnp3>save' change and save into EEPROM
+	/*+*/	"prot",		(void*)&SetGetProtocol,			// Protocol set/get: DNP or ModBus after startup 'prot>dnp3', 'prot>dnp1' temporary or 'prot>dnp3>save' change and save into EEPROM
 	/*+*/	"baud",		(void*)&SetGetBaudRate,			// Get 'baud[?]' returns Set command syntax 'baud>XXXXX'. Command accepts only std rates. Setting in flash is updated after 'save' command.
 	/*+*/	"unit",		(void*)&SetGetVoltageRange,		// Get 'unit[?]' returns Set command syntax 'unit>XXXv'. Command accepts only 24v, 48v, 125v, 250v. Setting in flash is updated after 'save' command.
 	/*+*/	"hbat",		(void*)&SetGetHighBatThreshold,	// Get 'hbat[?]' returns Set command syntax 'hbat=XXX'. Setting in flash is updated after 'save' command.

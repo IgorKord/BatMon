@@ -232,12 +232,12 @@ void Do_Front_menu(void)
 /*********************************************************************/
 /*  Description:  Changes operating protocol with boundary limits
 	Direction: +1 for UP (increment), -1 for DOWN (decrement)
-	Protocol order: SETUP(0) → DNP3(1) → DNP3_16(0x11) → MODBUS(2) → ASCII(3)
+	Protocol order: SETUP(0) → DNP3(1) → DNP3_16(2) → MODBUS(3) → ASCII(4)
 	Boundaries: SETUP is minimum, ASCII is maximum (no wrap-around)
 
 	Inputs:       direction (+1 or -1)
-	Outputs:      Updates rt.operating_protocol, SysData.NV_UI.StartUpProtocol
-	Notes:        DNP3, DNP3_16 and MODBUS persist to EEPROM, SETUP and ASCII are temporary
+	Outputs:      Updates rt.operating_protocol immediately
+	Notes:        EEPROM is NOT updated here. Persisted protocol is saved only when LIMIT exits menu.
 	Revisions:    20260227 IK Created to consolidate duplicate code
 */
 /*********************************************************************/
@@ -246,19 +246,13 @@ void ChangeProtocol(Schar direction)
 	if (direction > 0) // UP button: increment protocol
 	{
 		if (rt.operating_protocol == SETUP) {
-			SysData.NV_UI.StartUpProtocol = DNP3;		// Persist customer protocol
-			SaveToEE(SysData.NV_UI.StartUpProtocol);
 			timer.start_up_ms = 0;						// Stop SETUP timeout
 			Set_protocol_settings(DNP3);				// Set protocol, baud rate, and show on display
 		}
 		else if (rt.operating_protocol == DNP3) {
-			SysData.NV_UI.StartUpProtocol = DNP3_16;	// Persist customer protocol
-			SaveToEE(SysData.NV_UI.StartUpProtocol);
 			Set_protocol_settings(DNP3_16);			// Set protocol, baud rate, and show on display
 		}
 		else if (rt.operating_protocol == DNP3_16) {
-			SysData.NV_UI.StartUpProtocol = MODBUS;		// Persist customer protocol
-			SaveToEE(SysData.NV_UI.StartUpProtocol);
 			Set_protocol_settings(MODBUS);				// Set protocol, baud rate, and show on display
 		}
 		else if (rt.operating_protocol == MODBUS) {
@@ -270,18 +264,12 @@ void ChangeProtocol(Schar direction)
 	else if (direction < 0) // DOWN button: decrement protocol
 	{
 		if (rt.operating_protocol == ASCII_CMDS) {
-			SysData.NV_UI.StartUpProtocol = MODBUS;		// Persist customer protocol
-			SaveToEE(SysData.NV_UI.StartUpProtocol);
 			Set_protocol_settings(MODBUS);				// Set protocol, baud rate, and show on display
 		}
 		else if (rt.operating_protocol == MODBUS) {
-			SysData.NV_UI.StartUpProtocol = DNP3_16;	// Persist customer protocol
-			SaveToEE(SysData.NV_UI.StartUpProtocol);
 			Set_protocol_settings(DNP3_16);			// Set protocol, baud rate, and show on display
 		}
 		else if (rt.operating_protocol == DNP3_16) {
-			SysData.NV_UI.StartUpProtocol = DNP3;		// Persist customer protocol
-			SaveToEE(SysData.NV_UI.StartUpProtocol);
 			Set_protocol_settings(DNP3);				// Set protocol, baud rate, and show on display
 		}
 		else if (rt.operating_protocol == DNP3) {
@@ -454,7 +442,7 @@ void ProcessUPbutton() {
 				setBit(SysData.NV_UI.SavedStatusWord, SinglePhase_eq0_3ph_eq1_Bit);		// Triple_Phase_Setting
 
 			else if (display_mode == PULSE_STATE_SET)
-				rt.pulse = ON;
+				setBit(Display_Info.Status, RELAY_BRD_PulseON_BIT);
 
 			else if (display_mode == BUZZER_STATE_SET)
 				setBit(SysData.NV_UI.SavedStatusWord, Buzzer_ON_eq1_Bit);
@@ -496,7 +484,7 @@ void ProcessDOWNbutton() {
 			// Immediate DOWN actions (do not require long-press)
 			if (display_mode == PULSE_STATE_SET)
 			{
-				rt.pulse = OFF;
+				clearBit(Display_Info.Status, RELAY_BRD_PulseON_BIT);
 			}
 			else if (display_mode == BUZZER_STATE_SET)
 			{
@@ -550,7 +538,7 @@ void ProcessDOWNbutton() {
 				}
 				else if (display_mode == PULSE_STATE_SET)
 				{
-					rt.pulse = OFF;
+					clearBit(Display_Info.Status, RELAY_BRD_PulseON_BIT);
 				}
 				else if (display_mode == BUZZER_STATE_SET)
 				{
@@ -853,6 +841,33 @@ void Operation(void)
 	{
 		if (limit_mode == TRUE)            //in limit mode so change functions
 		{
+			// Persist edited settings when leaving current LIMIT item.
+			// EEPROM_Save compares old/new and skips unchanged values.
+			SaveToEE(SysData.NV_UI.high_bat_threshold_V_f);
+			SaveToEE(SysData.NV_UI.low_bat_threshold_V_f);
+			SaveToEE(SysData.NV_UI.plus_gf_threshold_V_f);
+			SaveToEE(SysData.NV_UI.minus_gf_threshold_V_f);
+			SaveToEE(SysData.NV_UI.ripple_V_threshold_mV_f);
+			SaveToEE(SysData.NV_UI.ripple_I_threshold_mA_f);
+			SaveToEE(SysData.NV_UI.alarm_delay_sec_f);
+			SaveToEE(SysData.NV_UI.SavedStatusWord);
+
+			// Save protocol selection when user leaves protocol item with short LIMIT.
+			// ASCII and SETUP are temporary: keep previously-saved startup protocol.
+			if (display_mode == SELECT_PROTOCOL)
+			{
+				if ((rt.operating_protocol == DNP3) || (rt.operating_protocol == DNP3_16) || (rt.operating_protocol == MODBUS))
+				{
+					SysData.NV_UI.StartUpProtocol = rt.operating_protocol;
+					SaveToEE(SysData.NV_UI.StartUpProtocol);
+					Existing.StartUpProtocol = SysData.NV_UI.StartUpProtocol;
+				}
+				else
+				{
+					SysData.NV_UI.StartUpProtocol = Existing.StartUpProtocol;
+				}
+			}
+
 			timer.disp_var_change_ms = 400;
 
 			if (In_setup_alarm_limits_mode == TRUE)
@@ -940,6 +955,21 @@ void Operation(void)
 				SaveToEE(SysData.NV_UI.alarm_delay_sec_f);
 			if ((Existing.SavedStatusWord) != (SysData.NV_UI.SavedStatusWord))				//is it changed?
 				SaveToEE(SysData.NV_UI.SavedStatusWord);
+
+			// Save selected startup protocol only when leaving LIMIT menu.
+			// ASCII and SETUP are temporary: keep previously-saved startup protocol.
+			if ((rt.operating_protocol == DNP3) || (rt.operating_protocol == DNP3_16) || (rt.operating_protocol == MODBUS))
+			{
+				if (SysData.NV_UI.StartUpProtocol != rt.operating_protocol)
+				{
+					SysData.NV_UI.StartUpProtocol = rt.operating_protocol;
+					SaveToEE(SysData.NV_UI.StartUpProtocol);
+				}
+			}
+			else
+			{
+				SysData.NV_UI.StartUpProtocol = Existing.StartUpProtocol;
+			}
 // IK20250812 not saving pulse status in EEPROM, there is possibility that it would be enabled after power-off - on
 			//if (Existing.phase != SysData.NV_UI.phase) //is it changed?
 			//	SaveToEE(SysData.NV_UI.phase);
@@ -989,16 +1019,15 @@ void Operation(void)
 	{
 		ProcessDOWNbutton();
 	}
-	//Display_Info.Status housekeeping, handle pulse LED
-	if (rt.pulse == FALSE) {											// set/clr bit in display status
-		//Display_PulseLED_OFF;	// clearBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT); // Bit_2
-		clearBit(Display_Info.Status, DISP_STATE_PulseON_BIT | DISP_LED_Pulse_ON_BIT);			// clear Bit_14 and Bit_2
-	}
-	else //if (SysData.NV_UI.pulse == TRUE)
-	{
-		//Display_PulseLED_ON;											// setBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT);	// Bit_2
-		setBit(Display_Info.Status, DISP_STATE_PulseON_BIT | DISP_LED_Pulse_ON_BIT);			// set Bit_14 and Bit_2
-	}
+	// IK20261124 now one bit handle pulse and LED
+	//if (testBit(Display_Info.Status, RELAY_BRD_PulseON_BIT))  // Bit_2 // set/clr bit in display status
+	//{											
+	//	clearBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT);			// clear Bit_14
+	//}
+	//else // no pulse
+	//{
+	//	setBit(Display_Info.Status,  DISP_LED_Pulse_ON_BIT);			// set Bit_14 and Bit_2
+	//}
 
 	//Check Reset Button
 	if (Display_Info.butt_states & BUTTON_RESET_SHORT_PRESS_BIT)		//Short press of Reset button
@@ -1328,7 +1357,7 @@ void DisplayPrepare(void)
 	}
 	else if (display_mode == PULSE_STATE_SET)
 	{
-		if (rt.pulse == ON) // should NOT be saved in NV memory, it is a test signal. defined in Real Time structure
+		if (testBit(Display_Info.Status, RELAY_BRD_PulseON_BIT)) // should NOT be saved in NV memory, it is a test signal. defined in Real Time structure
 			p_InfoStr = ("P_ON");
 		else
 			p_InfoStr = ("P_OF");

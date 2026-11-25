@@ -1779,9 +1779,9 @@ void Write_LEDs_OnDisplayBoard (uint8 LED_Buzz_bits)
 	// #define DISP_LED_Pulse_ON_BIT          Bit_2	// in Display_Info.Status. Use 68 to turn on, 64 to turn all LEDs off
 	// #define DISP_Buzzer_ON_BIT             Bit_3	// in Display_Info.Status. Use 72 to turn on, 64 to turn all LEDs and Buzzer off
 	// the tx/Rx LED is controlled directly by Comm board
-	TWI_Write(DISPLAY_WRITE_ADR, TWI_SET_DISPLAY_LEDs, LED_Buzz_bits, 0);
+	TWI_Write(DISPLAY_WRITE_ADR, TWI_SET_DISPLAY_LEDs, (LED_Buzz_bits & LED_Buzz_MASK), 0);
 #ifdef PC // for simulation only
-	if (LED_Buzz_bits >= LEDsControlledByCommBrd) // if value is more than 64 - easier to test firmware setting 107 to turn all LESs on or 0 to disable overwrite
+	if (LED_Buzz_bits >= LEDsControlledByCommBrd) // if value is more than 64 - easier to test firmware setting 107 to turn all LEDs on or 0 to disable overwrite
 	{
 		if (LED_Buzz_bits & DISP_LED_Auto_ON_BIT) { // Bit_0
 			SetAutoLEDred;
@@ -3648,6 +3648,11 @@ void EEPROM_Write_byte(uint16 EEaddress, uint8 value) // IK20231214
 #ifdef EEsimulator
 	EEPROM[EEaddress] = value;
 #else
+	// IK20261124 added check if byte we want to write is the same - do not wear EEPROM with unnecessary write
+	uint8 eByte = EEPROM_Read_byte(EEaddress);		// read byte from EEPROM to compare
+	if (value == eByte)								// if the bytes are NOT the same, write
+		return;
+
 #endif
 	WATCHDOG_RESET();
 	//store into EE address a byte
@@ -3733,7 +3738,7 @@ void SetSysDataDefaultsInRAM(void)
 	Sp->inter_char_gap = DEF_INTER_CHAR;								// inter-char gap, default = 1041
 	Sp->xmt_delay = DEF_XMT_DELAY;										// xmt delay
 																		// whether or not latch on some event or when condition clears, restore normal operation
-	rt.pulse = OFF;
+	clearBit(Display_Info.Status, RELAY_BRD_PulseON_BIT);
 
 	Sp->NV_UI.StartUpProtocol = DNP3;									// SysData.NV_UI.StartUpProtocol byte, enum DNP or MODBUS
 	rt.protocol_parity = NONE;											// 0 == NONE; 1 == rt.UART_parity EVEN; 2 == rt.UART_parity ODD
@@ -4547,7 +4552,7 @@ void main(void)
 			if (measurement_ID == DISPLAY_DATA) // if == 20 0x14 time to send & rcv display data to/from Display board
 			{
 			// since display menu code incorporated into Comm board code, no need to send messages to Display board
-				if ((((tmp_display_status ^ Display_Info.Status) & DISP_STATE_PulseON_BIT) == 0) ||		//  CHECK Bitwise exclusive OR
+				if ((((tmp_display_status ^ Display_Info.Status) & RELAY_BRD_PulseON_BIT) == 0) ||		//  CHECK Bitwise exclusive OR
 					((tmp_display_status ^ Display_Info.Status) & DISP_SELECTED_3PH_BIT) == 0)
 				{												// Phase or bbpulse selection changed
 					io_update = true;
@@ -4562,7 +4567,7 @@ void main(void)
 			{
 				Create_Relay_Board_setting();
 				if (cal_status != CALIBRATION_DONE)									// if calibrating shut off pulse
-					clearBit(Display_Info.Status, DISP_STATE_PulseON_BIT);
+					clearBit(Display_Info.Status, RELAY_BRD_PulseON_BIT);
 				Communicate_w_Relay_board();
 				measurement_ID = IO_DATA;
 			}//end RELAY_DATA
@@ -4791,7 +4796,7 @@ void Create_Relay_Board_setting(void) {
 			if (Relay_invert)
 				Relay_byte ^= (1 << out_index);
 		}
-		if (Display_Info.Status & DISP_STATE_PulseON_BIT) // if Bit_14 is set
+		if (Display_Info.Status & RELAY_BRD_PulseON_BIT) // if Bit_14 is set
 			setBit(Relay_byte, RELAY_BRD_EXCIT_PULSE_BIT); // set Bit_4 in Relay_byte; it will turn on excitation on relay board
 		else
 			clearBit(Relay_byte, RELAY_BRD_EXCIT_PULSE_BIT); // clear Bit_4 in Relay_byte; it will turn off excitation

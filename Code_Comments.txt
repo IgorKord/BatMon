@@ -1,3 +1,11 @@
+20261125 
+>>>NEED CHECKING expo must include prot>dnp3 or prot>dnp1 or prot>modb
+
+20261124 
+>>> FIXED ST-found bug: using pulse command 'pulse>enabled' it does accept command and change bit but something else resets it somewhere
+>>> ADDED DNP3 16 bit protocol
+
+
 20261115 IK
 >>>BUG>>> relay 4 should react on AC loss
 rel1=0004 // K1 triggers: bit 0...9 |   |   |+GF|   |   |   |   |   |   |
@@ -18,9 +26,6 @@ but ASCII is not saved into EEPROM. if unit is turned off in this condition, Mod
 User changes from DNP3->MBUS (saved to EEPROM)->ASCII (no save)->MBUS (saved to EEPROM)->DNP3 (saved to EEPROM)
 >>>BUG>> 'eleds=ff' command turns all ext LEDs on and also Relay K1
 
-20261008 ST a bug: 
->>>BUG using pulse command 'pulse>enabled' it does accept command and change bit but something else resets it somewhere
->>>
 
 20261103 IK
 Erased EEPROM and program starts normally

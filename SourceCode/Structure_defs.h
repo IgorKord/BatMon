@@ -272,7 +272,8 @@ typedef struct  { // RealTimeVars
 	uint8 operating_protocol;
 
 	uint8  InfoLED_blink_eq1;					//-!- should be a bit in OperStatusWord
-	uint8  pulse;								//-!- IK20250204 SHOULD NOT BE SAVED IN FLASH! It creates pulses in battery charging line //#define Pulse_Test_eq1_Bit            Bit_0	//  =1 test in progress (inject pulses), 0=normal work
+// IK 20261124 replaced with testBit(Display_Info.Status, DISP_LED_Pulse_ON_BIT | RELAY_BRD_PulseON_BIT)
+// 	uint8  pulse;								//-!- IK20250204 SHOULD NOT BE SAVED IN FLASH! It creates pulses in battery charging line //#define Pulse_Test_eq1_Bit            Bit_0	//  =1 test in progress (inject pulses), 0=normal work
 
 	//---- Modbus Variables ----
 	uint8  registers;							// ModBus: how many bytes are coming: 4*registers

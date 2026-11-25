@@ -512,9 +512,9 @@ typedef int                  int16;
 #define BAD_VALUE_ERR			PARAM_ERROR		//	 Bad SI/O parameter value
 
 // IK20250814 Bits used with former 'Display_Info.LED_status', now lower byte of Display_Info.Status
-// IK20250814 if combine PULSE_BIT used for Pulse LED and DISP_STATE_PulseON_BIT for producing pulses on Relay board,
-// using Pulse LED for time measuring would cause pulce generation on Relay board
-// better to keep them separate, so that Pulse LED can be used for time measuring and DISP_STATE_PulseON_BIT can be used for Relay board pulse generation
+// IK20250814 if combine PULSE_BIT used for Pulse LED and RELAY_BRD_PulseON_BIT for producing pulses on Relay board,
+// using Pulse LED for time measuring would cause pulse generation on Relay board
+// better to keep them separate, so that Pulse LED can be used for time measuring and RELAY_BRD_PulseON_BIT can be used for Relay board pulse generation
 
 //#define led_status                  Display_Info.Status
 // lower byte of Display_Info.Status is used to control LEDs and buzzer on Front board
@@ -522,6 +522,10 @@ typedef int                  int16;
 #define DISP_LED_Alarm_ON_BIT       Bit_1	// 0x0002 in Status
 #define DISP_LED_Pulse_ON_BIT       Bit_2	// 0x0004 in Status
 #define DISP_Buzzer_ON_BIT          Bit_3	// 0x0008 in Status
+#define LED_Buzz_MASK  (DISP_LED_Auto_ON_BIT | DISP_LED_Alarm_ON_BIT | DISP_LED_Pulse_ON_BIT | DISP_Buzzer_ON_BIT)
+
+#define RELAY_BRD_PulseON_BIT       DISP_LED_Pulse_ON_BIT	//IK20261124 combined LED and pulse bit - they always work together, no need two separate bits
+//IK20250204 SHOULD NOT BE SAVED IN FLASH! It creates pulses in battery charging line
 
 #define LEDsControlledByCommBrd     Bit_6	// 0x0040 if (OverwriteLEDs > LEDsControlledByCommBrd) // if value is more than 64 - easier to test firmware setting 107 to turn all LESs on or 0 to disable overwrite
 
@@ -533,8 +537,7 @@ typedef int                  int16;
 #define DISP_STATE_ButtonUP_BIT     Bit_11	// 0x0800 'UP' button pressed bit
 #define DISP_STATE_VoltCal_BIT      Bit_12	// 0x1000 display_status |= 0x10;    //set Volt cal bit
 #define DISP_SELECTED_3PH_BIT       Bit_13	// 0x2000 3phase mode selected - Comm bord uses different calibration settings
-#define DISP_STATE_PulseON_BIT      Bit_14	// 0x4000 if (pulse == FALSE)   //set/clr bit in display status; IK20250204 SHOULD NOT BE SAVED IN FLASH! It creates pulses in battery charging line
-#define DISP_STATE_0_1mA_BIT        Bit_15	// 0x8000 display_status |= 0x80; //set 0-1ma bit
+#define DISP_STATE_0_1mA_BIT        Bit_14	// 0x4000 display_status |= 0x80; //set 0-1ma bit
 
 #define Display_AutoLED_OFF      clearBit(Display_Info.Status, DISP_LED_Auto_ON_BIT)	// Bit_0
 #define Display_AutoLED_ON         setBit(Display_Info.Status, DISP_LED_Auto_ON_BIT)	// Bit_0
