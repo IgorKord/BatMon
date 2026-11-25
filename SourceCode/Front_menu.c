@@ -232,12 +232,12 @@ void Do_Front_menu(void)
 /*********************************************************************/
 /*  Description:  Changes operating protocol with boundary limits
 	Direction: +1 for UP (increment), -1 for DOWN (decrement)
-	Protocol order: SETUP(0) → DNP3(1) → MODBUS(2) → ASCII(3)
+	Protocol order: SETUP(0) → DNP3(1) → DNP3_16(0x11) → MODBUS(2) → ASCII(3)
 	Boundaries: SETUP is minimum, ASCII is maximum (no wrap-around)
 
 	Inputs:       direction (+1 or -1)
 	Outputs:      Updates rt.operating_protocol, SysData.NV_UI.StartUpProtocol
-	Notes:        DNP3 and MODBUS persist to EEPROM, SETUP and ASCII are temporary
+	Notes:        DNP3, DNP3_16 and MODBUS persist to EEPROM, SETUP and ASCII are temporary
 	Revisions:    20260227 IK Created to consolidate duplicate code
 */
 /*********************************************************************/
@@ -252,6 +252,11 @@ void ChangeProtocol(Schar direction)
 			Set_protocol_settings(DNP3);				// Set protocol, baud rate, and show on display
 		}
 		else if (rt.operating_protocol == DNP3) {
+			SysData.NV_UI.StartUpProtocol = DNP3_16;	// Persist customer protocol
+			SaveToEE(SysData.NV_UI.StartUpProtocol);
+			Set_protocol_settings(DNP3_16);			// Set protocol, baud rate, and show on display
+		}
+		else if (rt.operating_protocol == DNP3_16) {
 			SysData.NV_UI.StartUpProtocol = MODBUS;		// Persist customer protocol
 			SaveToEE(SysData.NV_UI.StartUpProtocol);
 			Set_protocol_settings(MODBUS);				// Set protocol, baud rate, and show on display
@@ -270,6 +275,11 @@ void ChangeProtocol(Schar direction)
 			Set_protocol_settings(MODBUS);				// Set protocol, baud rate, and show on display
 		}
 		else if (rt.operating_protocol == MODBUS) {
+			SysData.NV_UI.StartUpProtocol = DNP3_16;	// Persist customer protocol
+			SaveToEE(SysData.NV_UI.StartUpProtocol);
+			Set_protocol_settings(DNP3_16);			// Set protocol, baud rate, and show on display
+		}
+		else if (rt.operating_protocol == DNP3_16) {
 			SysData.NV_UI.StartUpProtocol = DNP3;		// Persist customer protocol
 			SaveToEE(SysData.NV_UI.StartUpProtocol);
 			Set_protocol_settings(DNP3);				// Set protocol, baud rate, and show on display
@@ -1266,19 +1276,22 @@ void DisplayPrepare(void)
 			{
 				uint8 ProtocolIndex = SysData.NV_UI.StartUpProtocol; //Ik20260225  show saved into EEPROM protocol
 #ifdef PROT_NAMES_3CHARS
-				char BriefProtocolNames[4][3] = {
-					'I','n','i',
-					'D','n','P',
+				char BriefProtocolNames[5][3] = {
+					'I','n','I',
+					'D','n','3',
+					'D','n','1',
 					'M','O','d',
 					'A','S','C',
+				};
 				char ch1 = BriefProtocolNames[ProtocolIndex][0];
 				char ch2 = BriefProtocolNames[ProtocolIndex][1];
 				char ch3 = BriefProtocolNames[ProtocolIndex][2];
 				sprintf(Display_Info.DigitalStr,"%2.1f%c%c%c",display_value,ch1,ch2, ch3);
 #else
-				char BriefProtocolNames[4][2] = {
-					'I','n',
-					'd','n', // DNP
+				char BriefProtocolNames[5][2] = {
+					'I','n', // Init
+					'd','3', // DNP32
+					'd','1', // DNP16
 					'b','u', // ModBus. cannot show 'M' in "Mb", showing 'bus', Alternatively, show "bS" but this might have bad associations ;-)
 					'A','S', // ASCII
 				};

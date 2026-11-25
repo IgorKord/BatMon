@@ -804,10 +804,10 @@ enum Protocols	// IK20251230 CHANGED to regular number
 {
    SETUP = 0x00,
    DNP3 =  0x01,		// 32-bit standard protocol
-   MODBUS = 0x02,		//
-   ASCII_CMDS = 0x03,	//
+   DNP3_16 = 0x02,		// 16-bit protocol
+   MODBUS  = 0x03,		//
+   ASCII_CMDS = 0x04,	//
    //IK20261123 adding DNP 16 bit
-   DNP3_16 =  0x11,		// 16-bit protocol: Bit_4 is set together with Bit_1
 };
 //#define PROTOCOL_SELECTION_INC_DEC  (DNP3 - SETUP) //
 

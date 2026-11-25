@@ -356,7 +356,8 @@ uint8 const UnitTypes[4] = {
 const char FL * ProtocolNames[] =
 {
 	"Setup",
-	"DNP3",
+	"DNP32",
+	"DNP16",
 	"ModBus",
 	"ASCII"
 };
@@ -2580,13 +2581,16 @@ void Parse_Setup_Msg(void)
 		case 'D':								// "WD###"	// SysData.NV_UI.StartUpProtocol
 			tmpByte = rt.HostRxBuff[5];
 			send_setup = SEND_PROTOCOL;						// send SysData.NV_UI.StartUpProtocol
-			if (rt.HostRxBuff[3] == 'W')					// is it a write?
+			if (rt.HostRxBuff[3] == 'W')					// is it a write?  Set SysData.NV_UI.StartUpProtocol
 			{
-				if ((tmpByte == '1') || (tmpByte == '2'))	// Set SysData.NV_UI.StartUpProtocol
-				{
-					SysData.NV_UI.StartUpProtocol = tmpByte - '0';	// char '1' is conveted to binary 1 which is DNP3
-					SaveToEE(SysData.NV_UI.StartUpProtocol);		// char '2' is conveted to binary 2 which is Modbus
-				}
+				// IK20261124 modified to include DNP3_16 preserving windows PC app  BatMon_Setup standard command set: WD1 - set DNP3; WD2 - set MODBUS
+				signed char prtcl = 0;
+				if (tmpByte == '1') prtcl = DNP3;			// char '1' is conveted to binary 1 which is DNP3
+				else if (tmpByte == '2') prtcl = MODBUS;	// char '2' is conveted to binary 3 which is Modbus
+				else if (tmpByte == '3') prtcl = DNP3_16;	// char '3' is conveted to binary 2 which is DNP3_16 - NEW SETUP COMMAND
+				else break; // incorrect parameter - exit
+				SysData.NV_UI.StartUpProtocol = prtcl;
+				SaveToEE(SysData.NV_UI.StartUpProtocol);
 				display_mode = SELECT_PROTOCOL;				//-!- IK20260511 this will show on display "SETUP" based on rt.operating_protocol, but should show EEPROM-saved protocol
 				// SysData.NV_UI.StartUpProtocol = SysData.NV_UI.StartUpProtocol; // IK20260205 commented out because this would kick out of setup
 			}
@@ -4427,7 +4431,7 @@ void main(void)
 				rt.operating_protocol = SysData.NV_UI.StartUpProtocol; // this also means the code setting BR below runs only once
 
 				// Set appropriate baud rate for the protocol
-				if (rt.operating_protocol == DNP3 || rt.operating_protocol == MODBUS)
+				if (rt.operating_protocol == DNP3 || rt.operating_protocol == DNP3_16 || rt.operating_protocol == MODBUS)
 				{
 					Existing.BRate_index = SysData.NV_UI.BRate_index;
 					Existing.baud_rate = SysData.NV_UI.baud_rate;
@@ -4450,7 +4454,7 @@ void main(void)
 						UCSR0C = 0x36;									// make it odd
 					rt.first_register = SysData.NV_UI.modbus_first_reg;	// IK20260501 separate location
 				}
-				else if (rt.operating_protocol == DNP3) 					// init incoming buffer
+				else if ((rt.operating_protocol == DNP3) || (rt.operating_protocol == DNP3_16)) 					// init incoming buffer
 				{
 					UCSR0C = 0x06;										// no UART_parity, async, 1 stop
 					rt.host_address = SysData.NV_UI.host_address;		// DNP3 uses host address

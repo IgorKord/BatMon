@@ -1702,11 +1702,13 @@ void SwitchToModBus(void)
 // Obviously, to execute this ASCII command, acting protocol rt.operating_protocol must be ASCII
 // Command 'prot? returns current protocol from SysData.NV_UI.StartUpProtocol which is copied from EEPROM at startup.
 // 'prot>modb>save' - changes SysData.NV_UI.StartUpProtocol=MODBUS and saves into EEPROM. NOTE: rt.operating_protocol is still ASCII
-// 'prot>dnp3>save' - changes SysData.NV_UI.StartUpProtocol=DNP3   and saves into EEPROM. NOTE: rt.operating_protocol is still ASCII
+// 'prot>dnp3>save' - changes SysData.NV_UI.StartUpProtocol=DNP3   (32-bit) and saves into EEPROM. NOTE: rt.operating_protocol is still ASCII
+// 'prot>dnp1>save' - changes SysData.NV_UI.StartUpProtocol=DNP3_16 (16-bit) and saves into EEPROM. NOTE: rt.operating_protocol is still ASCII
 //  On next start up, the protocol will be what is saved in EEPROM.
 // To change active protocol in RAM, use 'prot>####>now' command.
 // 'prot>now>modb' sets modbus immediately. NEVER USE IN PARAMETER FILE, for testing only. rt.operating_protocol is changed to ModBus, but not saved into SysData.NV_UI.StartUpProtocol and EEPROM
-// 'prot>now>dnp3' sets DNP3   immediately, NEVER USE IN PARAMETER FILE, for testing only. rt.operating_protocol is changed to DNP3,   but not saved into SysData.NV_UI.StartUpProtocol and EEPROM
+// 'prot>now>dnp3' sets DNP3   (32-bit) immediately, NEVER USE IN PARAMETER FILE, for testing only. rt.operating_protocol is changed to DNP3,   but not saved into SysData.NV_UI.StartUpProtocol and EEPROM
+// 'prot>now>dnp1' sets DNP3_16 (16-bit) immediately, NEVER USE IN PARAMETER FILE, for testing only. rt.operating_protocol is changed to DNP3_16, but not saved into SysData.NV_UI.StartUpProtocol and EEPROM
 void SetGetProtocol(void)
 {
 	char* temp_Inp_str = CommStr; // pointer to rt.RxBuff[0]
@@ -1725,9 +1727,10 @@ void SetGetProtocol(void)
 			param = Convert_4_ASCII_to_Uint32(&temp_Inp_str[CMD_LEN + 5]);
 		}
 		//SETUP = 0x00,
-		//DNP3 = 0x01,
-		//MODBUS = 0x02,
-		//ASCII_CMDS = 0x03,
+		//DNP3  = 0x01,
+		//DNP3_16 = 0x02,
+		//MODBUS = 0x03,
+		//ASCII_CMDS = 0x04,
 		{
 			if (param == (('d' + 256 * 'n') + ('p' + 256 * '3') * 65536))
 			{
@@ -1739,6 +1742,21 @@ void SetGetProtocol(void)
 				}
 				else
 					SwitchToDNP();      // will send ">~OK\r\n" then switch
+			}
+			else if (param == (('d' + 256 * 'n') + ('p' + 256 * '1') * 65536))
+			{
+				if (change_now == 0)	// if '>now>' not used: save to EEPROM only, do NOT change runtime
+				{
+					SysData.NV_UI.StartUpProtocol = DNP3_16;	// Update RAM copy of variable
+					SaveToEE(SysData.NV_UI.StartUpProtocol);	// Update EEPROM variable
+					// Do NOT update rt.operating_protocol - keeps ASCII active so remaining commands work
+				}
+				else
+				{
+					cputs("Switching to DNP3 16bit\r\n>~OK\r\n");
+					Delay_ms(100);
+					Set_protocol_settings(DNP3_16);
+				}
 			}
 			else if (param == (('m' + 256 * 'o') + ('d' + 256 * 'b') * 65536))
 			{
@@ -1762,7 +1780,7 @@ void SetGetProtocol(void)
 				Set_protocol_settings(SETUP); // Set protocol, baud rate, and show on display
 			}
 			else {
-				Send_RCI_Param_Error_as_FlashConst(">now >DNP3 >ModBus >Setup");
+				Send_RCI_Param_Error_as_FlashConst(">now >DNP32 >DNP16 >ModBus >Setup");
 				return;
 			}
 		}
@@ -1770,11 +1788,16 @@ void SetGetProtocol(void)
 	}
 	else // ? -- get command //-!-IK20260911 extend for now? or in EEPROM?
 	{
-		uint8 ProtocolIndex = SysData.NV_UI.StartUpProtocol; // 0->0; 0x11->1; 0x22->2, 0x33->3, 0x44->4)
+		uint8 ProtocolIndex = SysData.NV_UI.StartUpProtocol;
 		Put_CMD_as_chars();
 		PutChar('>');
-		if (ProtocolIndex < 4)
+		//if (ProtocolIndex == DNP3_16)
+		//	cputs("DNP1");
+		//else 
+		if (ProtocolIndex <= ASCII_CMDS)
 			cputs(ProtocolNames[ProtocolIndex]);
+		else
+			cputs("NotSet");
 		Send_verbose_comment_as_FlashConst("StartUp protocol");
 	}
 }
