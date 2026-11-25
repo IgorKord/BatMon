@@ -3012,9 +3012,9 @@ void EEPROM_SaveCal(Calibr2points* CalStructureAdr)
 /// <returns>false if calibration in process, true when calibration is finished</returns>
 uint8 PerformCalibration(Calibr2points* CalStructAdr, float RawADC_float)
 {
-	if (((cal_status & RECEIVED_EXT_LO_VALUE) != 0) && (timer.Calibration != 0)) // we have gotten extenally measured Low value already via DNP, (cal_status & 0x01) == 0x01)
+	if (((cal_status & RECEIVED_EXT_LO_VALUE) != 0) && (timer.Calibration != 0)) // we have gotten externally measured Low value already via DNP, (cal_status & 0x01) == 0x01)
 	{
-		CalStructAdr->X1_lowADCcounts = RawADC_float;			// save externally measured counts for low point
+		CalStructAdr->X1_lowADCcounts = RawADC_float;	// save externally measured counts for low point
 		clearBit(cal_status, RECEIVED_EXT_LO_VALUE);	// clear cal low measurement rcvd = cal_status &= 0xFE;
 		setBit(cal_status, SAVED_LOW_MEASUREMENT);		// set low cal measurement saved  = cal_status |= 0x04;
 		timer.Calibration = 0;
@@ -3023,7 +3023,7 @@ uint8 PerformCalibration(Calibr2points* CalStructAdr, float RawADC_float)
 	{
 		clearBit(cal_status, RECEIVED_EXT_HI_VALUE);	// clear cal high measurement rcvd = cal_status &= 0xFD;
 		setBit(cal_status, SAVED_HIGH_MEASUREMENT);		// set high cal measurement saved  = cal_status |= 0x08;
-		CalStructAdr->X2_highADCcounts = RawADC_float;			//measured counts for high point
+		CalStructAdr->X2_highADCcounts = RawADC_float;	// measured counts for high point
 		timer.Calibration = DEF_CALIBRATION_DELAY;		//-!-IK20250807 check, 15 seconds is too long? Should be enough to have 1.5 seconds
 	}
 	if ((cal_status & (SAVED_LOW_MEASUREMENT | SAVED_HIGH_MEASUREMENT)) == (SAVED_LOW_MEASUREMENT | SAVED_HIGH_MEASUREMENT))
@@ -3034,7 +3034,7 @@ uint8 PerformCalibration(Calibr2points* CalStructAdr, float RawADC_float)
 		calibr_step = CALIBRATION_DONE;
 		return TRUE;									// calibration done
 	}
-		return FALSE;									// calibration in process
+	return FALSE;										// calibration in process
 }
 
 void CalibrationSteps(uint16 RawADCcounts)
@@ -3047,7 +3047,7 @@ void CalibrationSteps(uint16 RawADCcounts)
 	if (measurement_ID == ADC_BATT_VOLTS)
 	{
 		CalStructPtr = &SysData.BatteryVolts;
-		if (calibr_step == ADC_BATT_VOLTS)	// ADC_BAT_VOLTS is in indicated by cal_status |= 0x08;        //set low cal measurement rcvd
+		if (calibr_step == ADC_BATT_VOLTS)	// ADC_BAT_VOLTS is indicated by cal_status |= 0x08;        //set low cal measurement rcvd
 		{
 			if (PerformCalibration(CalStructPtr, RawADC_f) == TRUE) {
 				SysData.Bat_Cal_Offset_Volts_f = 0;                   //calibrated so zero offset
@@ -3062,7 +3062,7 @@ void CalibrationSteps(uint16 RawADCcounts)
 		//rt.OutData.measured.battery_voltage_f = X1 + ((X2 - X1) * (inp - Y1) / (Y2 - Y1));  //128891 mV
 
 		rt.OutData.measured.battery_voltage_f = Read_TWI_ADC_and_interpolate(CalStructPtr) + SysData.Bat_Cal_Offset_Volts_f; //IK20251029 offset rarely changes, only by user from a front panel CALibration menu.
-		//Typically, operator with sertified calibrated meter measures battery voltage and adjusts offset to match displayed voltage to his meter.
+		//Typically, operator with certified calibrated meter measures battery voltage and adjusts offset to match displayed voltage to his meter.
 #ifdef UNI_BI_POLAR_INPUTS //UNIPOLAR_INPUTS were depricated on 2018-May-24
 		if (SysData.input_type[1] == UNIPOLAR)                   //if unipolar
 			rt.OutData.measured.battery_voltage_f *= 2;                 //multiply by 2
@@ -3096,7 +3096,7 @@ void CalibrationSteps(uint16 RawADCcounts)
 		if (tmp_result < 0)
 			OCR1A = 65535;															// PWM of 1%
 		else
-			OCR1A = (uint16)tmp_result;
+			OCR1A = (uint16)tmp_result;												// PWM duty cycle scaled
 	}
 	if (measurement_ID == ADC_FAULT_VOLTS)
 	{

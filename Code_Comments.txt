@@ -1,5 +1,26 @@
 20261125 
->>>NEED CHECKING expo must include prot>dnp3 or prot>dnp1 or prot>modb
+>>>NEED CHECKING calibration sets 13000 on BM instead of 130.00
+Calibration is off by 1000: when I calibrate, I set a voltage on power supply, say 80V. The precision multimeter reads that voltage, say, 80.02V,
+and reports it to calibration program on PC. The program on PC send calibration command via DNP togeter with this voltage. as example, see definition
+of commands in GLOBALS.h, line 1050: 
+#define CmdCalibrateVrange          39  // index = 39 (send this command with param = Calibrate_xxxV) 
+The FW recognizes calibration command in DNP.c, function DNP_app(), line 1746. in firmware, ADC measures this channel and reports raw_ADC_counts, say 14321. 
+The Calibration command received via DNP associates  the received voltage (80.02) with  raw_ADC_counts = 14321 and saves: SysData.BatteryVolts.Y1_lowCalibrVal = 80.02
+and SysData.BatteryVolts.X1_lowADCcounts = 14321. Problem: I cannot change calibration program on PC, - calibration works correctly with old firware, display shows 80.0
+when I calibrate with new firmware, I see 80020 in display instead of 80.02. somewhere there is exta 1000 factor. please fix
+
+Problem summary:
+•	In project SourceCode (firmware), calibration over DNP stores battery calibration input with a 1000x scale mismatch.
+•	With old firmware, PC calibration input produces ~80.02 V display.
+•	With new firmware, same flow shows 80020, indicating millivolts are being treated as volts.
+Primary hypothesis:
+•	In SourceCode\DNP.c (lines around 1850–1857 and 1821–1828), tmp_cal for voltage channels is saved directly into Y1_lowCalibrVal / Y2_highCalibrVal.
+•	The calibration program appears to send voltage as mV-scaled integer (e.g., 80.02 V -> 80020), but battery/fault/minus-ground calibration structs and interpolation logic (SourceCode\main.c LinInterpolation) expect volts.
+•	Missing * 0.001f conversion for these voltage calibration commands causes 1000x output.
+
+
+
+
 
 20261124 
 >>> FIXED ST-found bug: using pulse command 'pulse>enabled' it does accept command and change bit but something else resets it somewhere
